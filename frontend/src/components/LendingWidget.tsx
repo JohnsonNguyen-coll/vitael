@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DollarSign, ShieldCheck, Flame, Plus } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import TokenIcon from "./TokenIcon";
 
 export default function LendingWidget() {
     const [activeTab, setActiveTab] = useState<"supply" | "borrow">("supply");
@@ -10,14 +12,10 @@ export default function LendingWidget() {
     const [isExecuting, setIsExecuting] = useState(false);
     const [txSuccess, setTxSuccess] = useState(false);
 
-    // Yield Calculations
     const supplyAPY = 12.42;
     const borrowAPY = 14.15;
     const currentAPY = activeTab === "supply" ? supplyAPY : borrowAPY;
-    
-    const monthlyYield = activeTab === "supply" 
-        ? (amount * (supplyAPY / 100)) / 12 
-        : (amount * (borrowAPY / 100)) / 12;
+    const monthlyYield = (amount * (currentAPY / 100)) / 12;
 
     const handleExecute = () => {
         setIsExecuting(true);
@@ -30,33 +28,33 @@ export default function LendingWidget() {
 
     return (
         <div className="glass-panel p-6 rounded-3xl w-full max-w-md relative overflow-hidden">
-            {/* Glow Accent */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-cyan/10 rounded-full blur-2xl pointer-events-none" />
+            {/* Glow */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#00F5FF]/5 rounded-full blur-2xl pointer-events-none" />
 
             {/* Success Overlay */}
             <AnimatePresence>
                 {txSuccess && (
-                    <motion.div 
+                    <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-navy/95 z-20 flex flex-col items-center justify-center p-6 text-center"
+                        className="absolute inset-0 bg-[#0A1428]/95 z-20 flex flex-col items-center justify-center p-6 text-center rounded-3xl"
                     >
-                        <motion.div 
+                        <motion.div
                             initial={{ scale: 0.5 }}
                             animate={{ scale: 1 }}
                             transition={{ type: "spring", damping: 15 }}
-                            className="w-16 h-16 bg-cyan/10 border border-cyan/30 rounded-full flex items-center justify-center mb-4 text-cyan"
+                            className="w-16 h-16 bg-[#00F5FF]/10 border border-[#00F5FF]/30 rounded-full flex items-center justify-center mb-4 text-[#00F5FF]"
                         >
                             <ShieldCheck className="w-8 h-8" />
                         </motion.div>
-                        <h4 className="text-xl font-bold font-display text-white mb-2">Transaction Successful</h4>
-                        <p className="text-sm text-text-secondary mb-4">
+                        <h4 className="text-xl font-bold text-white mb-2">Transaction Successful</h4>
+                        <p className="text-sm text-[#8E9FB8] mb-4">
                             Successfully {activeTab === "supply" ? "supplied" : "borrowed"} {amount.toLocaleString()} USDC on Arc Testnet.
                         </p>
-                        <button 
+                        <button
                             onClick={() => setTxSuccess(false)}
-                            className="px-6 py-2 border border-cyan/20 rounded-full text-cyan text-sm hover:bg-cyan/10 transition"
+                            className="px-6 py-2 border border-[#00F5FF]/20 rounded-full text-[#00F5FF] text-sm hover:bg-[#00F5FF]/10 transition"
                         >
                             Dismiss
                         </button>
@@ -64,86 +62,91 @@ export default function LendingWidget() {
                 )}
             </AnimatePresence>
 
-            {/* Header Tabs */}
+            {/* Tabs */}
             <div className="flex bg-white/3 p-1 rounded-xl mb-6">
-                <button
-                    onClick={() => setActiveTab("supply")}
-                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition duration-200 ${
-                        activeTab === "supply" 
-                            ? "bg-white/8 text-white shadow-sm" 
-                            : "text-text-secondary hover:text-white"
-                    }`}
-                >
-                    Supply
-                </button>
-                <button
-                    onClick={() => setActiveTab("borrow")}
-                    className={`flex-1 py-2 text-sm font-semibold rounded-lg transition duration-200 ${
-                        activeTab === "borrow" 
-                            ? "bg-white/8 text-white shadow-sm" 
-                            : "text-text-secondary hover:text-white"
-                    }`}
-                >
-                    Borrow
-                </button>
+                {(["supply", "borrow"] as const).map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`flex-1 py-2 text-sm font-semibold rounded-lg transition duration-200 ${
+                            activeTab === tab
+                                ? "bg-white/8 text-white shadow-sm"
+                                : "text-[#8E9FB8] hover:text-white"
+                        }`}
+                    >
+                        {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button>
+                ))}
             </div>
 
-            {/* Input fields */}
             <div className="space-y-4">
+                {/* Amount input */}
                 <div>
-                    <label className="block text-xs uppercase tracking-wider text-text-secondary mb-2">
-                        Amount (USDC)
+                    <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">
+                        Amount
                     </label>
-                    <div className="relative">
+                    <div className="relative bg-black/30 border border-white/5 focus-within:border-[#00F5FF] rounded-xl transition">
                         <input
                             type="number"
                             value={amount}
                             onChange={(e) => setAmount(Number(e.target.value))}
-                            className="w-full bg-black/30 border border-white/5 focus:border-cyan outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition"
+                            className="w-full bg-transparent py-3 pl-4 pr-24 text-lg font-semibold text-white outline-none"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-cyan font-semibold text-sm">
-                            USDC
-                        </span>
+                        {/* Token badge */}
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 bg-white/5 rounded-lg px-2 py-1">
+                            <TokenIcon symbol="USDC" size={18} />
+                            <span className="text-[#00F5FF] font-bold text-sm">USDC</span>
+                        </div>
                     </div>
                 </div>
 
-                {/* Calculation stats */}
+                {/* Stats */}
                 <div className="bg-white/2 rounded-xl p-4 space-y-3">
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-text-secondary">Expected APY</span>
-                        <span className="text-cyan font-semibold">{currentAPY}%</span>
+                        <span className="text-[#8E9FB8]">Expected APY</span>
+                        <span className={`font-semibold ${activeTab === "supply" ? "text-[#00F5FF]" : "text-[#FF00C8]"}`}>
+                            {currentAPY}%
+                        </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-text-secondary">
+                        <span className="text-[#8E9FB8]">
                             {activeTab === "supply" ? "Projected Monthly Yield" : "Monthly Interest Cost"}
                         </span>
-                        <span className="text-magenta font-semibold">
-                            ${monthlyYield.toFixed(2)} USDC
+                        <span className="text-white font-semibold">
+                            ${monthlyYield.toFixed(2)}
                         </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                        <span className="text-text-secondary">Position Health Factor</span>
+                        <span className="text-[#8E9FB8]">Health Factor</span>
                         <span className="text-emerald-400 font-semibold flex items-center gap-1">
                             <ShieldCheck className="w-4 h-4" /> Infinite
                         </span>
                     </div>
                 </div>
 
-                {/* Action button */}
+                {/* CTA */}
                 <button
                     onClick={handleExecute}
                     disabled={isExecuting}
-                    className="w-full bg-gradient-to-r from-cyan to-magenta text-white font-semibold py-3 rounded-xl hover:shadow-lg hover:shadow-magenta/20 transition duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3 rounded-xl hover:bg-white hover:shadow-lg hover:shadow-[#00F5FF]/10 transition duration-300 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     {isExecuting ? (
                         <>
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Accruing State...
+                            <div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />
+                            Processing...
                         </>
                     ) : (
-                        `Execute ${activeTab === "supply" ? "Supply" : "Borrow"}`
+                        `${activeTab === "supply" ? "Supply" : "Borrow"} USDC`
                     )}
                 </button>
+
+                {/* Link to full page */}
+                <Link
+                    href="/lend"
+                    className="block text-center text-xs text-[#8E9FB8] hover:text-[#00F5FF] transition duration-200 pt-1"
+                >
+                    Open full Lend &amp; Borrow →
+                </Link>
             </div>
         </div>
     );

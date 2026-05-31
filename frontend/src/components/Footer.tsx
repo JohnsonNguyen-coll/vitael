@@ -1,27 +1,33 @@
 "use client";
 
-import { Activity } from "lucide-react";
+import React from "react";
 
 export default function Footer() {
-    return (
-        <footer className="border-t border-white/5 py-12 text-center text-text-secondary text-sm">
-            <div className="max-w-md mx-auto flex flex-col items-center gap-4">
-                <div className="flex items-center gap-2">
-                    <span className="text-xl text-cyan">⚡</span>
-                    <span className="font-extrabold font-display text-white tracking-widest">VITAEL</span>
-                </div>
-                <p className="text-xs leading-relaxed max-w-xs">
-                    The most capital-efficient stablecoin-native yield engine on Arc Network. Built for over-collateralized borrowing safely.
-                </p>
-                <div className="flex gap-6 mt-2 text-xs">
-                    <a href="#" className="hover:text-cyan transition">Terms</a>
-                    <a href="#" className="hover:text-cyan transition">Privacy</a>
-                    <a href="https://docs.arc.network" target="_blank" className="hover:text-cyan transition">Docs</a>
-                </div>
-                <p className="text-[10px] text-white/40 mt-4">
-                    © 2026 Vitael Lending Protocol. Powered by Circle & Arc Network. All rights reserved.
-                </p>
-            </div>
-        </footer>
-    );
+  return (
+    <footer className="border-t border-white/5 py-12 text-[#8E9FB8] text-sm bg-[#0A1428] w-full">
+      <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+        <div className="flex flex-col items-center md:items-start gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xl text-[#00F5FF]">⚡</span>
+            <span className="font-extrabold text-white tracking-widest">VITAEL</span>
+          </div>
+          <p className="text-xs text-[#8E9FB8]/70 max-w-xs text-center md:text-left">
+            Institutional-grade over-collateralized lending pool on Arc Network. Built for stablecoin-native market efficiency.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-8 text-xs font-semibold text-[#8E9FB8]">
+          <a href="#" className="hover:text-[#00F5FF] transition duration-200">Terms of Service</a>
+          <a href="#" className="hover:text-[#00F5FF] transition duration-200">Privacy Policy</a>
+          <a href="https://docs.arc.network" target="_blank" className="hover:text-[#00F5FF] transition duration-200">Arc Docs</a>
+          <a href="https://testnet.arcscan.app" target="_blank" className="hover:text-[#00F5FF] transition duration-200">ArcScan Explorer</a>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-[11px] text-[#8E9FB8]/50">
+        <p>© 2026 Vitael Lending Protocol. Powered by Circle & Arc Network. All rights reserved.</p>
+        <p className="mt-2 md:mt-0">Institutional Liquidity Engine</p>
+      </div>
+    </footer>
+  );
 }
