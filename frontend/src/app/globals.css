@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+:root {
+  --background: #050b14;
+  --foreground: #ffffff;
+  --navy: #0A1428;
+  --cyan: #00F5FF;
+  --magenta: #FF00C8;
+  --purple: #8B00FF;
+  --gold: #FFD700;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-navy: var(--navy);
+  --color-cyan: var(--cyan);
+  --color-magenta: var(--magenta);
+  --color-purple: var(--purple);
+  --color-gold: var(--gold);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Glassmorphism utility */
+.glass-panel {
+  background: rgba(10, 20, 40, 0.45);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel:hover {
+  border-color: rgba(0, 245, 255, 0.2);
+}
+
+/* Custom Text Gradient */
+.text-gradient {
+  background: linear-gradient(135deg, var(--cyan) 0%, var(--magenta) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
