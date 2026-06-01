@@ -4,7 +4,7 @@ import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, http } from "wagmi";
 import { RainbowKitProvider, darkTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { type Chain, sepolia } from "viem/chains";
+import { type Chain, sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from "viem/chains";
 import "@rainbow-me/rainbowkit/styles.css";
 
 // Arc Testnet chain definition
@@ -23,10 +23,23 @@ export const arcTestnet = {
 const config = getDefaultConfig({
   appName: "Vitael Lending Protocol",
   projectId: "YOUR_PROJECT_ID",
-  chains: [arcTestnet, sepolia],
+  chains: [
+    arcTestnet,
+    sepolia,
+    arbitrumSepolia,
+    baseSepolia,
+    polygonAmoy,
+    avalancheFuji,
+    optimismSepolia,
+  ],
   transports: {
-    [arcTestnet.id]: http("https://rpc.testnet.arc.network"),
-    [sepolia.id]:    http(),
+    [arcTestnet.id]:         http("https://rpc.testnet.arc.network"),
+    [sepolia.id]:            http(),
+    [arbitrumSepolia.id]:    http(),
+    [baseSepolia.id]:        http(),
+    [polygonAmoy.id]:        http(),
+    [avalancheFuji.id]:      http(),
+    [optimismSepolia.id]:    http(),
   },
   ssr: true,
 });

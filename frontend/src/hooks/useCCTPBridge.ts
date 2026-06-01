@@ -3,29 +3,79 @@
 import { useState, useCallback } from "react";
 import { useWalletClient, useSwitchChain } from "wagmi";
 import { pad, encodeFunctionData, parseUnits, type Hash } from "viem";
-import { sepolia } from "viem/chains";
-import { arcTestnet } from "../app/providers";
 
 // ─── CCTP V2 Contract Addresses (Testnet) ────────────────────────────────────
 // Source: https://developers.circle.com/cctp/evm-smart-contracts
 const CONTRACTS = {
   // Ethereum Sepolia (domain 0)
   Ethereum_Sepolia: {
-    chainId:          sepolia.id,
+    chainId:          11155111,
     domain:           0,
     usdc:             "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" as `0x${string}`,
     tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
     msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
     explorer:         "https://sepolia.etherscan.io/tx/",
+    name:             "Ethereum Sepolia",
+  },
+  // Arbitrum Sepolia (domain 3)
+  Arbitrum_Sepolia: {
+    chainId:          421614,
+    domain:           3,
+    usdc:             "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`,
+    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
+    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
+    explorer:         "https://sepolia.arbiscan.io/tx/",
+    name:             "Arbitrum Sepolia",
+  },
+  // Base Sepolia (domain 6)
+  Base_Sepolia: {
+    chainId:          84532,
+    domain:           6,
+    usdc:             "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`,
+    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
+    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
+    explorer:         "https://sepolia.basescan.org/tx/",
+    name:             "Base Sepolia",
+  },
+  // Polygon Amoy (domain 7)
+  Polygon_Amoy_Testnet: {
+    chainId:          80002,
+    domain:           7,
+    usdc:             "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582" as `0x${string}`,
+    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
+    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
+    explorer:         "https://amoy.polygonscan.com/tx/",
+    name:             "Polygon Amoy",
+  },
+  // Avalanche Fuji (domain 1)
+  Avalanche_Fuji: {
+    chainId:          43113,
+    domain:           1,
+    usdc:             "0x5425890298aed601595a70AB815c96711a31Bc65" as `0x${string}`,
+    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
+    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
+    explorer:         "https://testnet.snowtrace.io/tx/",
+    name:             "Avalanche Fuji",
+  },
+  // OP Sepolia (domain 2)
+  OP_Sepolia: {
+    chainId:          11155420,
+    domain:           2,
+    usdc:             "0x5fd84259d66Cd46123540766Be93DFE6D43130D7" as `0x${string}`,
+    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
+    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
+    explorer:         "https://sepolia-optimism.etherscan.io/tx/",
+    name:             "OP Sepolia",
   },
   // Arc Testnet (domain 26)
   Arc_Testnet: {
-    chainId:          arcTestnet.id,
+    chainId:          5042002,
     domain:           26,
     usdc:             "0x3600000000000000000000000000000000000000" as `0x${string}`,
     tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
     msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
     explorer:         "https://testnet.arcscan.app/tx/",
+    name:             "Arc Testnet",
   },
 } as const;
 
@@ -83,12 +133,14 @@ export type BridgeStep =
 export interface BridgeState {
   step:         BridgeStep;
   stepLabel:    string;
-  progress:     number;   // 0–100
+  progress:     number;
   approveTx:    Hash | null;
   burnTx:       Hash | null;
   forwardTx:    Hash | null;
   error:        string | null;
-  explorerBase: string;
+  srcExplorer:  string;   // source chain explorer (for approve + burn tx)
+  dstExplorer:  string;   // destination chain explorer (for forwardTx / mint tx)
+  dstName:      string;   // destination chain display name
 }
 
 const STEP_LABELS: Record<BridgeStep, string> = {
@@ -115,7 +167,9 @@ export function useCCTPBridge() {
   const [state, setState] = useState<BridgeState>({
     step: "idle", stepLabel: STEP_LABELS.idle, progress: 0,
     approveTx: null, burnTx: null, forwardTx: null, error: null,
-    explorerBase: CONTRACTS.Ethereum_Sepolia.explorer,
+    srcExplorer: "",
+    dstExplorer: "",
+    dstName:     "",
   });
 
   const set = useCallback((step: BridgeStep, extra?: Partial<BridgeState>) => {
@@ -126,7 +180,6 @@ export function useCCTPBridge() {
       ...extra,
     }));
   }, []);
-
   const bridge = useCallback(async (
     fromChainKey: SupportedChain,
     toChainKey:   SupportedChain,
@@ -143,7 +196,11 @@ export function useCCTPBridge() {
 
     try {
       // ── 1. Switch to source chain ──────────────────────────────────────────
-      set("switching_chain", { explorerBase: src.explorer });
+      set("switching_chain", {
+        srcExplorer: src.explorer,
+        dstExplorer: dst.explorer,
+        dstName:     dst.name,
+      });
       await switchChainAsync({ chainId: src.chainId });
 
       // Re-get wallet client after chain switch (wagmi updates it)
@@ -171,7 +228,6 @@ export function useCCTPBridge() {
       // ── 3. Approve USDC ────────────────────────────────────────────────────
       set("approving");
       const approveTx = await walletClient.sendTransaction({
-        chain:   src.chainId === sepolia.id ? sepolia : arcTestnet,
         account,
         to:      src.usdc,
         data:    encodeFunctionData({
@@ -192,7 +248,6 @@ export function useCCTPBridge() {
       const zeroCaller    = pad("0x0", { size: 32 });
 
       const burnTx = await walletClient.sendTransaction({
-        chain:   src.chainId === sepolia.id ? sepolia : arcTestnet,
         account,
         to:      src.tokenMessenger,
         data:    encodeFunctionData({
@@ -216,7 +271,7 @@ export function useCCTPBridge() {
       set("waiting_attestation", { burnTx });
       const forwardTx = await pollForForwardTx(src.domain, burnTx);
 
-      set("done", { forwardTx, explorerBase: dst.explorer });
+      set("done", { forwardTx });
 
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -228,7 +283,9 @@ export function useCCTPBridge() {
     setState({
       step: "idle", stepLabel: STEP_LABELS.idle, progress: 0,
       approveTx: null, burnTx: null, forwardTx: null, error: null,
-      explorerBase: CONTRACTS.Ethereum_Sepolia.explorer,
+      srcExplorer: "",
+      dstExplorer: "",
+      dstName:     "",
     });
   }, []);
 
@@ -239,9 +296,18 @@ export function useCCTPBridge() {
 
 // Poll a public RPC for tx receipt (no wagmi hook needed)
 async function waitForTx(chainId: number, hash: Hash): Promise<void> {
-  const rpc = chainId === arcTestnet.id
-    ? "https://rpc.testnet.arc.network"
-    : "https://rpc.sepolia.org";
+  // Map chainId → RPC URL
+  const rpcMap: Record<number, string> = {
+    5042002:   "https://rpc.testnet.arc.network",           // Arc Testnet
+    11155111:  "https://rpc.sepolia.org",                   // Ethereum Sepolia
+    421614:    "https://sepolia-rollup.arbitrum.io/rpc",    // Arbitrum Sepolia
+    84532:     "https://sepolia.base.org",                  // Base Sepolia
+    80002:     "https://rpc-amoy.polygon.technology",       // Polygon Amoy
+    43113:     "https://api.avax-test.network/ext/bc/C/rpc", // Avalanche Fuji
+    11155420:  "https://sepolia.optimism.io",               // OP Sepolia
+  };
+  const rpc = rpcMap[chainId];
+  if (!rpc) throw new Error(`No RPC configured for chainId ${chainId}`);
 
   for (let i = 0; i < 60; i++) {
     await sleep(3000);

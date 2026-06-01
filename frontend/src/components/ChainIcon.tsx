@@ -7,8 +7,8 @@ import { useState } from "react";
 // All URLs verified against CoinGecko large images (more reliable than /small/)
 const CHAIN_LOGOS: Record<string, { src: string; bg: string; name: string }> = {
   Arc_Testnet: {
-    // Arc = Circle's chain → use USDC logo as representative
-    src:  "https://assets.coingecko.com/coins/images/6319/large/usdc.png",
+    // Arc Network — dùng logo local từ /public/arclogo.jpg
+    src:  "/arclogo.jpg",
     bg:   "#00C2CC",
     name: "Arc Testnet",
   },
@@ -117,7 +117,8 @@ export default function ChainIcon({ chainId, size = 32, className = "", showRing
     ...ringStyle,
   };
 
-  if (!meta || error) {
+  // Nếu không có meta hoặc src empty hoặc error → dùng letter avatar
+  if (!meta || !meta.src || error) {
     return (
       <div style={style} className={className}>
         <span style={{ fontSize: size * 0.38, fontWeight: 700, color: "#fff", lineHeight: 1 }}>

@@ -20,21 +20,18 @@ export default function Header() {
     <header className="sticky top-0 w-full flex justify-between items-center py-4 px-8 md:px-16 border-b border-white/5 bg-[#0A1428]/90 backdrop-blur-md z-50">
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3 group">
-        <div className="relative">
-          <Image
-            src="/vitael_logo.jpg"
-            alt="Vitael Logo"
-            width={34}
-            height={34}
-            className="rounded-xl object-cover"
-            onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
-          />
-          {/* Arc network badge */}
-          <div className="absolute -bottom-1 -right-1">
-            <ChainIcon chainId="Arc_Testnet" size={14} showRing />
-          </div>
-        </div>
-        <span className="font-extrabold text-xl tracking-wider text-white group-hover:text-[#00F5FF] transition duration-200">
+        <Image
+          src="/vitael_logo.jpg"
+          alt="Vitael Logo"
+          width={34}
+          height={34}
+          className="rounded-xl object-cover"
+          onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
+        />
+        <span
+          className="font-black text-xl text-white group-hover:text-[#00F5FF] transition duration-200"
+          style={{ fontFamily: "var(--font-raleway)", letterSpacing: "0.15em" }}
+        >
           VITAEL
         </span>
       </Link>

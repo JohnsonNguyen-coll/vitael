@@ -15,7 +15,7 @@ import ChainIcon from "../../components/ChainIcon";
 import TokenIcon from "../../components/TokenIcon";
 import { useCCTPBridge } from "../../hooks/useCCTPBridge";
 
-// ─── Supported chains (only EVM testnets with CCTP V2) ───────────────────────
+// ─── Supported chains (all CCTP V2 testnets) ─────────────────────────────────
 interface Chain {
   id: string;   // matches CONTRACTS key in hook
   name: string;
@@ -23,8 +23,13 @@ interface Chain {
 }
 
 const CHAINS: Chain[] = [
-  { id: "Arc_Testnet",      name: "Arc Testnet",      domain: 26 },
-  { id: "Ethereum_Sepolia", name: "Ethereum Sepolia",  domain: 0  },
+  { id: "Arc_Testnet",           name: "Arc Testnet",       domain: 26 },
+  { id: "Ethereum_Sepolia",      name: "Ethereum Sepolia",  domain: 0  },
+  { id: "Arbitrum_Sepolia",      name: "Arbitrum Sepolia",  domain: 3  },
+  { id: "Base_Sepolia",          name: "Base Sepolia",      domain: 6  },
+  { id: "Polygon_Amoy_Testnet",  name: "Polygon Amoy",      domain: 7  },
+  { id: "Avalanche_Fuji",        name: "Avalanche Fuji",    domain: 1  },
+  { id: "OP_Sepolia",            name: "OP Sepolia",        domain: 2  },
 ];
 
 // ─── Chain selector ───────────────────────────────────────────────────────────
@@ -39,10 +44,7 @@ function ChainSelector({ selected, onSelect, label, exclude }: {
         className="w-full flex items-center justify-between gap-2 bg-white/5 hover:bg-white/8 border border-white/10 rounded-2xl px-4 py-3.5 transition duration-200">
         <div className="flex items-center gap-3">
           <ChainIcon chainId={selected.id} size={32} showRing />
-          <div className="text-left">
-            <p className="font-bold text-white text-sm">{selected.name}</p>
-            <p className="text-xs text-[#8E9FB8]">Domain {selected.domain}</p>
-          </div>
+          <p className="font-bold text-white text-sm">{selected.name}</p>
         </div>
         <ChevronDown className={`w-4 h-4 text-[#8E9FB8] transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
@@ -50,15 +52,12 @@ function ChainSelector({ selected, onSelect, label, exclude }: {
         {open && (
           <motion.div initial={{ opacity: 0, y: -8, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.97 }} transition={{ duration: 0.15 }}
-            className="absolute top-full mt-2 left-0 right-0 z-30 glass-panel rounded-2xl overflow-hidden shadow-2xl">
+            className="absolute top-full mt-2 left-0 right-0 z-30 glass-panel rounded-2xl shadow-2xl overflow-y-auto max-h-56">
             {CHAINS.filter(c => c.id !== exclude).map(c => (
               <button key={c.id} onClick={() => { onSelect(c); setOpen(false); }}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/5 transition duration-150 text-left">
                 <ChainIcon chainId={c.id} size={28} />
-                <div>
-                  <p className="text-sm font-bold text-white">{c.name}</p>
-                  <p className="text-xs text-[#8E9FB8]">Domain {c.domain}</p>
-                </div>
+                <p className="text-sm font-bold text-white">{c.name}</p>
               </button>
             ))}
           </motion.div>
@@ -124,8 +123,8 @@ export default function BridgePage() {
   async function execute() {
     if (!amount || numAmt <= 0 || sameChain || !isConnected) return;
     await bridge(
-      fromChain.id as "Arc_Testnet" | "Ethereum_Sepolia",
-      toChain.id   as "Arc_Testnet" | "Ethereum_Sepolia",
+      fromChain.id as any,
+      toChain.id   as any,
       amount,
     );
   }
@@ -242,24 +241,24 @@ export default function BridgePage() {
             {(state.approveTx || state.burnTx || state.forwardTx) && (
               <div className="space-y-2 mb-5">
                 {state.approveTx && (
-                  <a href={`${CHAINS.find(c=>c.id===fromChain.id) ? state.explorerBase : ""}${state.approveTx}`}
+                  <a href={`${state.srcExplorer}${state.approveTx}`}
                     target="_blank" className="flex items-center gap-2 text-xs text-[#8E9FB8] hover:text-[#00F5FF] transition">
                     <ExternalLink className="w-3.5 h-3.5" />
                     Approve tx: {state.approveTx.slice(0, 18)}...
                   </a>
                 )}
                 {state.burnTx && (
-                  <a href={`${state.explorerBase}${state.burnTx}`} target="_blank"
+                  <a href={`${state.srcExplorer}${state.burnTx}`} target="_blank"
                     className="flex items-center gap-2 text-xs text-[#8E9FB8] hover:text-[#00F5FF] transition">
                     <ExternalLink className="w-3.5 h-3.5" />
                     Burn tx: {state.burnTx.slice(0, 18)}...
                   </a>
                 )}
                 {state.forwardTx && (
-                  <a href={`https://testnet.arcscan.app/tx/${state.forwardTx}`} target="_blank"
+                  <a href={`${state.dstExplorer}${state.forwardTx}`} target="_blank"
                     className="flex items-center gap-2 text-xs text-emerald-400 hover:underline transition">
                     <ExternalLink className="w-3.5 h-3.5" />
-                    Mint on Arc: {state.forwardTx.slice(0, 18)}...
+                    Minted on {state.dstName}: {state.forwardTx.slice(0, 18)}...
                   </a>
                 )}
               </div>
@@ -274,7 +273,7 @@ export default function BridgePage() {
                   <div>
                     <p className="text-sm font-bold text-emerald-400">Bridge Complete</p>
                     <p className="text-xs text-[#8E9FB8] mt-0.5">
-                      {numAmt} USDC arrived on {toChain.name}
+                      {numAmt} USDC arrived on {state.dstName}
                     </p>
                   </div>
                 </motion.div>
@@ -354,24 +353,19 @@ export default function BridgePage() {
             {/* Supported routes */}
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
               className="glass-panel rounded-3xl p-5">
-              <p className="text-xs uppercase tracking-wider text-[#8E9FB8] mb-4">Supported Routes</p>
-              <div className="space-y-3">
-                {[
-                  { from: "Ethereum_Sepolia", to: "Arc_Testnet",      fromName: "Ethereum Sepolia", toName: "Arc Testnet" },
-                  { from: "Arc_Testnet",      to: "Ethereum_Sepolia", fromName: "Arc Testnet",      toName: "Ethereum Sepolia" },
-                ].map((r, i) => (
-                  <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-2">
-                      <ChainIcon chainId={r.from} size={20} />
-                      <span className="text-xs text-white">{r.fromName}</span>
-                      <ArrowRight className="w-3 h-3 text-[#8E9FB8]" />
-                      <ChainIcon chainId={r.to} size={20} />
-                      <span className="text-xs text-[#00F5FF]">{r.toName}</span>
-                    </div>
-                    <span className="text-xs text-emerald-400">~2 min</span>
+              <p className="text-xs uppercase tracking-wider text-[#8E9FB8] mb-4">Supported Chains</p>
+              <div className="space-y-2">
+                {CHAINS.map(c => (
+                  <div key={c.id} className="flex items-center gap-2 py-1.5">
+                    <ChainIcon chainId={c.id} size={20} />
+                    <span className="text-xs text-white">{c.name}</span>
+                    <span className="text-xs text-[#8E9FB8] ml-auto">Domain {c.domain}</span>
                   </div>
                 ))}
               </div>
+              <p className="text-xs text-[#8E9FB8] mt-3 leading-relaxed">
+                Bridge USDC between any of these chains. All routes take ~2 min.
+              </p>
             </motion.div>
 
             {/* Faucet */}
