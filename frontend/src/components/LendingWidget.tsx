@@ -61,9 +61,9 @@ export default function LendingWidget() {
     if (!amount || num <= 0) return;
     reset();
     if (activeTab === "supply") {
-      await supply(amount);
+      await supply("USDC", amount);
     } else {
-      await borrow(amount);
+      await borrow("USDC", amount);
     }
   }
 
