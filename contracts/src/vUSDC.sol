@@ -11,10 +11,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev Inherits standard ERC20 and ERC20Permit, using 6 decimals to match the underlying USDC token.
  */
 contract vUSDC is ERC20, ERC20Permit, Ownable {
-    constructor() 
-        ERC20("Vitael Interest Bearing USDC", "vUSDC") 
-        ERC20Permit("Vitael Interest Bearing USDC") 
-        Ownable(msg.sender) 
+    constructor()
+        ERC20("Vitael Interest Bearing USDC", "vUSDC")
+        ERC20Permit("Vitael Interest Bearing USDC")
+        Ownable(msg.sender)
     {}
 
     /**

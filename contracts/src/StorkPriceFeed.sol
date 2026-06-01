@@ -50,12 +50,12 @@ contract StorkPriceFeed is AggregatorV3Interface {
         StorkStructs.TemporalNumericValue memory v = stork.getTemporalNumericValueUnsafeV1(priceId);
         require(v.quantizedValue > 0, "invalid price");
         int256 scaled = int256(v.quantizedValue) / int256(1e10);
-        uint256 ts    = _nsToSeconds(v.timestampNs);
+        uint256 ts = _nsToSeconds(v.timestampNs);
         // Use lower 80 bits of timestampNs as a monotonic round ID
-        roundId         = uint80(v.timestampNs);
-        answer          = scaled;
-        startedAt       = ts;
-        updatedAt       = ts;   // seconds — safe for staleness checks
+        roundId = uint80(v.timestampNs);
+        answer = scaled;
+        startedAt = ts;
+        updatedAt = ts; // seconds — safe for staleness checks
         answeredInRound = roundId;
     }
 
@@ -66,22 +66,16 @@ contract StorkPriceFeed is AggregatorV3Interface {
     function getRoundData(uint80 _roundId)
         external
         view
-        returns (
-            uint80 roundId,
-            int256 answer,
-            uint256 startedAt,
-            uint256 updatedAt,
-            uint80 answeredInRound
-        )
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
         StorkStructs.TemporalNumericValue memory v = stork.getTemporalNumericValueUnsafeV1(priceId);
         require(v.quantizedValue > 0, "invalid price");
         int256 scaled = int256(v.quantizedValue) / int256(1e10);
-        uint256 ts    = _nsToSeconds(v.timestampNs);
-        roundId         = _roundId;
-        answer          = scaled;
-        startedAt       = ts;
-        updatedAt       = ts;
+        uint256 ts = _nsToSeconds(v.timestampNs);
+        roundId = _roundId;
+        answer = scaled;
+        startedAt = ts;
+        updatedAt = ts;
         answeredInRound = _roundId;
     }
 }

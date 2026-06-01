@@ -22,7 +22,7 @@ import "../src/LendingConfig.sol";
 contract DeployVitael is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        bool    useMock     = vm.envOr("USE_MOCK_FEEDS", false);
+        bool useMock = vm.envOr("USE_MOCK_FEEDS", false);
 
         vm.startBroadcast(deployerKey);
 
@@ -31,12 +31,12 @@ contract DeployVitael is Script {
         console.log("VitaelOracle:", address(oracle));
 
         // 2. Price feeds — all three via Stork (EURC/USD is supported)
-        address usdcFeed = _feed(useMock, LendingConfig.STORK_USDCUSD, 1_00000000);      // $1.00
-        address eurcFeed = _feed(useMock, LendingConfig.STORK_EURCUSD, 1_08000000);      // $1.08
-        address btcFeed  = _feed(useMock, LendingConfig.STORK_BTCUSD,  60000_00000000);  // $60 000
+        address usdcFeed = _feed(useMock, LendingConfig.STORK_USDCUSD, 1_00000000); // $1.00
+        address eurcFeed = _feed(useMock, LendingConfig.STORK_EURCUSD, 1_08000000); // $1.08
+        address btcFeed = _feed(useMock, LendingConfig.STORK_BTCUSD, 60000_00000000); // $60 000
 
-        oracle.addPriceFeed(LendingConfig.USDC,   usdcFeed);
-        oracle.addPriceFeed(LendingConfig.EURC,   eurcFeed);
+        oracle.addPriceFeed(LendingConfig.USDC, usdcFeed);
+        oracle.addPriceFeed(LendingConfig.EURC, eurcFeed);
         oracle.addPriceFeed(LendingConfig.CIRBTC, btcFeed);
         console.log("USDC feed  :", usdcFeed);
         console.log("EURC feed  :", eurcFeed);
@@ -49,14 +49,14 @@ contract DeployVitael is Script {
         // 4. Register assets
         //    addAsset(asset, decimals, ltv, liqThreshold, liqBonus,
         //             baseRate, optimalUtil, slope1, slope2, reserveFactor)
-        pool.addAsset(LendingConfig.USDC,   6, 9000, 9200, 500,  2e16, 8e17, 4e16, 75e16, 1000);
-        pool.addAsset(LendingConfig.EURC,   6, 8500, 8800, 500,  2e16, 8e17, 4e16, 75e16, 1000);
+        pool.addAsset(LendingConfig.USDC, 6, 9000, 9200, 500, 2e16, 8e17, 4e16, 75e16, 1000);
+        pool.addAsset(LendingConfig.EURC, 6, 8500, 8800, 500, 2e16, 8e17, 4e16, 75e16, 1000);
         pool.addAsset(LendingConfig.CIRBTC, 8, 7000, 7500, 1000, 2e16, 8e17, 4e16, 75e16, 1000);
 
         console.log("Assets registered: USDC, EURC, cirBTC");
         console.log("---");
         console.log("NEXT_PUBLIC_LENDING_POOL=", address(pool));
-        console.log("NEXT_PUBLIC_ORACLE=",       address(oracle));
+        console.log("NEXT_PUBLIC_ORACLE=", address(oracle));
 
         vm.stopBroadcast();
     }

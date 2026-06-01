@@ -2,31 +2,38 @@
 pragma solidity ^0.8.24;
 
 interface IVitaelPair {
-    event Mint(address indexed sender, uint amount0, uint amount1);
-    event Burn(address indexed sender, uint amount0, uint amount1, address indexed to);
-    event Swap(address indexed sender, uint amount0In, uint amount1In, uint amount0Out, uint amount1Out, address indexed to);
+    event Mint(address indexed sender, uint256 amount0, uint256 amount1);
+    event Burn(address indexed sender, uint256 amount0, uint256 amount1, address indexed to);
+    event Swap(
+        address indexed sender,
+        uint256 amount0In,
+        uint256 amount1In,
+        uint256 amount0Out,
+        uint256 amount1Out,
+        address indexed to
+    );
     event Sync(uint112 reserve0, uint112 reserve1);
 
     function factory() external view returns (address);
     function token0() external view returns (address);
     function token1() external view returns (address);
     function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
-    function mint(address to) external returns (uint liquidity);
-    function burn(address to) external returns (uint amount0, uint amount1);
-    function swap(uint amount0Out, uint amount1Out, address to, bytes calldata data) external;
+    function mint(address to) external returns (uint256 liquidity);
+    function burn(address to) external returns (uint256 amount0, uint256 amount1);
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) external;
     function skim(address to) external;
     function sync() external;
     function initialize(address, address) external;
 }
 
 interface IVitaelFactory {
-    event PairCreated(address indexed token0, address indexed token1, address pair, uint);
+    event PairCreated(address indexed token0, address indexed token1, address pair, uint256);
 
     function feeTo() external view returns (address);
     function feeToSetter() external view returns (address);
     function getPair(address tokenA, address tokenB) external view returns (address pair);
-    function allPairs(uint) external view returns (address pair);
-    function allPairsLength() external view returns (uint);
+    function allPairs(uint256) external view returns (address pair);
+    function allPairsLength() external view returns (uint256);
     function createPair(address tokenA, address tokenB) external returns (address pair);
     function setFeeTo(address) external;
     function setFeeToSetter(address) external;
@@ -37,31 +44,42 @@ interface IVitaelRouter {
     function WETH() external pure returns (address);
 
     function addLiquidity(
-        address tokenA, address tokenB,
-        uint amountADesired, uint amountBDesired,
-        uint amountAMin, uint amountBMin,
-        address to, uint deadline
-    ) external returns (uint amountA, uint amountB, uint liquidity);
+        address tokenA,
+        address tokenB,
+        uint256 amountADesired,
+        uint256 amountBDesired,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 amountA, uint256 amountB, uint256 liquidity);
 
     function removeLiquidity(
-        address tokenA, address tokenB,
-        uint liquidity,
-        uint amountAMin, uint amountBMin,
-        address to, uint deadline
-    ) external returns (uint amountA, uint amountB);
+        address tokenA,
+        address tokenB,
+        uint256 liquidity,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
+    ) external returns (uint256 amountA, uint256 amountB);
 
     function swapExactTokensForTokens(
-        uint amountIn, uint amountOutMin,
+        uint256 amountIn,
+        uint256 amountOutMin,
         address[] calldata path,
-        address to, uint deadline
-    ) external returns (uint[] memory amounts);
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 
     function swapTokensForExactTokens(
-        uint amountOut, uint amountInMax,
+        uint256 amountOut,
+        uint256 amountInMax,
         address[] calldata path,
-        address to, uint deadline
-    ) external returns (uint[] memory amounts);
+        address to,
+        uint256 deadline
+    ) external returns (uint256[] memory amounts);
 
-    function getAmountsOut(uint amountIn, address[] calldata path) external view returns (uint[] memory amounts);
-    function getAmountsIn(uint amountOut, address[] calldata path) external view returns (uint[] memory amounts);
+    function getAmountsOut(uint256 amountIn, address[] calldata path) external view returns (uint256[] memory amounts);
+    function getAmountsIn(uint256 amountOut, address[] calldata path) external view returns (uint256[] memory amounts);
 }

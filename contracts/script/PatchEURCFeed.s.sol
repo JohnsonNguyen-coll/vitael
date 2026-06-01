@@ -27,9 +27,9 @@ import "../src/LendingConfig.sol";
 contract PatchEURCFeed is Script {
     function run() external {
         address oracleAddr = vm.envAddress("ORACLE");
-        uint256 pk         = vm.envUint("PRIVATE_KEY");
-        address deployer   = vm.addr(pk);
-        uint256 step       = vm.envOr("STEP", uint256(0)); // 0 = both, 1 = deploy only, 2 = set only
+        uint256 pk = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(pk);
+        uint256 step = vm.envOr("STEP", uint256(0)); // 0 = both, 1 = deploy only, 2 = set only
 
         VitaelOracle oracle = VitaelOracle(oracleAddr);
         require(oracle.owner() == deployer, "PRIVATE_KEY must be oracle owner");
@@ -40,7 +40,7 @@ contract PatchEURCFeed is Script {
             // Step 1: deploy new StorkPriceFeed with correct EURCUSD asset ID
             StorkPriceFeed newFeed = new StorkPriceFeed(
                 LendingConfig.STORK_AGGREGATOR,
-                LendingConfig.STORK_EURCUSD   // keccak256("EURCUSD") = 0x64ffe138...
+                LendingConfig.STORK_EURCUSD // keccak256("EURCUSD") = 0x64ffe138...
             );
             console.log("New EURC StorkPriceFeed:", address(newFeed));
             console.log(">> Copy this address for STEP=2 if running separately");

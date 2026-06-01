@@ -21,7 +21,7 @@ contract VitaelPair is ERC20, ReentrancyGuard {
 
     uint112 private reserve0;
     uint112 private reserve1;
-    uint32  private blockTimestampLast;
+    uint32 private blockTimestampLast;
 
     // Accumulated protocol fees (claimable by treasury)
     uint256 public protocolFees0;
@@ -31,8 +31,10 @@ contract VitaelPair is ERC20, ReentrancyGuard {
     event Burn(address indexed sender, uint256 amount0, uint256 amount1, address indexed to);
     event Swap(
         address indexed sender,
-        uint256 amount0In, uint256 amount1In,
-        uint256 amount0Out, uint256 amount1Out,
+        uint256 amount0In,
+        uint256 amount1In,
+        uint256 amount0Out,
+        uint256 amount1Out,
         address indexed to
     );
     event Sync(uint112 reserve0, uint112 reserve1);
@@ -48,20 +50,14 @@ contract VitaelPair is ERC20, ReentrancyGuard {
         token1 = _token1;
     }
 
-    function getReserves()
-        public view
-        returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast)
-    {
+    function getReserves() public view returns (uint112 _reserve0, uint112 _reserve1, uint32 _blockTimestampLast) {
         _reserve0 = reserve0;
         _reserve1 = reserve1;
         _blockTimestampLast = blockTimestampLast;
     }
 
     function _update(uint256 balance0, uint256 balance1) private {
-        require(
-            balance0 <= type(uint112).max && balance1 <= type(uint112).max,
-            "VitaelPair: OVERFLOW"
-        );
+        require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "VitaelPair: OVERFLOW");
         reserve0 = uint112(balance0);
         reserve1 = uint112(balance1);
         blockTimestampLast = uint32(block.timestamp);
@@ -82,10 +78,7 @@ contract VitaelPair is ERC20, ReentrancyGuard {
             liquidity = Math.sqrt(amount0 * amount1) - MINIMUM_LIQUIDITY;
             _mint(address(0xdead), MINIMUM_LIQUIDITY);
         } else {
-            liquidity = Math.min(
-                (amount0 * _totalSupply) / _reserve0,
-                (amount1 * _totalSupply) / _reserve1
-            );
+            liquidity = Math.min((amount0 * _totalSupply) / _reserve0, (amount1 * _totalSupply) / _reserve1);
         }
         require(liquidity > 0, "VitaelPair: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
@@ -108,10 +101,7 @@ contract VitaelPair is ERC20, ReentrancyGuard {
         _burn(address(this), liquidity);
         IERC20(token0).safeTransfer(to, amount0);
         IERC20(token1).safeTransfer(to, amount1);
-        _update(
-            IERC20(token0).balanceOf(address(this)),
-            IERC20(token1).balanceOf(address(this))
-        );
+        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
@@ -119,12 +109,7 @@ contract VitaelPair is ERC20, ReentrancyGuard {
 
     /// @notice Execute swap. Router sends input tokens first, then calls this.
     /// @dev Total fee = 0.3%. Protocol portion (protocolFeeBps/1000 of input) goes to treasury.
-    function swap(
-        uint256 amount0Out,
-        uint256 amount1Out,
-        address to,
-        bytes calldata
-    ) external nonReentrant {
+    function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata) external nonReentrant {
         require(amount0Out > 0 || amount1Out > 0, "VitaelPair: INSUFFICIENT_OUTPUT_AMOUNT");
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         require(amount0Out < _reserve0 && amount1Out < _reserve1, "VitaelPair: INSUFFICIENT_LIQUIDITY");
@@ -137,27 +122,21 @@ contract VitaelPair is ERC20, ReentrancyGuard {
         uint256 balance0 = IERC20(token0).balanceOf(address(this));
         uint256 balance1 = IERC20(token1).balanceOf(address(this));
 
-        uint256 amount0In = balance0 > _reserve0 - amount0Out
-            ? balance0 - (_reserve0 - amount0Out) : 0;
-        uint256 amount1In = balance1 > _reserve1 - amount1Out
-            ? balance1 - (_reserve1 - amount1Out) : 0;
+        uint256 amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
+        uint256 amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
         require(amount0In > 0 || amount1In > 0, "VitaelPair: INSUFFICIENT_INPUT_AMOUNT");
 
         // k invariant with 0.3% fee
         uint256 balance0Adjusted = balance0 * 1000 - amount0In * 3;
         uint256 balance1Adjusted = balance1 * 1000 - amount1In * 3;
         require(
-            balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * uint256(_reserve1) * 1_000_000,
-            "VitaelPair: K"
+            balance0Adjusted * balance1Adjusted >= uint256(_reserve0) * uint256(_reserve1) * 1_000_000, "VitaelPair: K"
         );
 
         // Route protocol fee portion to treasury
         _collectProtocolFee(amount0In, amount1In);
 
-        _update(
-            IERC20(token0).balanceOf(address(this)),
-            IERC20(token1).balanceOf(address(this))
-        );
+        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
@@ -185,10 +164,7 @@ contract VitaelPair is ERC20, ReentrancyGuard {
         if (fee1 > 0) IERC20(token1).safeTransfer(treas, fee1);
 
         // Update reserves after fee transfer
-        _update(
-            IERC20(token0).balanceOf(address(this)),
-            IERC20(token1).balanceOf(address(this))
-        );
+        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
         emit ProtocolFeeCollected(fee0, fee1, treas);
     }
 
@@ -200,9 +176,6 @@ contract VitaelPair is ERC20, ReentrancyGuard {
     }
 
     function sync() external nonReentrant {
-        _update(
-            IERC20(token0).balanceOf(address(this)),
-            IERC20(token1).balanceOf(address(this))
-        );
+        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
     }
 }

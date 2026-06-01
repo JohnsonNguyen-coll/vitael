@@ -32,15 +32,11 @@ contract VitaelRouter is ReentrancyGuard {
         require(pair != address(0), "VitaelRouter: PAIR_NOT_FOUND");
     }
 
-    function _sortTokens(address tokenA, address tokenB)
-        internal pure returns (address token0, address token1)
-    {
+    function _sortTokens(address tokenA, address tokenB) internal pure returns (address token0, address token1) {
         (token0, token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
     }
 
-    function _getReserves(address tokenA, address tokenB)
-        internal view returns (uint256 reserveA, uint256 reserveB)
-    {
+    function _getReserves(address tokenA, address tokenB) internal view returns (uint256 reserveA, uint256 reserveB) {
         (address token0,) = _sortTokens(tokenA, tokenB);
         (uint112 r0, uint112 r1,) = VitaelPair(_pairFor(tokenA, tokenB)).getReserves();
         (reserveA, reserveB) = tokenA == token0 ? (r0, r1) : (r1, r0);
@@ -50,7 +46,9 @@ contract VitaelRouter is ReentrancyGuard {
 
     /// @notice Given exact input amount, compute output (0.3% fee)
     function getAmountOut(uint256 amountIn, uint256 reserveIn, uint256 reserveOut)
-        public pure returns (uint256 amountOut)
+        public
+        pure
+        returns (uint256 amountOut)
     {
         require(amountIn > 0, "VitaelRouter: INSUFFICIENT_INPUT");
         require(reserveIn > 0 && reserveOut > 0, "VitaelRouter: INSUFFICIENT_LIQUIDITY");
@@ -60,7 +58,9 @@ contract VitaelRouter is ReentrancyGuard {
 
     /// @notice Given exact output amount, compute required input (0.3% fee)
     function getAmountIn(uint256 amountOut, uint256 reserveIn, uint256 reserveOut)
-        public pure returns (uint256 amountIn)
+        public
+        pure
+        returns (uint256 amountIn)
     {
         require(amountOut > 0, "VitaelRouter: INSUFFICIENT_OUTPUT");
         require(reserveIn > 0 && reserveOut > 0, "VitaelRouter: INSUFFICIENT_LIQUIDITY");
@@ -68,9 +68,7 @@ contract VitaelRouter is ReentrancyGuard {
     }
 
     /// @notice Compute output amounts for a multi-hop path
-    function getAmountsOut(uint256 amountIn, address[] calldata path)
-        public view returns (uint256[] memory amounts)
-    {
+    function getAmountsOut(uint256 amountIn, address[] calldata path) public view returns (uint256[] memory amounts) {
         require(path.length >= 2, "VitaelRouter: INVALID_PATH");
         amounts = new uint256[](path.length);
         amounts[0] = amountIn;
@@ -81,9 +79,7 @@ contract VitaelRouter is ReentrancyGuard {
     }
 
     /// @notice Compute input amounts for a multi-hop path (exact output)
-    function getAmountsIn(uint256 amountOut, address[] calldata path)
-        public view returns (uint256[] memory amounts)
-    {
+    function getAmountsIn(uint256 amountOut, address[] calldata path) public view returns (uint256[] memory amounts) {
         require(path.length >= 2, "VitaelRouter: INVALID_PATH");
         amounts = new uint256[](path.length);
         amounts[amounts.length - 1] = amountOut;
@@ -96,9 +92,12 @@ contract VitaelRouter is ReentrancyGuard {
     // ─── Liquidity ────────────────────────────────────────────────────────────
 
     function _addLiquidity(
-        address tokenA, address tokenB,
-        uint256 amountADesired, uint256 amountBDesired,
-        uint256 amountAMin, uint256 amountBMin
+        address tokenA,
+        address tokenB,
+        uint256 amountADesired,
+        uint256 amountBDesired,
+        uint256 amountAMin,
+        uint256 amountBMin
     ) internal returns (uint256 amountA, uint256 amountB) {
         if (VitaelFactory(factory).getPair(tokenA, tokenB) == address(0)) {
             VitaelFactory(factory).createPair(tokenA, tokenB);
@@ -121,14 +120,16 @@ contract VitaelRouter is ReentrancyGuard {
 
     /// @notice Add liquidity. Creates pair if it doesn't exist.
     function addLiquidity(
-        address tokenA, address tokenB,
-        uint256 amountADesired, uint256 amountBDesired,
-        uint256 amountAMin, uint256 amountBMin,
-        address to, uint256 deadline
+        address tokenA,
+        address tokenB,
+        uint256 amountADesired,
+        uint256 amountBDesired,
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
     ) external ensure(deadline) nonReentrant returns (uint256 amountA, uint256 amountB, uint256 liquidity) {
-        (amountA, amountB) = _addLiquidity(
-            tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin
-        );
+        (amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
         address pair = _pairFor(tokenA, tokenB);
         IERC20(tokenA).safeTransferFrom(msg.sender, pair, amountA);
         IERC20(tokenB).safeTransferFrom(msg.sender, pair, amountB);
@@ -137,10 +138,13 @@ contract VitaelRouter is ReentrancyGuard {
 
     /// @notice Remove liquidity and receive back tokenA + tokenB
     function removeLiquidity(
-        address tokenA, address tokenB,
+        address tokenA,
+        address tokenB,
         uint256 liquidity,
-        uint256 amountAMin, uint256 amountBMin,
-        address to, uint256 deadline
+        uint256 amountAMin,
+        uint256 amountBMin,
+        address to,
+        uint256 deadline
     ) external ensure(deadline) nonReentrant returns (uint256 amountA, uint256 amountB) {
         address pair = _pairFor(tokenA, tokenB);
         IERC20(pair).safeTransferFrom(msg.sender, pair, liquidity);
@@ -158,14 +162,10 @@ contract VitaelRouter is ReentrancyGuard {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0,) = _sortTokens(input, output);
             uint256 amountOut = amounts[i + 1];
-            (uint256 amount0Out, uint256 amount1Out) = input == token0
-                ? (uint256(0), amountOut)
-                : (amountOut, uint256(0));
-            address to = i < path.length - 2
-                ? VitaelFactory(factory).getPair(output, path[i + 2])
-                : _to;
-            VitaelPair(VitaelFactory(factory).getPair(input, output))
-                .swap(amount0Out, amount1Out, to, new bytes(0));
+            (uint256 amount0Out, uint256 amount1Out) =
+                input == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
+            address to = i < path.length - 2 ? VitaelFactory(factory).getPair(output, path[i + 2]) : _to;
+            VitaelPair(VitaelFactory(factory).getPair(input, output)).swap(amount0Out, amount1Out, to, new bytes(0));
         }
     }
 
@@ -179,11 +179,7 @@ contract VitaelRouter is ReentrancyGuard {
     ) external ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         amounts = getAmountsOut(amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, "VitaelRouter: INSUFFICIENT_OUTPUT_AMOUNT");
-        IERC20(path[0]).safeTransferFrom(
-            msg.sender,
-            VitaelFactory(factory).getPair(path[0], path[1]),
-            amounts[0]
-        );
+        IERC20(path[0]).safeTransferFrom(msg.sender, VitaelFactory(factory).getPair(path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
     }
 
@@ -197,11 +193,7 @@ contract VitaelRouter is ReentrancyGuard {
     ) external ensure(deadline) nonReentrant returns (uint256[] memory amounts) {
         amounts = getAmountsIn(amountOut, path);
         require(amounts[0] <= amountInMax, "VitaelRouter: EXCESSIVE_INPUT_AMOUNT");
-        IERC20(path[0]).safeTransferFrom(
-            msg.sender,
-            VitaelFactory(factory).getPair(path[0], path[1]),
-            amounts[0]
-        );
+        IERC20(path[0]).safeTransferFrom(msg.sender, VitaelFactory(factory).getPair(path[0], path[1]), amounts[0]);
         _swap(amounts, path, to);
     }
 }

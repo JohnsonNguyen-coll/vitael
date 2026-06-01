@@ -16,8 +16,8 @@ import "../src/LendingConfig.sol";
 contract UpgradeOracleFeeds is Script {
     function run() external {
         address oracleAddr = vm.envAddress("ORACLE");
-        uint256 pk         = vm.envUint("PRIVATE_KEY");
-        address deployer   = vm.addr(pk);
+        uint256 pk = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(pk);
 
         VitaelOracle oracle = VitaelOracle(oracleAddr);
         require(oracle.owner() == deployer, "PRIVATE_KEY must be oracle owner");
@@ -26,10 +26,10 @@ contract UpgradeOracleFeeds is Script {
 
         address usdcFeed = address(new StorkPriceFeed(LendingConfig.STORK_AGGREGATOR, LendingConfig.STORK_USDCUSD));
         address eurcFeed = address(new StorkPriceFeed(LendingConfig.STORK_AGGREGATOR, LendingConfig.STORK_EURCUSD));
-        address btcFeed  = address(new StorkPriceFeed(LendingConfig.STORK_AGGREGATOR, LendingConfig.STORK_BTCUSD));
+        address btcFeed = address(new StorkPriceFeed(LendingConfig.STORK_AGGREGATOR, LendingConfig.STORK_BTCUSD));
 
-        oracle.addPriceFeed(LendingConfig.USDC,   usdcFeed);
-        oracle.addPriceFeed(LendingConfig.EURC,   eurcFeed);
+        oracle.addPriceFeed(LendingConfig.USDC, usdcFeed);
+        oracle.addPriceFeed(LendingConfig.EURC, eurcFeed);
         oracle.addPriceFeed(LendingConfig.CIRBTC, btcFeed);
 
         console.log("USDC feed  :", usdcFeed);

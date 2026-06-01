@@ -21,7 +21,7 @@ import "../src/LendingConfig.sol";
 contract PatchStableFeeds is Script {
     function run() external {
         address oracleAddr = vm.envAddress("ORACLE");
-        uint256 pk         = vm.envUint("PRIVATE_KEY");
+        uint256 pk = vm.envUint("PRIVATE_KEY");
 
         VitaelOracle oracle = VitaelOracle(oracleAddr);
         require(oracle.owner() == vm.addr(pk), "not owner");

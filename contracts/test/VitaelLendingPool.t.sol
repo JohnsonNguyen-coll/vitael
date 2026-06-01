@@ -13,7 +13,7 @@ import "../src/MockV3Aggregator.sol";
  */
 contract VitaelLendingPoolTest is Test {
     VitaelLendingPool pool;
-    VitaelOracle      oracle;
+    VitaelOracle oracle;
 
     MockERC20 usdc;
     MockERC20 eurc;
@@ -23,41 +23,41 @@ contract VitaelLendingPoolTest is Test {
     MockV3Aggregator eurcFeed;
     MockV3Aggregator btcFeed;
 
-    address alice     = address(0xA1);
-    address bob       = address(0xB0B);
+    address alice = address(0xA1);
+    address bob = address(0xB0B);
     address liquidator = address(0x11);
 
     // ─── Setup ────────────────────────────────────────────────────────────────
 
     function setUp() public {
-        usdc   = new MockERC20("USD Coin",    "USDC",   6);
-        eurc   = new MockERC20("Euro Coin",   "EURC",   6);
-        cirBtc = new MockERC20("Circle BTC",  "cirBTC", 8);
+        usdc = new MockERC20("USD Coin", "USDC", 6);
+        eurc = new MockERC20("Euro Coin", "EURC", 6);
+        cirBtc = new MockERC20("Circle BTC", "cirBTC", 8);
 
-        usdcFeed = new MockV3Aggregator(8, 1_00000000);      // $1.00
-        eurcFeed = new MockV3Aggregator(8, 1_08000000);      // $1.08
-        btcFeed  = new MockV3Aggregator(8, 60000_00000000);  // $60 000
+        usdcFeed = new MockV3Aggregator(8, 1_00000000); // $1.00
+        eurcFeed = new MockV3Aggregator(8, 1_08000000); // $1.08
+        btcFeed = new MockV3Aggregator(8, 60000_00000000); // $60 000
 
         oracle = new VitaelOracle();
-        oracle.addPriceFeed(address(usdc),   address(usdcFeed));
-        oracle.addPriceFeed(address(eurc),   address(eurcFeed));
+        oracle.addPriceFeed(address(usdc), address(usdcFeed));
+        oracle.addPriceFeed(address(eurc), address(eurcFeed));
         oracle.addPriceFeed(address(cirBtc), address(btcFeed));
 
         pool = new VitaelLendingPool(address(oracle));
 
         // USDC — stable
-        pool.addAsset(address(usdc),   6, 9000, 9200, 500,  2e16, 8e17, 4e16, 75e16, 1000);
+        pool.addAsset(address(usdc), 6, 9000, 9200, 500, 2e16, 8e17, 4e16, 75e16, 1000);
         // EURC — stable
-        pool.addAsset(address(eurc),   6, 8500, 8800, 500,  2e16, 8e17, 4e16, 75e16, 1000);
+        pool.addAsset(address(eurc), 6, 8500, 8800, 500, 2e16, 8e17, 4e16, 75e16, 1000);
         // cirBTC — volatile
         pool.addAsset(address(cirBtc), 8, 7000, 7500, 1000, 2e16, 8e17, 4e16, 75e16, 1000);
 
         // Mint tokens
-        usdc.mint(alice,     10_000e6);
-        usdc.mint(bob,       10_000e6);
-        usdc.mint(liquidator,50_000e6);
-        eurc.mint(bob,       10_000e6);
-        cirBtc.mint(bob,     1e8);       // 1 BTC
+        usdc.mint(alice, 10_000e6);
+        usdc.mint(bob, 10_000e6);
+        usdc.mint(liquidator, 50_000e6);
+        eurc.mint(bob, 10_000e6);
+        cirBtc.mint(bob, 1e8); // 1 BTC
 
         // Approvals
         vm.startPrank(alice);
@@ -65,14 +65,14 @@ contract VitaelLendingPoolTest is Test {
         vm.stopPrank();
 
         vm.startPrank(bob);
-        usdc.approve(address(pool),   type(uint256).max);
-        eurc.approve(address(pool),   type(uint256).max);
+        usdc.approve(address(pool), type(uint256).max);
+        eurc.approve(address(pool), type(uint256).max);
         cirBtc.approve(address(pool), type(uint256).max);
         vm.stopPrank();
 
         vm.startPrank(liquidator);
-        usdc.approve(address(pool),   type(uint256).max);
-        eurc.approve(address(pool),   type(uint256).max);
+        usdc.approve(address(pool), type(uint256).max);
+        eurc.approve(address(pool), type(uint256).max);
         cirBtc.approve(address(pool), type(uint256).max);
         vm.stopPrank();
     }
@@ -104,12 +104,12 @@ contract VitaelLendingPoolTest is Test {
         pool.supply(address(usdc), 1000e6);
 
         vm.startPrank(bob);
-        pool.supply(address(eurc),   500e6);
-        pool.supply(address(cirBtc), 1e7);   // 0.1 BTC
+        pool.supply(address(eurc), 500e6);
+        pool.supply(address(cirBtc), 1e7); // 0.1 BTC
         vm.stopPrank();
 
-        assertApproxEqAbs(pool.getSupplyBalance(bob, address(eurc)),   500e6, 1);
-        assertApproxEqAbs(pool.getSupplyBalance(bob, address(cirBtc)), 1e7,   1);
+        assertApproxEqAbs(pool.getSupplyBalance(bob, address(eurc)), 500e6, 1);
+        assertApproxEqAbs(pool.getSupplyBalance(bob, address(cirBtc)), 1e7, 1);
     }
 
     // ─── Collateral ───────────────────────────────────────────────────────────
@@ -133,8 +133,8 @@ contract VitaelLendingPoolTest is Test {
 
         // Bob deposits EURC collateral and borrows USDC
         vm.startPrank(bob);
-        pool.depositCollateral(address(eurc), 5000e6);  // $5 400 value
-        pool.borrow(address(usdc), 2000e6);              // borrow $2 000
+        pool.depositCollateral(address(eurc), 5000e6); // $5 400 value
+        pool.borrow(address(usdc), 2000e6); // borrow $2 000
         vm.stopPrank();
 
         assertEq(usdc.balanceOf(bob), 12_000e6);
@@ -155,8 +155,8 @@ contract VitaelLendingPoolTest is Test {
 
         // Bob deposits cirBTC and borrows EURC
         vm.startPrank(bob);
-        pool.depositCollateral(address(cirBtc), 1e7);  // 0.1 BTC = $6 000
-        pool.borrow(address(eurc), 1000e6);             // borrow 1000 EURC ≈ $1 080
+        pool.depositCollateral(address(cirBtc), 1e7); // 0.1 BTC = $6 000
+        pool.borrow(address(eurc), 1000e6); // borrow 1000 EURC ≈ $1 080
         vm.stopPrank();
 
         assertApproxEqAbs(pool.getBorrowBalance(bob, address(eurc)), 1000e6, 1);
@@ -319,7 +319,7 @@ contract VitaelLendingPoolTest is Test {
         pool.supply(address(usdc), 5000e6);
 
         vm.startPrank(bob);
-        pool.depositCollateral(address(eurc), 1000e6);  // $1 080 at $1.08
+        pool.depositCollateral(address(eurc), 1000e6); // $1 080 at $1.08
         pool.borrow(address(usdc), 500e6);
         vm.stopPrank();
 

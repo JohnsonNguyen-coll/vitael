@@ -17,5 +17,5 @@ library LendingConfig {
     // Verified: keccak256("USDCUSD") keccak256("EURCUSD") keccak256("BTCUSD")
     bytes32 internal constant STORK_USDCUSD = 0x7416a56f222e196d0487dce8a1a8003936862e7a15092a91898d69fa8bce290c;
     bytes32 internal constant STORK_EURCUSD = 0x64ffe1382a02f37d4e16872cde1e7379679aa83bba98d99036921942203afafb;
-    bytes32 internal constant STORK_BTCUSD  = 0x7404e3d104ea7841c3d9e6fd20adfe99b4ad586bc08d8f3bd3afef894cf184de;
+    bytes32 internal constant STORK_BTCUSD = 0x7404e3d104ea7841c3d9e6fd20adfe99b4ad586bc08d8f3bd3afef894cf184de;
 }

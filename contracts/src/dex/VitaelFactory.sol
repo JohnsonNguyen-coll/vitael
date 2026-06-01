@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /// @title VitaelFactory — creates and tracks all VitaelPair contracts
 contract VitaelFactory is Ownable, Pausable {
-
     /// @notice Treasury address that receives protocol fees
     address public treasury;
 
@@ -34,15 +33,9 @@ contract VitaelFactory is Ownable, Pausable {
     }
 
     /// @notice Deploy a new pair contract for tokenA/tokenB
-    function createPair(address tokenA, address tokenB)
-        external
-        whenNotPaused
-        returns (address pair)
-    {
+    function createPair(address tokenA, address tokenB) external whenNotPaused returns (address pair) {
         require(tokenA != tokenB, "VitaelFactory: IDENTICAL_ADDRESSES");
-        (address token0, address token1) = tokenA < tokenB
-            ? (tokenA, tokenB)
-            : (tokenB, tokenA);
+        (address token0, address token1) = tokenA < tokenB ? (tokenA, tokenB) : (tokenB, tokenA);
         require(token0 != address(0), "VitaelFactory: ZERO_ADDRESS");
         require(getPair[token0][token1] == address(0), "VitaelFactory: PAIR_EXISTS");
 
