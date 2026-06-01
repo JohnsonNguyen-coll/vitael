@@ -8,6 +8,8 @@ import {
 } from "viem";
 import { arcTestnet } from "../app/providers";
 import { LENDING_CONTRACTS, ARC_RPC } from "../lib/contracts";
+import { parseWalletError } from "../lib/walletErrors";
+import { parseLendingPoolError } from "../lib/lendingErrors";
 
 // ─── Contract addresses ───────────────────────────────────────────────────────
 const POOL    = LENDING_CONTRACTS.LENDING_POOL;
@@ -16,15 +18,20 @@ const USDC    = LENDING_CONTRACTS.USDC;
 const ORACLE  = LENDING_CONTRACTS.ORACLE;
 
 export const COLLATERAL_TOKENS = {
-  WETH: {
-    address: LENDING_CONTRACTS.WETH,
-    symbol: "WETH", name: "Wrapped Ether", decimals: 18,
+  EURC: {
+    address: LENDING_CONTRACTS.EURC,
+    symbol: "EURC", name: "Euro Coin", decimals: 6,
     ltv: 80, liquidationThreshold: 85, liquidationBonus: 5,
   },
-  WBTC: {
-    address: LENDING_CONTRACTS.WBTC,
-    symbol: "WBTC", name: "Wrapped Bitcoin", decimals: 8,
+  cirBTC: {
+    address: LENDING_CONTRACTS.CIRBTC,
+    symbol: "cirBTC", name: "Circle BTC", decimals: 8,
     ltv: 70, liquidationThreshold: 75, liquidationBonus: 10,
+  },
+  USDC: {
+    address: LENDING_CONTRACTS.USDC,
+    symbol: "USDC", name: "USD Coin (collateral)", decimals: 6,
+    ltv: 85, liquidationThreshold: 90, liquidationBonus: 5,
   },
 } as const;
 export type CollateralSymbol = keyof typeof COLLATERAL_TOKENS;
@@ -128,6 +135,43 @@ export function useLending() {
   const setStep = (step: string, extra?: Partial<LendingState>) =>
     setState(prev => ({ ...prev, step, ...extra }));
 
+  const failTx = (err: unknown) => {
+    const poolMsg = parseLendingPoolError(err);
+    const { message, cancelled } = parseWalletError(err);
+    setState({
+      step: cancelled ? "cancelled" : "error",
+      busy: false,
+      error: poolMsg ?? message,
+      txHash: null,
+    });
+  };
+
+  async function getPoolUsdcCash(): Promise<bigint> {
+    if (!POOL) return 0n;
+    return arcClient.readContract({
+      address: USDC,
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [POOL],
+    });
+  }
+
+  async function simulatePoolCall(
+    account: Address,
+    functionName: "borrow" | "repay" | "supply" | "withdraw",
+    args: readonly unknown[],
+  ) {
+    if (!POOL) throw new Error("Lending pool not configured");
+    await arcClient.simulateContract({
+      address: POOL,
+      abi: POOL_ABI,
+      functionName,
+      args: args as never,
+      account,
+      chain: arcTestnet,
+    });
+  }
+
   async function ensureArc() {
     if (!walletClient) throw new Error("Wallet not connected");
     if (walletClient.chain.id !== arcTestnet.id)
@@ -189,7 +233,7 @@ export function useLending() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -212,7 +256,7 @@ export function useLending() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -238,7 +282,7 @@ export function useLending() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -262,7 +306,7 @@ export function useLending() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -276,16 +320,30 @@ export function useLending() {
       const account = walletClient.account.address;
       const amount  = parseUnits(amountHuman, 6);
 
+      const poolCash = await getPoolUsdcCash();
+      if (poolCash < amount) {
+        const avail = formatUnits(poolCash, 6);
+        throw new Error(
+          poolCash === 0n
+            ? "The pool has 0 USDC available to borrow. Supply USDC on the Lend page first."
+            : `Only ${avail} USDC is available in the pool. Reduce your borrow amount or wait for more suppliers.`,
+        );
+      }
+
+      await simulatePoolCall(account, "borrow", [amount]);
+
       setStep("borrowing");
       const hash = await walletClient.sendTransaction({
-        account, to: POOL,
+        account,
+        chain: arcTestnet,
+        to: POOL,
         data: encodeFunctionData({ abi: POOL_ABI, functionName: "borrow", args: [amount] }),
       });
       setStep("confirming", { txHash: hash });
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -310,7 +368,7 @@ export function useLending() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -334,7 +392,7 @@ export function useLending() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);

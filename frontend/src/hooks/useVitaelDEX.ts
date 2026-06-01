@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useWalletClient, useSwitchChain } from "wagmi";
 import { parseUnits, formatUnits, encodeFunctionData, createPublicClient, http, type Address, type Hash } from "viem";
 import { arcTestnet } from "../app/providers";
+import { parseWalletError } from "../lib/walletErrors";
 
 // ─── Contract addresses ───────────────────────────────────────────────────────
 const ROUTER  = (process.env.NEXT_PUBLIC_DEX_ROUTER  ?? "") as Address;
@@ -86,6 +87,16 @@ export function useVitaelDEX() {
 
   const [state, setState] = useState<DEXState>({ step: "idle", busy: false, error: null, txHash: null });
   const setStep = (step: string, extra?: Partial<DEXState>) => setState(prev => ({ ...prev, step, ...extra }));
+
+  const failTx = (err: unknown) => {
+    const { message, cancelled } = parseWalletError(err);
+    setState({
+      step: cancelled ? "cancelled" : "error",
+      busy: false,
+      error: message,
+      txHash: null,
+    });
+  };
 
   async function ensureArc() {
     if (!walletClient) throw new Error("Wallet not connected");
@@ -174,7 +185,7 @@ export function useVitaelDEX() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -220,7 +231,7 @@ export function useVitaelDEX() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
@@ -258,7 +269,7 @@ export function useVitaelDEX() {
       await arcClient.waitForTransactionReceipt({ hash });
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
-      setState({ step: "error", busy: false, error: err instanceof Error ? err.message : String(err), txHash: null });
+      failTx(err);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);

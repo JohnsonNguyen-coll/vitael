@@ -14,6 +14,12 @@ function fmtUsdCompact(value: string): string {
   return `$${n.toFixed(2)}`;
 }
 
+const COLLATERAL_MARKETS = [
+  { name: "EURC", key: "EURC" as const, sub: "Arc · Stork EUR/USD" },
+  { name: "cirBTC", key: "cirBTC" as const, sub: "Arc · Stork BTC/USD" },
+  { name: "USDC", key: "USDC" as const, sub: "Arc · Stork USD (collateral)" },
+];
+
 export default function Markets() {
   const { getProtocolStats } = useLending();
   const [stats, setStats] = useState<Awaited<ReturnType<typeof getProtocolStats>>>(null);
@@ -31,33 +37,23 @@ export default function Markets() {
   const markets = [
     {
       name: "USDC",
-      sub: "Gas Native",
+      sub: "Supply & borrow",
       supplied: stats ? fmtUsdCompact(stats.totalSuppliedUsdc) : "—",
       supplyAPY: stats ? `${stats.supplyApyPct.toFixed(2)}%` : "—",
       borrowed: stats ? fmtUsdCompact(stats.totalBorrowedUsdc) : "—",
       borrowAPY: stats ? `${stats.borrowApyPct.toFixed(2)}%` : "—",
       href: "/lend",
     },
-    {
-      name: "WETH",
-      sub: "Collateral Token",
+    ...COLLATERAL_MARKETS.map((c) => ({
+      name: c.name,
+      sub: c.sub,
       supplied: "—",
       supplyAPY: "—",
       borrowed: "—",
       borrowAPY: "—",
       href: "/borrow",
-      ltv: `${COLLATERAL_TOKENS.WETH.ltv}%`,
-    },
-    {
-      name: "WBTC",
-      sub: "Collateral Token",
-      supplied: "—",
-      supplyAPY: "—",
-      borrowed: "—",
-      borrowAPY: "—",
-      href: "/borrow",
-      ltv: `${COLLATERAL_TOKENS.WBTC.ltv}%`,
-    },
+      ltv: `${COLLATERAL_TOKENS[c.key].ltv}%`,
+    })),
   ];
 
   const totalLiquidity = stats

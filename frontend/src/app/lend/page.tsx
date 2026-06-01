@@ -8,7 +8,10 @@ import {
 import { useAccount } from "wagmi";
 import WalletActionGate, { WalletConnectPrompt } from "../../components/WalletActionGate";
 import { formatUsd, formatTokenAmount } from "../../lib/format";
+import ProtocolFlowHint from "../../components/ProtocolFlowHint";
+import TxStatusBanner from "../../components/TxStatusBanner";
 import Header from "../../components/Header";
+import Link from "next/link";
 import WaterfallBackground from "../../components/WaterfallBackground";
 import Footer from "../../components/Footer";
 import TokenIcon from "../../components/TokenIcon";
@@ -25,10 +28,10 @@ interface Asset {
   supplyOnly?: boolean;
 }
 
-const COLLATERAL_ASSETS: Asset[] = [
-  { symbol: "WETH", name: "Wrapped Ether",   supplyAPY: 0, borrowAPY: 0, ltv: COLLATERAL_TOKENS.WETH.ltv, liquidity: "Collateral" },
-  { symbol: "WBTC", name: "Wrapped Bitcoin", supplyAPY: 0, borrowAPY: 0, ltv: COLLATERAL_TOKENS.WBTC.ltv, liquidity: "Collateral" },
-];
+const COLLATERAL_REF = [
+  { symbol: "EURC", name: "Euro Coin", ltv: COLLATERAL_TOKENS.EURC.ltv },
+  { symbol: "cirBTC", name: "Circle BTC", ltv: COLLATERAL_TOKENS.cirBTC.ltv },
+] as const;
 
 function fmtLiquidity(usdc: string): string {
   const n = parseFloat(usdc);
@@ -56,34 +59,9 @@ function StatCard({ label, value, sub, accent = false, loading = false }: {
       <p className="text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">{label}</p>
       {loading
         ? <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
-        : <p className={`text-2xl font-extrabold ${accent ? "text-[#00F5FF]" : "text-white"}`}>{value}</p>
+        : <p suppressHydrationWarning className={`text-2xl font-extrabold ${accent ? "text-[#00F5FF]" : "text-white"}`}>{value}</p>
       }
       {sub && !loading && <p className="text-xs text-emerald-400 mt-1">{sub}</p>}
-    </div>
-  );
-}
-
-function StatusBanner({ step, error, txHash }: { step: string; error: string | null; txHash: string | null }) {
-  if (error) return (
-    <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm mb-4">
-      <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-      <span className="break-all">{error}</span>
-    </div>
-  );
-  if (step === "done" && txHash) return (
-    <div className="flex items-center justify-between bg-emerald-400/8 border border-emerald-400/20 rounded-xl px-4 py-3 mb-4">
-      <span className="text-sm text-emerald-400 font-semibold">Transaction confirmed ✓</span>
-      <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank"
-        className="flex items-center gap-1 text-xs text-[#00F5FF] hover:underline">
-        ArcScan <ExternalLink className="w-3 h-3" />
-      </a>
-    </div>
-  );
-  if (!STEP_LABELS[step]) return null;
-  return (
-    <div className="flex items-center gap-3 bg-[#00F5FF]/5 border border-[#00F5FF]/15 rounded-xl px-4 py-3 mb-4">
-      <div className="w-4 h-4 border-2 border-[#00F5FF]/30 border-t-[#00F5FF] rounded-full animate-spin flex-shrink-0" />
-      <p className="text-sm text-[#00F5FF]">{STEP_LABELS[step]}</p>
     </div>
   );
 }
@@ -109,7 +87,6 @@ export default function LendPage() {
     liquidity: protocolStats ? fmtLiquidity(protocolStats.poolUsdcLiquidity) : "—",
     supplyOnly: true,
   };
-  const assets: Asset[] = [usdcAsset, ...COLLATERAL_ASSETS];
   const active = selected ?? usdcAsset;
 
   const num     = parseFloat(amount) || 0;
@@ -182,8 +159,10 @@ export default function LendPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-2 block">Arc Testnet · Vitael Protocol</span>
           <h1 className="text-4xl font-extrabold text-white">Lend</h1>
-          <p className="text-[#8E9FB8] mt-2 text-sm">Supply assets to earn yield on Arc Testnet.</p>
+          <p className="text-[#8E9FB8] mt-2 text-sm">Supply USDC to earn yield. Borrow USDC using EURC or cirBTC collateral on Borrow.</p>
         </motion.div>
+
+        <ProtocolFlowHint variant="lend" />
 
         {/* Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
@@ -223,8 +202,8 @@ export default function LendPage() {
             {/* Asset table */}
             <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden">
               <div className="px-6 py-5 border-b border-white/5">
-                <h2 className="font-bold text-white">Supply Markets</h2>
-                <p className="text-xs text-[#8E9FB8] mt-0.5">Select an asset to supply and earn yield</p>
+                <h2 className="font-bold text-white">Supply market</h2>
+                <p className="text-xs text-[#8E9FB8] mt-0.5">USDC only — deposit into the pool to receive vUSDC and earn APY</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
@@ -232,45 +211,64 @@ export default function LendPage() {
                     <tr className="border-b border-white/5 text-xs uppercase tracking-wider text-[#8E9FB8]">
                       <th className="py-3 px-5">Asset</th>
                       <th className="py-3 px-5 text-[#00F5FF]">Supply APY</th>
-                      <th className="py-3 px-5">Liquidity</th>
+                      <th className="py-3 px-5">Pool liquidity</th>
                       <th className="py-3 px-5" />
                     </tr>
                   </thead>
                   <tbody>
-                    {assets.map(a => (
-                      <motion.tr key={a.symbol} onClick={() => a.supplyOnly && setSelected(a)}
-                        whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-                        className={`border-b border-white/5 transition-all ${a.supplyOnly ? "cursor-pointer" : "opacity-60"} ${active.symbol === a.symbol ? "bg-[#00F5FF]/5" : ""}`}>
-                        <td className="py-4 px-5">
-                          <div className="flex items-center gap-3">
-                            <TokenIcon symbol={a.symbol} size={34} />
-                            <div>
-                              <p className="font-bold text-white text-sm">{a.symbol}</p>
-                              <p className="text-xs text-[#8E9FB8]">{a.name}</p>
-                            </div>
+                    <motion.tr
+                      onClick={() => setSelected(usdcAsset)}
+                      whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                      className={`border-b border-white/5 cursor-pointer ${active.symbol === "USDC" ? "bg-[#00F5FF]/5" : ""}`}
+                    >
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-3">
+                          <TokenIcon symbol="USDC" size={34} />
+                          <div>
+                            <p className="font-bold text-white text-sm">USDC</p>
+                            <p className="text-xs text-[#8E9FB8]">USD Coin · earn yield</p>
                           </div>
-                        </td>
-                        <td className="py-4 px-5 text-[#00F5FF] font-bold text-sm">
-                          {a.supplyOnly && a.supplyAPY > 0 ? `${a.supplyAPY.toFixed(2)}%` : a.supplyOnly ? "—" : "N/A"}
-                        </td>
-                        <td className="py-4 px-5 text-[#8E9FB8] text-sm">{a.liquidity}</td>
-                        <td className="py-4 px-5 text-right">
-                          {a.supplyOnly ? (
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold border transition ${
-                              active.symbol === a.symbol
-                                ? "bg-[#00F5FF] text-[#0A1428] border-[#00F5FF]"
-                                : "bg-[#00F5FF]/10 text-[#00F5FF] border-[#00F5FF]/20 hover:bg-[#00F5FF]/20"
-                            }`}>
-                              {active.symbol === a.symbol ? "Selected" : "Select"}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-[#8E9FB8]">Collateral only</span>
-                          )}
-                        </td>
-                      </motion.tr>
-                    ))}
+                        </div>
+                      </td>
+                      <td className="py-4 px-5 text-[#00F5FF] font-bold text-sm">
+                        {usdcAsset.supplyAPY > 0 ? `${usdcAsset.supplyAPY.toFixed(2)}%` : "—"}
+                      </td>
+                      <td className="py-4 px-5 text-[#8E9FB8] text-sm" title="USDC in the pool available for borrowers">
+                        {usdcAsset.liquidity}
+                      </td>
+                      <td className="py-4 px-5 text-right">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-[#00F5FF] text-[#0A1428] border-[#00F5FF]">
+                          Active
+                        </span>
+                      </td>
+                    </motion.tr>
                   </tbody>
                 </table>
+              </div>
+
+              <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02]">
+                <p className="text-xs font-bold text-[#8E9FB8] uppercase tracking-wider mb-3">
+                  Collateral (not supplied here — used when borrowing)
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {COLLATERAL_REF.map((c) => (
+                    <Link
+                      key={c.symbol}
+                      href="/borrow#collateral"
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-black/20 hover:border-[#FF00C8]/40 transition text-xs"
+                    >
+                      <TokenIcon symbol={c.symbol} size={22} />
+                      <span className="text-white font-semibold">{c.symbol}</span>
+                      <span className="text-[#8E9FB8]">LTV {c.ltv}%</span>
+                    </Link>
+                  ))}
+                  <Link
+                    href="/borrow"
+                    className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#FF00C8] hover:underline"
+                  >
+                    Go to Borrow →
+                  </Link>
+                </div>
               </div>
 
               {/* My supplied positions */}
@@ -332,11 +330,11 @@ export default function LendPage() {
                 ))}
               </div>
 
-              <StatusBanner step={state.step} error={state.error} txHash={state.txHash} />
+              <TxStatusBanner step={state.step} error={state.error} txHash={state.txHash} stepLabels={STEP_LABELS} />
 
               {active.symbol !== "USDC" ? (
                 <p className="text-sm text-[#8E9FB8] py-4 text-center">
-                  Only USDC can be supplied. Deposit WETH/WBTC as collateral on the{" "}
+                  Only USDC can be supplied. Deposit EURC/cirBTC as collateral on the{" "}
                   <a href="/borrow" className="text-[#00F5FF] hover:underline">Borrow</a> page.
                 </p>
               ) : (

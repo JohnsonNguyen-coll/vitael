@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useWalletClient, useSwitchChain } from "wagmi";
 import { pad, encodeFunctionData, parseUnits, type Hash } from "viem";
+import { parseWalletError } from "../lib/walletErrors";
 
 // ─── CCTP V2 Contract Addresses (Testnet) ────────────────────────────────────
 // Source: https://developers.circle.com/cctp/evm-smart-contracts
@@ -128,7 +129,8 @@ export type BridgeStep =
   | "burning"
   | "waiting_attestation"
   | "done"
-  | "error";
+  | "error"
+  | "cancelled";
 
 export interface BridgeState {
   step:         BridgeStep;
@@ -152,11 +154,12 @@ const STEP_LABELS: Record<BridgeStep, string> = {
   waiting_attestation:  "Waiting for Circle attestation (~2 min)...",
   done:                 "Bridge complete ✓",
   error:                "Error",
+  cancelled:            "Cancelled",
 };
 
 const STEP_PROGRESS: Record<BridgeStep, number> = {
   idle: 0, switching_chain: 5, fetching_fees: 15,
-  approving: 30, burning: 55, waiting_attestation: 75, done: 100, error: 0,
+  approving: 30, burning: 55, waiting_attestation: 75, done: 100, error: 0, cancelled: 0,
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -274,8 +277,8 @@ export function useCCTPBridge() {
       set("done", { forwardTx });
 
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      set("error", { error: msg });
+      const { message, cancelled } = parseWalletError(err);
+      set(cancelled ? "cancelled" : "error", { error: message });
     }
   }, [walletClient, switchChainAsync, set]);
 

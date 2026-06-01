@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ShieldCheck, AlertTriangle, ExternalLink } from "lucide-react";
+import { ShieldCheck, ExternalLink } from "lucide-react";
+import TxStatusBanner from "./TxStatusBanner";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import WalletActionGate, { WalletConnectPrompt } from "./WalletActionGate";
@@ -110,19 +111,12 @@ export default function LendingWidget() {
         )}
       </AnimatePresence>
 
-      {state.error && (
-        <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2 text-red-400 text-xs mb-4">
-          <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-          <span className="break-all">{state.error}</span>
-        </div>
-      )}
-
-      {STEP_LABELS[state.step] && (
-        <div className="flex items-center gap-2 bg-[#00F5FF]/5 border border-[#00F5FF]/15 rounded-xl px-3 py-2 mb-4">
-          <div className="w-3.5 h-3.5 border-2 border-[#00F5FF]/30 border-t-[#00F5FF] rounded-full animate-spin" />
-          <p className="text-xs text-[#00F5FF]">{STEP_LABELS[state.step]}</p>
-        </div>
-      )}
+      <TxStatusBanner
+        step={state.step}
+        error={state.error}
+        txHash={state.txHash}
+        stepLabels={STEP_LABELS}
+      />
 
       <div className="flex bg-white/3 p-1 rounded-xl mb-6">
         {(["supply", "borrow"] as const).map((tab) => (

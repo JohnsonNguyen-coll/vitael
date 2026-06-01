@@ -4,10 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useLending } from "../hooks/useLending";
 
+import { formatUsd } from "../lib/format";
+
 function fmtUsd(value: string): string {
-  const n = parseFloat(value);
-  if (isNaN(n)) return "—";
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatUsd(parseFloat(value));
 }
 
 export default function StatsSection() {

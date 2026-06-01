@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { parseWalletError } from "../lib/walletErrors";
 import { useWalletClient } from "wagmi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -8,7 +9,8 @@ export type SwapStep =
   | "idle"
   | "signing"
   | "done"
-  | "error";
+  | "error"
+  | "cancelled";
 
 export interface SwapResult {
   tokenIn:     string;
@@ -28,10 +30,11 @@ export interface SwapState {
 }
 
 const STEP_LABELS: Record<SwapStep, string> = {
-  idle:    "Ready",
-  signing: "Swapping via Circle Swap Kit...",
-  done:    "Swap complete ✓",
-  error:   "Error",
+  idle:      "Ready",
+  signing:   "Swapping via Circle Swap Kit...",
+  done:      "Swap complete ✓",
+  error:     "Error",
+  cancelled: "Cancelled",
 };
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -84,8 +87,8 @@ export function useSwap() {
       });
 
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      set("error", { error: msg });
+      const { message, cancelled } = parseWalletError(err);
+      set(cancelled ? "cancelled" : "error", { error: message });
     }
   }, [walletClient, set]);
 

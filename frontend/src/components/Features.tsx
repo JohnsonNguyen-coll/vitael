@@ -18,7 +18,7 @@ export default function Features() {
     {
       num: "03",
       title: "Collateralized Borrow",
-      desc: "Lock WETH or WBTC as collateral to borrow USDC gas tokens up to a safe 80-85% LTV limit."
+      desc: "Lock EURC, cirBTC, or USDC on Arc as collateral (Stork prices) to borrow USDC up to a safe LTV limit."
     },
     {
       num: "04",

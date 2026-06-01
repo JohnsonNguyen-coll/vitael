@@ -1,12 +1,17 @@
-/** Stable number formatting for SSR + client (avoid locale hydration mismatch). */
-const USD_FMT = new Intl.NumberFormat("en-US", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+/** Locale-independent decimal formatting (SSR-safe, no Intl locale drift). */
+function formatDecimalEn(n: number, minFrac: number, maxFrac: number): string {
+  if (Number.isNaN(n)) return "—";
+  const sign = n < 0 ? "-" : "";
+  const abs = Math.abs(n);
+  const [intPart, decRaw = ""] = abs.toFixed(maxFrac).split(".");
+  const withGroups = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const dec = decRaw.padEnd(minFrac, "0").slice(0, maxFrac);
+  return `${sign}${withGroups}.${dec}`;
+}
 
 export function formatUsd(n: number): string {
   if (Number.isNaN(n)) return "—";
-  return `$${USD_FMT.format(n)}`;
+  return `$${formatDecimalEn(n, 2, 2)}`;
 }
 
 export function formatTokenAmount(
@@ -14,9 +19,7 @@ export function formatTokenAmount(
   options?: { min?: number; max?: number },
 ): string {
   const n = typeof value === "string" ? parseFloat(value) : value;
-  if (Number.isNaN(n)) return "—";
-  return new Intl.NumberFormat("en-US", {
-    minimumFractionDigits: options?.min ?? 2,
-    maximumFractionDigits: options?.max ?? 2,
-  }).format(n);
+  const min = options?.min ?? 2;
+  const max = options?.max ?? 2;
+  return formatDecimalEn(n, min, max);
 }

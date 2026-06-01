@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpDown, Settings, ChevronDown, ExternalLink, AlertTriangle, Wallet, RefreshCw } from "lucide-react";
+import { ArrowUpDown, Settings, ChevronDown, Wallet, RefreshCw } from "lucide-react";
+import TxStatusBanner from "../../components/TxStatusBanner";
 import { useAccount } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
 import Header from "../../components/Header";
@@ -48,31 +49,12 @@ function TokenSelector({ selected, onSelect, exclude }: {
   );
 }
 
-function StatusBanner({ step, error, txHash }: { step: string; error: string | null; txHash: string | null }) {
-  const LABELS: Record<string, string> = {
-    switching: "Switching to Arc Testnet...", approving: "Approving — sign in wallet...",
-    swapping: "Swapping — sign in wallet...", confirming: "Waiting for confirmation...",
-  };
-  if (error) return (
-    <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm mb-4">
-      <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" /><span className="break-all">{error}</span>
-    </div>
-  );
-  if (step === "done" && txHash) return (
-    <div className="flex items-center justify-between bg-emerald-400/8 border border-emerald-400/20 rounded-xl px-4 py-3 mb-4">
-      <span className="text-sm text-emerald-400 font-semibold">Transaction confirmed ✓</span>
-      <a href={`https://testnet.arcscan.app/tx/${txHash}`} target="_blank"
-        className="flex items-center gap-1 text-xs text-[#00F5FF] hover:underline">ArcScan <ExternalLink className="w-3 h-3" /></a>
-    </div>
-  );
-  if (!LABELS[step]) return null;
-  return (
-    <div className="flex items-center gap-3 bg-[#00F5FF]/5 border border-[#00F5FF]/15 rounded-xl px-4 py-3 mb-4">
-      <div className="w-4 h-4 border-2 border-[#00F5FF]/30 border-t-[#00F5FF] rounded-full animate-spin flex-shrink-0" />
-      <p className="text-sm text-[#00F5FF]">{LABELS[step]}</p>
-    </div>
-  );
-}
+const DEX_STEP_LABELS: Record<string, string> = {
+  switching: "Switching to Arc Testnet...",
+  approving: "Approving — sign in wallet...",
+  swapping: "Swapping — sign in wallet...",
+  confirming: "Waiting for confirmation...",
+};
 
 export default function SwapPage() {
   const { isConnected } = useAccount();
@@ -178,7 +160,7 @@ export default function SwapPage() {
               </div>
             )}
 
-            <StatusBanner step={state.step} error={state.error} txHash={state.txHash} />
+            <TxStatusBanner step={state.step} error={state.error} txHash={state.txHash} stepLabels={DEX_STEP_LABELS} />
 
             {!isConnected ? (
               <div className="flex flex-col items-center gap-3 py-2">

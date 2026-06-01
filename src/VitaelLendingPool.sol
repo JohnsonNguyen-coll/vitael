@@ -256,7 +256,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @notice Deposit collateral (e.g. WETH, WBTC) to borrow USDC against.
+     * @notice Deposit collateral (EURC, cirBTC, USDC) to borrow USDC against.
      */
     function depositCollateral(address token, uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowRight, ShieldCheck, Clock, ExternalLink,
-  ChevronDown, AlertTriangle, Wallet,
+  ChevronDown, AlertTriangle, Wallet, XCircle,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
@@ -110,9 +110,10 @@ export default function BridgePage() {
 
   const numAmt    = parseFloat(amount) || 0;
   const sameChain = fromChain.id === toChain.id;
-  const busy      = !["idle", "done", "error"].includes(state.step);
-  const isDone    = state.step === "done";
-  const isError   = state.step === "error";
+  const busy        = !["idle", "done", "error", "cancelled"].includes(state.step);
+  const isDone      = state.step === "done";
+  const isError     = state.step === "error";
+  const isCancelled = state.step === "cancelled";
 
   function swapChains() {
     const tmp = fromChain;
@@ -280,8 +281,17 @@ export default function BridgePage() {
               )}
             </AnimatePresence>
 
-            {/* Error */}
+            {/* Cancelled / error */}
             <AnimatePresence>
+              {isCancelled && state.error && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden mb-4">
+                  <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3 text-amber-200 text-sm">
+                    <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                    <span>{state.error}</span>
+                  </div>
+                </motion.div>
+              )}
               {isError && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden mb-4">
