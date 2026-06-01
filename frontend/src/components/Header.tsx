@@ -9,6 +9,7 @@ import ChainIcon from "./ChainIcon";
 const NAV = [
   { label: "Lend / Borrow", href: "/lend" },
   { label: "Swap",          href: "/swap" },
+  { label: "Pool",          href: "/pool" },
   { label: "Bridge",        href: "/bridge" },
   { label: "Markets",       href: "/#markets" },
 ];
