@@ -1,14 +1,67 @@
-# Compiler files
-cache/
-out/
+# ============================================
+# Root .gitignore for Vitael monorepo
+# ============================================
 
-# Ignores development broadcast logs
-!/broadcast
-/broadcast/*/31337/
-/broadcast/**/dry-run/
-
-# Docs
-docs/
-
-# Dotenv file
+# Environment variables (all variants)
 .env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+.cache/
+
+# Build outputs (handled by subproject .gitignore)
+# contracts/cache/
+# contracts/out/
+# frontend/.next/
+# frontend/out/
+
+# Dependencies (handled by subproject .gitignore)
+# node_modules/
+# lib/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Test coverage
+coverage/
+*.lcov
+
+# Misc
+.turbo/

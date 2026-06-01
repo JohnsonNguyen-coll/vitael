@@ -1,66 +1,106 @@
-## Foundry
+# Vitael Protocol
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+A multi-asset DeFi protocol on Arc Testnet featuring lending, borrowing, swapping, and liquidity provision.
 
-Foundry consists of:
+## 🌟 Features
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- **Multi-Asset Lending**: Supply USDC, EURC, or cirBTC to earn yield
+- **Over-Collateralized Borrowing**: Borrow against your collateral with real-time health monitoring
+- **DEX & Liquidity Pools**: Uniswap V2-style AMM with 0.3% trading fees
+- **CCTP Bridge**: Native USDC bridging via Circle's Cross-Chain Transfer Protocol
+- **Oracle Integration**: Stork oracle for live cirBTC prices
 
-## Documentation
+## 📁 Project Structure
 
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```
+vitael/
+├── contracts/          # Smart contracts (Foundry)
+│   ├── src/           # Solidity source files
+│   ├── test/          # Contract tests
+│   ├── script/        # Deployment scripts
+│   └── README.md      # Contract documentation
+│
+└── frontend/          # Next.js web application
+    ├── src/           # React components & pages
+    ├── public/        # Static assets
+    └── README.md      # Frontend documentation
 ```
 
-### Test
+## 🚀 Quick Start
 
-```shell
-$ forge test
+### Smart Contracts
+
+```bash
+cd contracts
+forge install
+forge build
+forge test
 ```
 
-### Format
+See [contracts/README.md](contracts/README.md) for detailed contract documentation.
 
-```shell
-$ forge fmt
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-### Gas Snapshots
+See [frontend/README.md](frontend/README.md) for frontend setup and development.
 
-```shell
-$ forge snapshot
-```
+## 🌐 Deployed on Arc Testnet
 
-### Anvil
+- **Network**: Arc Testnet
+- **Chain ID**: 5042002
+- **RPC**: https://rpc.testnet.arc.network
+- **Explorer**: https://testnet.arcscan.app
 
-```shell
-$ anvil
-```
+### Contract Addresses
 
-### Deploy
+- **VitaelLendingPool**: `0xEa282eea5bC90905C15Df05Ca43eeA967BcDe49f`
+- **USDC Price Feed**: `0xCB33a6cD...` (Mock - $1.00)
+- **EURC Price Feed**: `0x0F12E271...` (Mock - $1.08)
+- **cirBTC Price Feed**: `0x5288559510...` (Stork live)
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+## 🎯 Supported Assets
 
-### Cast
+| Asset  | Description    | Max LTV | Liq. Threshold | Liq. Bonus |
+|--------|----------------|---------|----------------|------------|
+| USDC   | USD Coin       | 90%     | 92%            | 5%         |
+| EURC   | Euro Coin      | 85%     | 88%            | 5%         |
+| cirBTC | Circle Bitcoin | 70%     | 75%            | 10%        |
 
-```shell
-$ cast <subcommand>
-```
+## 🔧 Tech Stack
 
-### Help
+### Smart Contracts
+- **Solidity** 0.8.28
+- **Foundry** - Development framework
+- **OpenZeppelin** - Security libraries
+- **Stork Oracle** - Price feeds
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+### Frontend
+- **Next.js 15** - React framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **Wagmi v2** - Ethereum interactions
+- **RainbowKit** - Wallet connection
+- **Framer Motion** - Animations
+
+## 📖 Documentation
+
+- [Smart Contracts Documentation](contracts/README.md)
+- [Frontend Documentation](frontend/README.md)
+- [User Guide](https://vitael-app.vercel.app/docs) (Live docs on the app)
+
+## 🧪 Testing
+
+Get testnet tokens from [Circle Faucet](https://faucet.circle.com) for Arc Testnet.
+
+## ⚠️ Disclaimer
+
+This is a **testnet protocol** for demonstration purposes only. The contracts have not been audited. Do not use with real funds.
+
+## 📄 License
+
+MIT
