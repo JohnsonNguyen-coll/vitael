@@ -244,7 +244,6 @@ export default function LandingPage() {
                   <th className="py-4 px-6">Liq. Threshold</th>
                   <th className="py-4 px-6">Liq. Bonus</th>
                   <th className="py-4 px-6">Decimals</th>
-                  <th className="py-4 px-6">Oracle</th>
                 </tr>
               </thead>
               <tbody>
@@ -263,11 +262,6 @@ export default function LandingPage() {
                     <td className="py-4 px-6 text-[#FF00C8] font-semibold">{a.liqThresh}%</td>
                     <td className="py-4 px-6 text-emerald-400 font-semibold">+{a.bonus}%</td>
                     <td className="py-4 px-6 text-[#8E9FB8]">{a.decimals}</td>
-                    <td className="py-4 px-6">
-                      <span className="text-xs bg-[#00F5FF]/10 text-[#00F5FF] border border-[#00F5FF]/20 px-2 py-0.5 rounded-full font-semibold">
-                        {a.symbol === "USDC" || a.symbol === "EURC" ? "Mock ($fixed)" : "Stork live"}
-                      </span>
-                    </td>
                   </tr>
                 ))}
               </tbody>

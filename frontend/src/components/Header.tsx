@@ -58,13 +58,8 @@ export default function Header() {
         })}
       </nav>
 
-      {/* Right side: Arc badge + wallet */}
+      {/* Right side: wallet */}
       <div className="flex items-center gap-3">
-        {/* Arc Testnet pill */}
-        <div className="hidden sm:flex items-center gap-1.5 bg-[#00F5FF]/8 border border-[#00F5FF]/15 rounded-full px-3 py-1.5">
-          <ChainIcon chainId="Arc_Testnet" size={16} />
-          <span className="text-xs font-semibold text-[#00F5FF]">Arc Testnet</span>
-        </div>
         <WalletConnectButton />
       </div>
     </header>
