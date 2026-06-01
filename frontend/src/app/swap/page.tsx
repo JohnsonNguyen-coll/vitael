@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpDown, Settings, ChevronDown, ExternalLink, AlertTriangle, Wallet, RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import WalletConnectButton from "../../components/WalletConnectButton";
 import Header from "../../components/Header";
 import WaterfallBackground from "../../components/WaterfallBackground";
 import Footer from "../../components/Footer";
@@ -183,7 +183,7 @@ export default function SwapPage() {
             {!isConnected ? (
               <div className="flex flex-col items-center gap-3 py-2">
                 <p className="text-sm text-[#8E9FB8] flex items-center gap-2"><Wallet className="w-4 h-4" />Connect wallet to swap</p>
-                <ConnectButton />
+                <WalletConnectButton />
               </div>
             ) : state.step === "done" ? (
               <button onClick={() => { reset(); setAmountIn(""); setQuote(""); }}

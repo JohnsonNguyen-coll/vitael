@@ -3,15 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import WalletConnectButton from "./WalletConnectButton";
 import ChainIcon from "./ChainIcon";
 
 const NAV = [
-  { label: "Lend / Borrow", href: "/lend" },
-  { label: "Swap",          href: "/swap" },
-  { label: "Pool",          href: "/pool" },
-  { label: "Bridge",        href: "/bridge" },
-  { label: "Markets",       href: "/#markets" },
+  { label: "Lend",    href: "/lend" },
+  { label: "Borrow",  href: "/borrow" },
+  { label: "Swap",    href: "/swap" },
+  { label: "Pool",    href: "/pool" },
+  { label: "Bridge",  href: "/bridge" },
+  { label: "Markets", href: "/#markets" },
 ];
 
 export default function Header() {
@@ -64,7 +65,7 @@ export default function Header() {
           <ChainIcon chainId="Arc_Testnet" size={16} />
           <span className="text-xs font-semibold text-[#00F5FF]">Arc Testnet</span>
         </div>
-        <ConnectButton />
+        <WalletConnectButton />
       </div>
     </header>
   );

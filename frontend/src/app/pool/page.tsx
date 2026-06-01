@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Droplets, Minus, ChevronDown, ExternalLink, AlertTriangle, Wallet } from "lucide-react";
 import { useAccount } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import WalletConnectButton from "../../components/WalletConnectButton";
 import { formatUnits } from "viem";
 import Header from "../../components/Header";
 import WaterfallBackground from "../../components/WaterfallBackground";
@@ -177,7 +177,7 @@ function AddPanel() {
       {!isConnected ? (
         <div className="flex flex-col items-center gap-3 py-2">
           <p className="text-sm text-[#8E9FB8] flex items-center gap-2"><Wallet className="w-4 h-4" />Connect wallet</p>
-          <ConnectButton />
+          <WalletConnectButton />
         </div>
       ) : state.step === "done" ? (
         <button onClick={() => { reset(); setAmountA(""); setAmountB(""); }}
@@ -288,7 +288,7 @@ function RemovePanel() {
       {!isConnected ? (
         <div className="flex flex-col items-center gap-3 py-2">
           <p className="text-sm text-[#8E9FB8] flex items-center gap-2"><Wallet className="w-4 h-4" />Connect wallet</p>
-          <ConnectButton />
+          <WalletConnectButton />
         </div>
       ) : state.step === "done" ? (
         <button onClick={() => { reset(); setLpAmount(""); setPct(100); }}

@@ -1,74 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import { useLending } from "../hooks/useLending";
+
+function fmtUsd(value: string): string {
+  const n = parseFloat(value);
+  if (isNaN(n)) return "—";
+  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 export default function StatsSection() {
-    const [tvl, setTvl] = useState(42504200.00);
-    const [borrowed, setBorrowed] = useState(28306600.00);
+  const { getProtocolStats } = useLending();
+  const [tvl, setTvl] = useState<string | null>(null);
+  const [borrowed, setBorrowed] = useState<string | null>(null);
+  const [supplyApy, setSupplyApy] = useState<number | null>(null);
 
-    // Dynamic compounding live simulation
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setTvl((prev) => prev + Math.random() * 0.45);
-            setBorrowed((prev) => prev + Math.random() * 0.28);
-        }, 1500);
+  const load = useCallback(async () => {
+    const stats = await getProtocolStats();
+    if (!stats) return;
+    setTvl(stats.totalSuppliedUsdc);
+    setBorrowed(stats.totalBorrowedUsdc);
+    setSupplyApy(stats.supplyApyPct);
+  }, [getProtocolStats]);
 
-        return () => clearInterval(interval);
-    }, []);
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => clearInterval(interval);
+  }, [load]);
 
-    return (
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 py-12">
-            {/* TVL Card */}
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-                className="glass-panel p-8 rounded-3xl relative overflow-hidden"
-            >
-                <div className="flex justify-between items-start mb-4">
-                    <span className="text-xs uppercase tracking-wider text-[#8E9FB8]">Total Value Locked</span>
-                </div>
-                <h3 className="text-3xl font-extrabold font-display text-white mb-2">
-                    ${tvl.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </h3>
-                <span className="text-xs text-emerald-400 font-semibold">+4.82% (24h)</span>
-            </motion.div>
+  return (
+    <section className="grid grid-cols-1 md:grid-cols-3 gap-6 py-12">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+        className="glass-panel p-8 rounded-3xl relative overflow-hidden"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-xs uppercase tracking-wider text-[#8E9FB8]">Total Value Locked</span>
+        </div>
+        <h3 className="text-3xl font-extrabold font-display text-white mb-2">
+          {tvl ? fmtUsd(tvl) : <span className="inline-block h-9 w-40 bg-white/5 rounded animate-pulse" />}
+        </h3>
+        <span className="text-xs text-[#8E9FB8] font-semibold">USDC supplied · Arc Testnet</span>
+      </motion.div>
 
-            {/* Total Borrowed Card */}
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="glass-panel p-8 rounded-3xl relative overflow-hidden"
-            >
-                <div className="flex justify-between items-start mb-4">
-                    <span className="text-xs uppercase tracking-wider text-[#8E9FB8]">Total Borrowed</span>
-                </div>
-                <h3 className="text-3xl font-extrabold font-display text-white mb-2">
-                    ${borrowed.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </h3>
-                <span className="text-xs text-emerald-400 font-semibold">+2.15% (24h)</span>
-            </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+        className="glass-panel p-8 rounded-3xl relative overflow-hidden"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-xs uppercase tracking-wider text-[#8E9FB8]">Total Borrowed</span>
+        </div>
+        <h3 className="text-3xl font-extrabold font-display text-white mb-2">
+          {borrowed ? fmtUsd(borrowed) : <span className="inline-block h-9 w-40 bg-white/5 rounded animate-pulse" />}
+        </h3>
+        <span className="text-xs text-[#8E9FB8] font-semibold">Live from VitaelLendingPool</span>
+      </motion.div>
 
-            {/* Average Net APY Card */}
-            <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="glass-panel p-8 rounded-3xl relative overflow-hidden"
-            >
-                <div className="flex justify-between items-start mb-4">
-                    <span className="text-xs uppercase tracking-wider text-[#8E9FB8]">Average Net APY</span>
-                </div>
-                <h3 className="text-3xl font-extrabold font-display text-[#00F5FF] mb-2">
-                    12.42%
-                </h3>
-                <span className="text-xs text-[#8E9FB8] font-semibold">Optimized via Arc Gas Model</span>
-            </motion.div>
-        </section>
-    );
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="glass-panel p-8 rounded-3xl relative overflow-hidden"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <span className="text-xs uppercase tracking-wider text-[#8E9FB8]">USDC Supply APY</span>
+        </div>
+        <h3 className="text-3xl font-extrabold font-display text-[#00F5FF] mb-2">
+          {supplyApy !== null ? `${supplyApy.toFixed(2)}%` : <span className="inline-block h-9 w-24 bg-white/5 rounded animate-pulse" />}
+        </h3>
+        <span className="text-xs text-[#8E9FB8] font-semibold">Utilization-based rate model</span>
+      </motion.div>
+    </section>
+  );
 }

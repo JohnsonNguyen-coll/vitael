@@ -18,7 +18,7 @@ interface AggregatorV3Interface {
 
 /**
  * @title VitaelOracle
- * @notice Chainlink-powered oracle (tự động fetch giá)
+ * @notice Price oracle — Chainlink-compatible feeds (incl. Stork adapters on Arc Testnet).
  */
 contract VitaelOracle is Ownable {
     mapping(address => AggregatorV3Interface) public priceFeeds;
@@ -34,6 +34,12 @@ contract VitaelOracle is Ownable {
      * @notice Thêm Chainlink feed cho asset (chỉ owner)
      */
     function addPriceFeed(address asset, address chainlinkFeed) external onlyOwner {
+        priceFeeds[asset] = AggregatorV3Interface(chainlinkFeed);
+        emit FeedAdded(asset, chainlinkFeed);
+    }
+
+    /// @notice Replace an existing feed (e.g. migrate mock → Stork).
+    function setPriceFeed(address asset, address chainlinkFeed) external onlyOwner {
         priceFeeds[asset] = AggregatorV3Interface(chainlinkFeed);
         emit FeedAdded(asset, chainlinkFeed);
     }

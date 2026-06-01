@@ -7,7 +7,7 @@ import {
   ChevronDown, AlertTriangle, Wallet,
 } from "lucide-react";
 import { useAccount } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import WalletConnectButton from "../../components/WalletConnectButton";
 import Header from "../../components/Header";
 import WaterfallBackground from "../../components/WaterfallBackground";
 import Footer from "../../components/Footer";
@@ -299,7 +299,7 @@ export default function BridgePage() {
                 <p className="text-sm text-[#8E9FB8] flex items-center gap-2">
                   <Wallet className="w-4 h-4" /> Connect your wallet to bridge
                 </p>
-                <ConnectButton />
+                <WalletConnectButton />
               </div>
             ) : isDone ? (
               <button onClick={() => { reset(); setAmount(""); }}

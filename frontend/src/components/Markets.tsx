@@ -1,15 +1,68 @@
 "use client";
 
-import React from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import TokenIcon from "./TokenIcon";
+import { useLending, COLLATERAL_TOKENS } from "../hooks/useLending";
+
+function fmtUsdCompact(value: string): string {
+  const n = parseFloat(value);
+  if (isNaN(n)) return "—";
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+}
 
 export default function Markets() {
+  const { getProtocolStats } = useLending();
+  const [stats, setStats] = useState<Awaited<ReturnType<typeof getProtocolStats>>>(null);
+
+  const load = useCallback(async () => {
+    setStats(await getProtocolStats());
+  }, [getProtocolStats]);
+
+  useEffect(() => {
+    load();
+    const interval = setInterval(load, 30_000);
+    return () => clearInterval(interval);
+  }, [load]);
+
   const markets = [
-    { name: "USDC", sub: "Gas Native",       supplied: "$14,197,600", supplyAPY: "12.42%", borrowed: "$9,800,200",  borrowAPY: "14.15%", type: "Stablecoin" },
-    { name: "WETH", sub: "Collateral Token", supplied: "$18,406,000", supplyAPY: "4.20%",  borrowed: "$12,506,400", borrowAPY: "6.12%",  type: "Asset" },
-    { name: "WBTC", sub: "Collateral Token", supplied: "$9,900,600",  supplyAPY: "3.10%",  borrowed: "$6,000,000",  borrowAPY: "5.30%",  type: "Asset" },
+    {
+      name: "USDC",
+      sub: "Gas Native",
+      supplied: stats ? fmtUsdCompact(stats.totalSuppliedUsdc) : "—",
+      supplyAPY: stats ? `${stats.supplyApyPct.toFixed(2)}%` : "—",
+      borrowed: stats ? fmtUsdCompact(stats.totalBorrowedUsdc) : "—",
+      borrowAPY: stats ? `${stats.borrowApyPct.toFixed(2)}%` : "—",
+      href: "/lend",
+    },
+    {
+      name: "WETH",
+      sub: "Collateral Token",
+      supplied: "—",
+      supplyAPY: "—",
+      borrowed: "—",
+      borrowAPY: "—",
+      href: "/borrow",
+      ltv: `${COLLATERAL_TOKENS.WETH.ltv}%`,
+    },
+    {
+      name: "WBTC",
+      sub: "Collateral Token",
+      supplied: "—",
+      supplyAPY: "—",
+      borrowed: "—",
+      borrowAPY: "—",
+      href: "/borrow",
+      ltv: `${COLLATERAL_TOKENS.WBTC.ltv}%`,
+    },
   ];
+
+  const totalLiquidity = stats
+    ? fmtUsdCompact(stats.poolUsdcLiquidity)
+    : "—";
 
   return (
     <section id="markets" className="py-16">
@@ -19,7 +72,7 @@ export default function Markets() {
           <h2 className="text-4xl font-extrabold font-display text-white">Active Borrowing Hubs</h2>
         </div>
         <div className="mt-4 md:mt-0 text-sm text-[#8E9FB8]">
-          Total Liquidity: <span className="text-white font-semibold">$42,504,200</span>
+          Pool liquidity: <span className="text-white font-semibold">{totalLiquidity}</span>
         </div>
       </div>
 
@@ -39,7 +92,7 @@ export default function Markets() {
             <tbody>
               {markets.map((m, i) => (
                 <motion.tr
-                  key={i}
+                  key={m.name}
                   initial={{ opacity: 0, y: 15 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -51,7 +104,10 @@ export default function Markets() {
                       <TokenIcon symbol={m.name} size={36} />
                       <div>
                         <div className="font-bold text-white text-base">{m.name}</div>
-                        <div className="text-xs text-[#8E9FB8]">{m.sub}</div>
+                        <div className="text-xs text-[#8E9FB8]">
+                          {m.sub}
+                          {"ltv" in m && m.ltv ? ` · LTV ${m.ltv}` : ""}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -60,9 +116,12 @@ export default function Markets() {
                   <td className="py-5 px-6 text-sm text-white font-medium">{m.borrowed}</td>
                   <td className="py-5 px-6 text-sm text-[#FF00C8] font-bold">{m.borrowAPY}</td>
                   <td className="py-5 px-6 text-right">
-                    <a href="#calculator" className="px-5 py-2 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/20 text-[#00F5FF] text-sm font-semibold hover:bg-[#00F5FF] hover:text-[#0A1428] transition duration-300">
+                    <Link
+                      href={m.href}
+                      className="px-5 py-2 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/20 text-[#00F5FF] text-sm font-semibold hover:bg-[#00F5FF] hover:text-[#0A1428] transition duration-300"
+                    >
                       Transact
-                    </a>
+                    </Link>
                   </td>
                 </motion.tr>
               ))}
