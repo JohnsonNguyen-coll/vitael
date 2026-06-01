@@ -2,75 +2,87 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
-import "forge-std/console.sol";
+import "../src/dex/VitaelTreasury.sol";
+import "../src/dex/VitaelFactory.sol";
+import "../src/dex/VitaelRouter.sol";
+import "../src/dex/VitaelQuoter.sol";
+import "../src/dex/VitaelPair.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import "../src/dex/v3/VitaelTreasury.sol";
-import "../src/dex/v3/VitaelFactory.sol";
-import "../src/dex/v3/VitaelRouter.sol";
-import "../src/dex/v3/VitaelQuoter.sol";
-import "../src/dex/v3/VitaelNFTPositionManager.sol";
-
-/// @title DeployVitaelDEX
-/// @notice Deploys the full VitaelDEX V3 suite on Arc Network (Chain ID: 5042002)
+/// @notice Deploy full Vitael DEX V2 stack on Arc Testnet
 contract DeployVitaelDEX is Script {
-    // Arc Network token addresses (update before mainnet deploy)
-    // These are placeholder addresses — replace with actual deployed token addresses
-    address constant USDC  = 0x09Bc4E0D864854c6aFB6eB9A9cdF58aC190D0dF9;
-    address constant EURC  = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    // ── Arc Testnet token addresses ──────────────────────────────────────────
+    address constant USDC   = 0x3600000000000000000000000000000000000000;
+    address constant EURC   = 0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a;
+    address constant cirBTC = 0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF;
 
-    // sqrtPriceX96 for price = 1.0 (1 USDC = 1 EURC)
-    // sqrt(1) * 2^96 = 2^96 = 79228162514264337593543950336
-    uint160 constant SQRT_PRICE_1_1 = 79228162514264337593543950336;
+    // Initial seed liquidity (adjust to your faucet balance)
+    uint256 constant USDC_SEED = 50 * 1e6;  // 50 USDC
+    uint256 constant EURC_SEED = 45 * 1e6;  // 45 EURC
 
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address deployer = vm.addr(deployerPrivateKey);
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
+        address deployer    = vm.addr(deployerKey);
 
-        console.log("Deploying VitaelDEX V3 on Arc Network (Chain ID: 5042002)");
-        console.log("Deployer:", deployer);
+        vm.startBroadcast(deployerKey);
 
-        vm.startBroadcast(deployerPrivateKey);
-
-        // 1. Deploy VitaelTreasury
+        // ── 1. Deploy Treasury ───────────────────────────────────────────────
         VitaelTreasury treasury = new VitaelTreasury(deployer);
-        console.log("VitaelTreasury deployed at:", address(treasury));
+        console.log("VitaelTreasury:  ", address(treasury));
 
-        // 2. Deploy VitaelFactory
-        VitaelFactory vitaelFactory = new VitaelFactory(address(treasury));
-        console.log("VitaelFactory deployed at:", address(vitaelFactory));
+        // ── 2. Deploy Factory (points to treasury) ───────────────────────────
+        VitaelFactory factory = new VitaelFactory(deployer, address(treasury));
+        console.log("VitaelFactory:   ", address(factory));
 
-        // 3. Deploy VitaelRouter
-        VitaelRouter router = new VitaelRouter(address(vitaelFactory));
-        console.log("VitaelRouter deployed at:", address(router));
+        // ── 3. Deploy Router ─────────────────────────────────────────────────
+        VitaelRouter router = new VitaelRouter(address(factory));
+        console.log("VitaelRouter:    ", address(router));
 
-        // 4. Deploy VitaelQuoter
-        VitaelQuoter quoter = new VitaelQuoter(address(vitaelFactory));
-        console.log("VitaelQuoter deployed at:", address(quoter));
+        // ── 4. Deploy Quoter ─────────────────────────────────────────────────
+        VitaelQuoter quoter = new VitaelQuoter(address(factory), address(router));
+        console.log("VitaelQuoter:    ", address(quoter));
 
-        // 5. Deploy VitaelNFTPositionManager
-        VitaelNFTPositionManager nftManager = new VitaelNFTPositionManager(address(vitaelFactory));
-        console.log("VitaelNFTPositionManager deployed at:", address(nftManager));
+        // ── 5. Create pairs ──────────────────────────────────────────────────
+        address usdcEurcPair  = factory.createPair(USDC, EURC);
+        address usdcBtcPair   = factory.createPair(USDC, cirBTC);
+        console.log("USDC/EURC pair:  ", usdcEurcPair);
+        console.log("USDC/cirBTC pair:", usdcBtcPair);
 
-        // 6. Create USDC/EURC pool at fee tier 3000 (0.3%)
-        address poolAddress = vitaelFactory.createPool(USDC, EURC, 3000);
-        console.log("USDC/EURC pool (0.3%) deployed at:", poolAddress);
+        // ── 6. Seed USDC/EURC pool ───────────────────────────────────────────
+        IERC20(USDC).approve(address(router), USDC_SEED);
+        IERC20(EURC).approve(address(router), EURC_SEED);
 
-        // 7. Initialize pool at price = 1.0 (1 USDC = 1 EURC)
-        // sqrtPriceX96 = sqrt(1.0) * 2^96 = 79228162514264337593543950336
-        IVitaelPool(poolAddress).initialize(SQRT_PRICE_1_1);
-        console.log("Pool initialized at sqrtPriceX96:", SQRT_PRICE_1_1);
+        (uint256 a, uint256 b, uint256 lp) = router.addLiquidity(
+            USDC, EURC,
+            USDC_SEED, EURC_SEED,
+            0, 0,
+            deployer,
+            block.timestamp + 600
+        );
+        console.log("Seeded USDC/EURC:");
+        console.log("  USDC deposited:", a);
+        console.log("  EURC deposited:", b);
+        console.log("  LP tokens:     ", lp);
 
         vm.stopBroadcast();
 
-        // 8. Log summary
-        console.log("\n=== VitaelDEX V3 Deployment Summary ===");
-        console.log("Network:                Arc Network (Chain ID: 5042002)");
-        console.log("VitaelTreasury:        ", address(treasury));
-        console.log("VitaelFactory:         ", address(vitaelFactory));
-        console.log("VitaelRouter:          ", address(router));
-        console.log("VitaelQuoter:          ", address(quoter));
-        console.log("VitaelNFTPositionMgr:  ", address(nftManager));
-        console.log("USDC/EURC Pool (0.3%): ", poolAddress);
-        console.log("========================================");
+        // ── Summary ──────────────────────────────────────────────────────────
+        console.log("\n======= VITAEL DEX V2 DEPLOYMENT =======");
+        console.log("Chain:           Arc Testnet (5042002)");
+        console.log("Deployer:        ", deployer);
+        console.log("VitaelTreasury:  ", address(treasury));
+        console.log("VitaelFactory:   ", address(factory));
+        console.log("VitaelRouter:    ", address(router));
+        console.log("VitaelQuoter:    ", address(quoter));
+        console.log("USDC/EURC pair:  ", usdcEurcPair);
+        console.log("USDC/cirBTC pair:", usdcBtcPair);
+        console.log("=========================================");
+        console.log("\nAdd to frontend/.env.local:");
+        console.log("NEXT_PUBLIC_DEX_TREASURY=", address(treasury));
+        console.log("NEXT_PUBLIC_DEX_FACTORY= ", address(factory));
+        console.log("NEXT_PUBLIC_DEX_ROUTER=  ", address(router));
+        console.log("NEXT_PUBLIC_DEX_QUOTER=  ", address(quoter));
+        console.log("NEXT_PUBLIC_PAIR_USDC_EURC=  ", usdcEurcPair);
+        console.log("NEXT_PUBLIC_PAIR_USDC_CIRBTC=", usdcBtcPair);
     }
 }
