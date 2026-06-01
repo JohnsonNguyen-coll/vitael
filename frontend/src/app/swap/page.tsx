@@ -4,13 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowUpDown, Settings, ChevronDown, Wallet, RefreshCw, ExternalLink } from "lucide-react";
 import TxStatusBanner from "../../components/TxStatusBanner";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
 import Header from "../../components/Header";
 import WaterfallBackground from "../../components/WaterfallBackground";
 import Footer from "../../components/Footer";
 import TokenIcon from "../../components/TokenIcon";
 import { useVitaelDEX, type TokenSymbol, TOKENS } from "../../hooks/useVitaelDEX";
+import { formatUnits } from "viem";
+import { formatTokenAmount } from "../../lib/format";
 
 const TOKEN_LIST = Object.values(TOKENS);
 
@@ -57,7 +59,7 @@ const DEX_STEP_LABELS: Record<string, string> = {
 };
 
 export default function SwapPage() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const { state, swap, getQuote, reset } = useVitaelDEX();
 
   const [tokenIn,  setTokenIn]  = useState<TokenSymbol>("USDC");
@@ -69,6 +71,24 @@ export default function SwapPage() {
   const [quoting,  setQuoting]  = useState(false);
 
   const busy = state.busy;
+
+  // Fetch balance for tokenIn
+  const { data: balanceData, refetch: refetchBalance } = useReadContract({
+    address: TOKENS[tokenIn].address as `0x${string}`,
+    abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }],
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  const balance = balanceData
+    ? formatUnits(balanceData as bigint, TOKENS[tokenIn].decimals)
+    : "0";
+
+  // Refetch balance when token changes or tx completes
+  useEffect(() => {
+    if (address) refetchBalance();
+  }, [tokenIn, address, state.step, refetchBalance]);
 
   const fetchQuote = useCallback(async (s1: TokenSymbol, s2: TokenSymbol, amt: string) => {
     if (!amt || parseFloat(amt) <= 0) { setQuote(""); return; }
@@ -127,10 +147,36 @@ export default function SwapPage() {
             <div className="bg-black/30 border border-white/5 focus-within:border-[#00F5FF]/30 rounded-2xl p-4 mb-1 transition">
               <p className="text-xs text-[#8E9FB8] uppercase tracking-wider mb-3">From</p>
               <div className="flex items-center gap-3">
-                <input type="number" placeholder="0.00" value={amountIn} disabled={busy}
-                  onChange={e => { setAmountIn(e.target.value); reset(); }}
-                  className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50" />
+                <input
+                  type="number"
+                  placeholder="0.00"
+                  value={amountIn}
+                  disabled={busy}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val && parseFloat(val) < 0) return;
+                    setAmountIn(val);
+                    reset();
+                  }}
+                  onBlur={() => {
+                    if (!amountIn) return;
+                    const val = parseFloat(amountIn);
+                    const maxBal = parseFloat(balance);
+                    if (val > maxBal) setAmountIn(maxBal.toString());
+                  }}
+                  className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50"
+                />
                 <TokenSelector selected={tokenIn} onSelect={s => { setTokenIn(s); reset(); }} exclude={tokenOut} />
+              </div>
+              <div className="flex justify-between mt-2 text-xs text-[#8E9FB8]">
+                <span>Balance: {formatTokenAmount(balance, { min: 4, max: 8 })} {tokenIn}</span>
+                <button
+                  className="text-[#00F5FF] hover:underline"
+                  onClick={() => setAmountIn(balance)}
+                  disabled={!isConnected}
+                >
+                  MAX
+                </button>
               </div>
             </div>
 

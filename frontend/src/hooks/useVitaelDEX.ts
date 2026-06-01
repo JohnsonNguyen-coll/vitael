@@ -29,6 +29,7 @@ const ERC20_ABI = [
   { type: "function", name: "approve",   stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
   { type: "function", name: "allowance", stateMutability: "view",       inputs: [{ name: "owner",   type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "transfer",  stateMutability: "nonpayable", inputs: [{ name: "to",      type: "address" }, { name: "amount",  type: "uint256" }], outputs: [{ type: "bool" }] },
+  { type: "function", name: "balanceOf", stateMutability: "view",       inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const;
 
 const ROUTER_ABI = [
@@ -75,6 +76,7 @@ const PAIR_ABI = [
 export interface PoolInfo {
   pair: Address; reserve0: bigint; reserve1: bigint;
   token0: Address; token1: Address; totalSupply: bigint; userLpBalance: bigint;
+  balanceA: bigint; balanceB: bigint;
 }
 export interface DEXState { step: string; busy: boolean; error: string | null; txHash: Hash | null; }
 
@@ -192,7 +194,8 @@ export function useVitaelDEX() {
 
   // ── Add Liquidity — bypass Router, transfer directly to pair then mint ────
   // Arc USDC precompile blocks safeTransferFrom when called from Router context
-  const addLiquidity = useCallback(async (tokenA: TokenSymbol, tokenB: TokenSymbol, amountAHuman: string, amountBHuman: string, _slippage: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const addLiquidity = useCallback(async (tokenA: TokenSymbol, tokenB: TokenSymbol, amountAHuman: string, amountBHuman: string, _slippage?: number) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
       await ensureArc();
@@ -237,7 +240,8 @@ export function useVitaelDEX() {
   }, [walletClient]);
 
   // ── Remove Liquidity — transfer LP to pair then burn ─────────────────────
-  const removeLiquidity = useCallback(async (tokenA: TokenSymbol, tokenB: TokenSymbol, lpAmountHuman: string, _slippage: number) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const removeLiquidity = useCallback(async (tokenA: TokenSymbol, tokenB: TokenSymbol, lpAmountHuman: string, _slippage?: number) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
       await ensureArc();
@@ -284,11 +288,13 @@ export function useVitaelDEX() {
       }) as Address;
       if (!pair || pair === "0x0000000000000000000000000000000000000000") return null;
 
-      const [reserves, token0, totalSupply, userLp] = await Promise.all([
+      const [reserves, token0, totalSupply, userLp, balA, balB] = await Promise.all([
         arcClient.readContract({ address: pair, abi: PAIR_ABI, functionName: "getReserves" }),
         arcClient.readContract({ address: pair, abi: PAIR_ABI, functionName: "token0" }),
         arcClient.readContract({ address: pair, abi: PAIR_ABI, functionName: "totalSupply" }),
         userAddress ? arcClient.readContract({ address: pair, abi: PAIR_ABI, functionName: "balanceOf", args: [userAddress] }) : Promise.resolve(0n),
+        userAddress ? arcClient.readContract({ address: tA.address, abi: ERC20_ABI, functionName: "balanceOf", args: [userAddress] }) : Promise.resolve(0n),
+        userAddress ? arcClient.readContract({ address: tB.address, abi: ERC20_ABI, functionName: "balanceOf", args: [userAddress] }) : Promise.resolve(0n),
       ]);
       const [r0, r1] = reserves as [bigint, bigint, number];
       return {
@@ -297,6 +303,8 @@ export function useVitaelDEX() {
         token1: tA.address.toLowerCase() < tB.address.toLowerCase() ? tB.address : tA.address,
         totalSupply: totalSupply as bigint,
         userLpBalance: userLp as bigint,
+        balanceA: balA as bigint,
+        balanceB: balB as bigint,
       };
     } catch { return null; }
   }, []);

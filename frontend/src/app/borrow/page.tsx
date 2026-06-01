@@ -6,7 +6,8 @@ import {
   TrendingUp, TrendingDown,
   AlertTriangle, ExternalLink, Droplets,
 } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import { formatUnits } from "viem";
 import WalletActionGate, { WalletConnectPrompt } from "../../components/WalletActionGate";
 import { formatUsd, formatTokenAmount } from "../../lib/format";
 import TxStatusBanner from "../../components/TxStatusBanner";
@@ -114,6 +115,24 @@ export default function BorrowPage() {
   const [collSymbol, setCollSymbol]       = useState<CollateralSymbol>("EURC");
   const [collAmount, setCollAmount]       = useState("");
 
+  // Fetch wallet balance for selected collateral token
+  const { data: collBalanceData, refetch: refetchCollBalance } = useReadContract({
+    address: COLLATERAL_TOKENS[collSymbol].address as `0x${string}`,
+    abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }],
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: { enabled: !!address },
+  });
+
+  const collWalletBalance = collBalanceData
+    ? formatUnits(collBalanceData as bigint, COLLATERAL_TOKENS[collSymbol].decimals)
+    : "0";
+
+  // Refetch balance when token changes or tx completes
+  useEffect(() => {
+    if (address) refetchCollBalance();
+  }, [collSymbol, address, state.step, refetchCollBalance]);
+
   const num  = parseFloat(amount) || 0;
   const busy = state.busy;
   const poolLiquidityUsdc = parseFloat(protocolStats?.poolUsdcLiquidity ?? "0") || 0;
@@ -124,6 +143,11 @@ export default function BorrowPage() {
   const borrowedUsdc = userInfo?.borrowedUsdc ?? "0";
   const healthFactor = userInfo?.healthFactor ?? "∞";
   const collaterals  = userInfo?.collaterals  ?? [];
+
+  // Calculate max borrow based on collateral value and LTV
+  const totalCollateralValueUsd = collaterals.reduce((sum, c) => sum + parseFloat(c.valueUsd), 0);
+  const currentBorrowedUsd = parseFloat(borrowedUsdc);
+  const maxBorrowUSD = Math.max(0, totalCollateralValueUsd * 0.9 - currentBorrowedUsd); // Assuming 90% max LTV
 
   const monthly = (num * (active.borrowAPY / 100)) / 12;
 
@@ -141,10 +165,14 @@ export default function BorrowPage() {
   }, []);
 
   useEffect(() => {
-    if (!isConnected || !address) { setUserInfo(null); return; }
     let cancelled = false;
-    setInfoLoading(true);
-    getUserInfo(address)
+    if (!isConnected || !address) {
+      Promise.resolve().then(() => { if (!cancelled) setUserInfo(null); });
+      return () => { cancelled = true; };
+    }
+    Promise.resolve()
+      .then(() => { if (!cancelled) setInfoLoading(true); })
+      .then(() => getUserInfo(address))
       .then(info => { if (!cancelled) setUserInfo(info); })
       .finally(() => { if (!cancelled) setInfoLoading(false); });
     return () => { cancelled = true; };
@@ -156,8 +184,9 @@ export default function BorrowPage() {
     let cancelled = false;
     getProtocolStats().then(stats => { if (!cancelled && stats) setProtocolStats(stats); });
     if (address) {
-      setInfoLoading(true);
-      getUserInfo(address)
+      Promise.resolve()
+        .then(() => { if (!cancelled) setInfoLoading(true); })
+        .then(() => getUserInfo(address))
         .then(info => { if (!cancelled) setUserInfo(info); })
         .finally(() => { if (!cancelled) setInfoLoading(false); });
     }
@@ -406,17 +435,33 @@ export default function BorrowPage() {
                       <div className="relative">
                         <input
                           type="number" placeholder="0.00" value={amount}
-                          onChange={e => { setAmount(e.target.value); reset(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (val && parseFloat(val) < 0) return;
+                            setAmount(val);
+                            reset();
+                          }}
+                          onBlur={() => {
+                            if (!amount || subTab !== "repay") return;
+                            const val = parseFloat(amount);
+                            const maxBal = parseFloat(borrowedUsdc);
+                            if (val > maxBal) setAmount(maxBal.toString());
+                          }}
                           disabled={busy || state.step === "done"}
                           className="w-full bg-black/30 border border-white/5 focus:border-[#FF00C8] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#FF00C8] font-bold text-sm">USDC</span>
                       </div>
-                      {subTab === "repay" && parseFloat(borrowedUsdc) > 0 && (
-                        <div className="flex justify-end mt-1.5">
-                          <button className="text-xs text-[#FF00C8] hover:underline" onClick={() => setAmount(borrowedUsdc)}>MAX</button>
-                        </div>
-                      )}
+                      <div className="flex justify-between mt-1.5 text-xs text-[#8E9FB8]">
+                        {subTab === "borrow" ? (
+                          <span>Available to borrow: {formatUsd(maxBorrowUSD)}</span>
+                        ) : (
+                          <>
+                            <span>Borrowed: {formatTokenAmount(borrowedUsdc)} USDC</span>
+                            <button className="text-[#FF00C8] hover:underline" onClick={() => setAmount(borrowedUsdc)}>MAX</button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
@@ -512,10 +557,46 @@ export default function BorrowPage() {
               </div>
               <input
                 type="number" placeholder="0.00" value={collAmount}
-                onChange={e => { setCollAmount(e.target.value); reset(); }}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val && parseFloat(val) < 0) return;
+                  setCollAmount(val);
+                  reset();
+                }}
+                onBlur={() => {
+                  if (!collAmount) return;
+                  const val = parseFloat(collAmount);
+                  const maxBal = parseFloat(
+                    collateralTab === "deposit" ? collWalletBalance : collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0"
+                  );
+                  if (val > maxBal) setCollAmount(maxBal.toString());
+                }}
                 disabled={busy || !isConnected}
-                className="w-full bg-black/30 border border-white/5 rounded-xl py-2.5 px-3 text-sm text-white outline-none mb-3 disabled:opacity-50"
+                className="w-full bg-black/30 border border-white/5 rounded-xl py-2.5 px-3 text-sm text-white outline-none mb-1 disabled:opacity-50"
               />
+              <div className="flex justify-between mb-3 text-xs text-[#8E9FB8]">
+                {collateralTab === "deposit" ? (
+                  <>
+                    <span>Wallet: {formatTokenAmount(collWalletBalance, { min: 4, max: 8 })} {collSymbol}</span>
+                    <button
+                      className="text-[#8B00FF] hover:underline"
+                      onClick={() => setCollAmount(collWalletBalance)}
+                    >
+                      MAX
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span>Deposited: {formatTokenAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0", { min: 4, max: 8 })} {collSymbol}</span>
+                    <button
+                      className="text-[#8B00FF] hover:underline"
+                      onClick={() => setCollAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0")}
+                    >
+                      MAX
+                    </button>
+                  </>
+                )}
+              </div>
               <button
                 onClick={executeCollateral}
                 disabled={busy || !isConnected || !collAmount || parseFloat(collAmount) <= 0}

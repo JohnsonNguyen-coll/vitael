@@ -447,7 +447,24 @@ export default function LendPage() {
                           type="number"
                           placeholder="0.00"
                           value={amount}
-                          onChange={e => { setAmount(e.target.value); reset(); }}
+                          onChange={e => {
+                            const val = e.target.value;
+                            // Prevent negative numbers
+                            if (val && parseFloat(val) < 0) return;
+                            setAmount(val);
+                            reset();
+                          }}
+                          onBlur={() => {
+                            // Validate against max balance
+                            if (!amount) return;
+                            const val = parseFloat(amount);
+                            const maxBal = parseFloat(
+                              subTab === "supply"
+                                ? userAsset?.walletBalance ?? "0"
+                                : userAsset?.supplyBalance ?? "0"
+                            );
+                            if (val > maxBal) setAmount(maxBal.toString());
+                          }}
                           disabled={busy || state.step === "done"}
                           className="w-full bg-black/30 border border-white/5 focus:border-[#00F5FF] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
                         />

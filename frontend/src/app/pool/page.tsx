@@ -130,11 +130,37 @@ function AddPanel() {
       <div className="bg-black/30 border border-white/5 focus-within:border-[#00F5FF]/30 rounded-2xl p-4 mb-2 transition">
         <p className="text-xs text-[#8E9FB8] uppercase tracking-wider mb-3">Token A</p>
         <div className="flex items-center gap-3">
-          <input type="number" placeholder="0.00" value={amountA} disabled={busy}
-            onChange={e => handleAmountAChange(e.target.value)}
-            className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50" />
+          <input
+            type="number"
+            placeholder="0.00"
+            value={amountA}
+            disabled={busy}
+            onChange={e => {
+              const val = e.target.value;
+              if (val && parseFloat(val) < 0) return;
+              handleAmountAChange(val);
+            }}
+            onBlur={() => {
+              if (!amountA || !poolInfo) return;
+              const val = parseFloat(amountA);
+              const maxBal = parseFloat(formatUnits(poolInfo.balanceA, tA.decimals));
+              if (val > maxBal) handleAmountAChange(maxBal.toString());
+            }}
+            className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50"
+          />
           <TokenSelector selected={tokenA} onSelect={s => { setTokenA(s); setAmountA(""); setAmountB(""); }} exclude={tokenB} />
         </div>
+        {poolInfo && (
+          <div className="flex justify-between mt-2 text-xs text-[#8E9FB8]">
+            <span>Balance: {parseFloat(formatUnits(poolInfo.balanceA, tA.decimals)).toFixed(4)} {tokenA}</span>
+            <button
+              className="text-[#00F5FF] hover:underline"
+              onClick={() => handleAmountAChange(formatUnits(poolInfo.balanceA, tA.decimals))}
+            >
+              MAX
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-center my-1">
@@ -146,11 +172,38 @@ function AddPanel() {
       <div className="bg-black/30 border border-white/5 focus-within:border-[#00F5FF]/30 rounded-2xl p-4 mb-5 transition">
         <p className="text-xs text-[#8E9FB8] uppercase tracking-wider mb-3">Token B</p>
         <div className="flex items-center gap-3">
-          <input type="number" placeholder="0.00" value={amountB} disabled={busy}
-            onChange={e => { setAmountB(e.target.value); reset(); }}
-            className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50" />
+          <input
+            type="number"
+            placeholder="0.00"
+            value={amountB}
+            disabled={busy}
+            onChange={e => {
+              const val = e.target.value;
+              if (val && parseFloat(val) < 0) return;
+              setAmountB(val);
+              reset();
+            }}
+            onBlur={() => {
+              if (!amountB || !poolInfo) return;
+              const val = parseFloat(amountB);
+              const maxBal = parseFloat(formatUnits(poolInfo.balanceB, tB.decimals));
+              if (val > maxBal) setAmountB(maxBal.toString());
+            }}
+            className="flex-1 bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50"
+          />
           <TokenSelector selected={tokenB} onSelect={s => { setTokenB(s); setAmountA(""); setAmountB(""); }} exclude={tokenA} />
         </div>
+        {poolInfo && (
+          <div className="flex justify-between mt-2 text-xs text-[#8E9FB8]">
+            <span>Balance: {parseFloat(formatUnits(poolInfo.balanceB, tB.decimals)).toFixed(4)} {tokenB}</span>
+            <button
+              className="text-[#00F5FF] hover:underline"
+              onClick={() => setAmountB(formatUnits(poolInfo.balanceB, tB.decimals))}
+            >
+              MAX
+            </button>
+          </div>
+        )}
       </div>
 
       <TxStatusBanner step={state.step} error={state.error} txHash={state.txHash} stepLabels={POOL_STEP_LABELS} />
@@ -245,9 +298,37 @@ function RemovePanel() {
 
       <div className="bg-black/30 border border-white/5 focus-within:border-[#00F5FF]/30 rounded-2xl p-4 mb-4 transition">
         <p className="text-xs text-[#8E9FB8] uppercase tracking-wider mb-3">LP Token Amount</p>
-        <input type="number" placeholder="0.00" value={lpAmount} disabled={busy}
-          onChange={e => { setLpAmount(e.target.value); setPct(0); reset(); }}
-          className="w-full bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50" />
+        <input
+          type="number"
+          placeholder="0.00"
+          value={lpAmount}
+          disabled={busy}
+          onChange={e => {
+            const val = e.target.value;
+            if (val && parseFloat(val) < 0) return;
+            setLpAmount(val);
+            setPct(0);
+            reset();
+          }}
+          onBlur={() => {
+            if (!lpAmount || !poolInfo) return;
+            const val = parseFloat(lpAmount);
+            const maxBal = parseFloat(formatUnits(poolInfo.userLpBalance, 18));
+            if (val > maxBal) setLpAmount(maxBal.toString());
+          }}
+          className="w-full bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50"
+        />
+        {poolInfo && poolInfo.userLpBalance > 0n && (
+          <div className="flex justify-between mt-2 text-xs text-[#8E9FB8]">
+            <span>Available: {parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(6)} LP</span>
+            <button
+              className="text-[#00F5FF] hover:underline"
+              onClick={() => handlePct(100)}
+            >
+              MAX
+            </button>
+          </div>
+        )}
       </div>
 
       {lpAmount && parseFloat(lpAmount) > 0 && (
