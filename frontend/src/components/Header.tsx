@@ -12,6 +12,7 @@ const NAV = [
   { label: "Swap",    href: "/swap" },
   { label: "Pool",    href: "/pool" },
   { label: "Bridge",  href: "/bridge" },
+  { label: "Agent",   href: "#", comingSoon: true },
   { label: "Docs",    href: "/docs" },
 ];
 
@@ -41,7 +42,23 @@ export default function Header() {
       {/* Nav */}
       <nav className="hidden md:flex gap-8 text-sm font-medium">
         {NAV.map((n) => {
-          const active = pathname === n.href;
+          const active = pathname === n.href && !n.comingSoon;
+          const isComingSoon = n.comingSoon;
+          
+          if (isComingSoon) {
+            return (
+              <div
+                key={n.label}
+                className="relative flex items-center gap-2 text-[#8E9FB8] cursor-not-allowed"
+              >
+                <span>{n.label}</span>
+                <span className="text-[10px] uppercase tracking-wider bg-[#FF00C8]/10 text-[#FF00C8] border border-[#FF00C8]/20 px-2 py-0.5 rounded-full font-bold">
+                  Soon
+                </span>
+              </div>
+            );
+          }
+          
           return (
             <Link
               key={n.href}
