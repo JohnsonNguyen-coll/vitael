@@ -12,7 +12,7 @@ const NAV = [
   { label: "Swap",    href: "/swap" },
   { label: "Pool",    href: "/pool" },
   { label: "Bridge",  href: "/bridge" },
-  { label: "Markets", href: "/#markets" },
+  { label: "Docs",    href: "/docs" },
 ];
 
 export default function Header() {

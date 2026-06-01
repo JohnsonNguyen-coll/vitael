@@ -217,10 +217,10 @@ export default function LendPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
         >
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
 
             {/* ── Market table ── */}
-            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden">
+            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden flex flex-col">
               <div className="px-6 py-5 border-b border-white/5">
                 <h2 className="font-bold text-white">Supply markets</h2>
                 <p className="text-xs text-[#8E9FB8] mt-0.5">
@@ -375,7 +375,7 @@ export default function LendPage() {
 
 
             {/* ── Action panel ── */}
-            <div className="glass-panel rounded-3xl p-6 relative overflow-hidden">
+            <div className="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-[520px]">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00F5FF]/5 rounded-full blur-3xl pointer-events-none" />
 
               {/* Asset selector */}
@@ -425,16 +425,19 @@ export default function LendPage() {
               <WalletActionGate connectMessage={`Connect wallet to ${subTab}`}>
                 {!isConnected ? (
                   <WalletConnectPrompt message={`Connect wallet to ${subTab}`} />
-                ) : state.step === "done" ? (
-                  <button
-                    onClick={() => { reset(); setAmount(""); }}
-                    className="w-full bg-white/5 border border-white/10 text-white font-semibold py-3.5 rounded-xl hover:bg-white/10 transition"
-                  >
-                    {subTab === "supply" ? "Supply More" : "Withdraw More"}
-                  </button>
                 ) : (
                   <>
-                    {/* Amount input */}
+                    {/* Success banner — shown above form when done */}
+                    {state.step === "done" && (
+                      <button
+                        onClick={() => { reset(); setAmount(""); }}
+                        className="w-full bg-white/5 border border-white/10 text-white font-semibold py-2.5 rounded-xl hover:bg-white/10 transition mb-4 text-sm"
+                      >
+                        {subTab === "supply" ? "Supply More" : "Withdraw More"}
+                      </button>
+                    )}
+
+                    {/* Amount input — always visible */}
                     <div className="mb-4">
                       <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">
                         Amount
@@ -445,7 +448,7 @@ export default function LendPage() {
                           placeholder="0.00"
                           value={amount}
                           onChange={e => { setAmount(e.target.value); reset(); }}
-                          disabled={busy}
+                          disabled={busy || state.step === "done"}
                           className="w-full bg-black/30 border border-white/5 focus:border-[#00F5FF] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
                         />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#00F5FF] font-bold text-sm">
@@ -472,11 +475,12 @@ export default function LendPage() {
                             >
                               MAX
                             </button>
-                          </>                        )}
+                          </>
+                        )}
                       </div>
                     </div>
 
-                    {/* Info box */}
+                    {/* Info box — always visible */}
                     <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
                       <div className="flex justify-between">
                         <span className="text-[#8E9FB8]">Supply APY</span>
@@ -514,20 +518,22 @@ export default function LendPage() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={execute}
-                      disabled={busy || !amount || num <= 0}
-                      className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2"
-                    >
-                      {busy ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        `${subTab === "supply" ? "Supply" : "Withdraw"} ${selectedSymbol}`
-                      )}
-                    </button>
+                    {state.step !== "done" && (
+                      <button
+                        onClick={execute}
+                        disabled={busy || !amount || num <= 0}
+                        className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2"
+                      >
+                        {busy ? (
+                          <>
+                            <div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          `${subTab === "supply" ? "Supply" : "Withdraw"} ${selectedSymbol}`
+                        )}
+                      </button>
+                    )}
                   </>
                 )}
               </WalletActionGate>

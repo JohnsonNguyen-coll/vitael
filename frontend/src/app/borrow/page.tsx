@@ -238,10 +238,10 @@ export default function BorrowPage() {
 
         {/* Main content */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
 
             {/* Asset table + positions */}
-            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden">
+            <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden flex flex-col">
               <div className="px-6 py-5 border-b border-white/5 space-y-4">
                 <div>
                   <h2 className="font-bold text-white">Borrow from pool</h2>
@@ -354,7 +354,7 @@ export default function BorrowPage() {
             </div>
 
             {/* Borrow / Repay panel */}
-            <div className="glass-panel rounded-3xl p-6 relative overflow-hidden">
+            <div className="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-[720px]">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#FF00C8]/5 rounded-full blur-3xl pointer-events-none" />
 
               <div className="flex items-center gap-3 mb-5">
@@ -389,93 +389,101 @@ export default function BorrowPage() {
               <WalletActionGate connectMessage="Connect wallet">
                 {!isConnected ? (
                   <WalletConnectPrompt message="Connect wallet" />
-                ) : state.step === "done" ? (
-                <button onClick={() => { reset(); setAmount(""); }}
-                  className="w-full bg-white/5 border border-white/10 text-white font-semibold py-3.5 rounded-xl hover:bg-white/10 transition mb-6">
-                  {subTab === "borrow" ? "Borrow More" : "Repay More"}
-                </button>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">Amount</label>
-                    <div className="relative">
-                      <input
-                        type="number" placeholder="0.00" value={amount}
-                        onChange={e => { setAmount(e.target.value); reset(); }}
-                        disabled={busy}
-                        className="w-full bg-black/30 border border-white/5 focus:border-[#FF00C8] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#FF00C8] font-bold text-sm">USDC</span>
-                    </div>
-                    {subTab === "repay" && parseFloat(borrowedUsdc) > 0 && (
-                      <div className="flex justify-end mt-1.5">
-                        <button className="text-xs text-[#FF00C8] hover:underline" onClick={() => setAmount(borrowedUsdc)}>MAX</button>
-                      </div>
+                ) : (
+                  <>
+                    {/* Success banner + reset — shown above form when done */}
+                    {state.step === "done" && (
+                      <button
+                        onClick={() => { reset(); setAmount(""); }}
+                        className="w-full bg-white/5 border border-white/10 text-white font-semibold py-2.5 rounded-xl hover:bg-white/10 transition mb-4 text-sm"
+                      >
+                        {subTab === "borrow" ? "Borrow More" : "Repay More"}
+                      </button>
                     )}
-                  </div>
 
-                  <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-[#8E9FB8]">Borrow APY</span>
-                      <span className="text-[#FF00C8] font-bold">
-                        {active.borrowAPY > 0 ? `${active.borrowAPY.toFixed(2)}%` : "—"}
-                      </span>
+                    <div className="mb-4">
+                      <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">Amount</label>
+                      <div className="relative">
+                        <input
+                          type="number" placeholder="0.00" value={amount}
+                          onChange={e => { setAmount(e.target.value); reset(); }}
+                          disabled={busy || state.step === "done"}
+                          className="w-full bg-black/30 border border-white/5 focus:border-[#FF00C8] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#FF00C8] font-bold text-sm">USDC</span>
+                      </div>
+                      {subTab === "repay" && parseFloat(borrowedUsdc) > 0 && (
+                        <div className="flex justify-end mt-1.5">
+                          <button className="text-xs text-[#FF00C8] hover:underline" onClick={() => setAmount(borrowedUsdc)}>MAX</button>
+                        </div>
+                      )}
                     </div>
-                    {num > 0 && active.borrowAPY > 0 && (
+
+                    <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Est. monthly interest</span>
-                        <span className="text-[#FF00C8] font-semibold">${monthly.toFixed(2)}</span>
+                        <span className="text-[#8E9FB8]">Borrow APY</span>
+                        <span className="text-[#FF00C8] font-bold">
+                          {active.borrowAPY > 0 ? `${active.borrowAPY.toFixed(2)}%` : "—"}
+                        </span>
+                      </div>
+                      {num > 0 && active.borrowAPY > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#8E9FB8]">Est. monthly interest</span>
+                          <span className="text-[#FF00C8] font-semibold">${monthly.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-[#8E9FB8]">Health Factor</span>
+                        <span className={`font-bold ${hfColor(healthFactor)}`}>{healthFactor}</span>
+                      </div>
+                    </div>
+
+                    {subTab === "borrow" && !collaterals.some(c => parseFloat(c.amount) > 0) && (
+                      <p className="text-xs text-yellow-400/90 mb-3">
+                        Deposit EURC, cirBTC, or USDC collateral below (get tokens from Circle Faucet if needed).
+                      </p>
+                    )}
+
+                    {noPoolLiquidity && (
+                      <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3 text-amber-200 text-sm mb-3">
+                        <Droplets className="w-4 h-4 shrink-0 mt-0.5" />
+                        <p>
+                          No USDC in the lending pool yet — borrows will fail in your wallet.
+                          {" "}
+                          <a href="/lend" className="text-[#00F5FF] font-semibold hover:underline">
+                            Supply USDC on Lend
+                          </a>{" "}
+                          first (yours or another user&apos;s deposit).
+                        </p>
                       </div>
                     )}
-                    <div className="flex justify-between">
-                      <span className="text-[#8E9FB8]">Health Factor</span>
-                      <span className={`font-bold ${hfColor(healthFactor)}`}>{healthFactor}</span>
-                    </div>
-                  </div>
 
-                  {subTab === "borrow" && !collaterals.some(c => parseFloat(c.amount) > 0) && (
-                    <p className="text-xs text-yellow-400/90 mb-3">
-                      Deposit EURC, cirBTC, or USDC collateral below (get tokens from Circle Faucet if needed).
-                    </p>
-                  )}
-
-                  {noPoolLiquidity && (
-                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/25 rounded-xl px-4 py-3 text-amber-200 text-sm mb-3">
-                      <Droplets className="w-4 h-4 shrink-0 mt-0.5" />
-                      <p>
-                        No USDC in the lending pool yet — borrows will fail in your wallet.
-                        {" "}
-                        <a href="/lend" className="text-[#00F5FF] font-semibold hover:underline">
-                          Supply USDC on Lend
-                        </a>{" "}
-                        first (yours or another user&apos;s deposit).
+                    {borrowExceedsPool && !noPoolLiquidity && (
+                      <p className="text-xs text-amber-300/90 mb-3">
+                        Max borrowable from pool right now: {fmtLiquidity(protocolStats!.poolUsdcLiquidity)} USDC.
                       </p>
-                    </div>
-                  )}
+                    )}
 
-                  {borrowExceedsPool && !noPoolLiquidity && (
-                    <p className="text-xs text-amber-300/90 mb-3">
-                      Max borrowable from pool right now: {fmtLiquidity(protocolStats!.poolUsdcLiquidity)} USDC.
-                    </p>
-                  )}
-
-                  <button
-                    onClick={executeBorrowRepay}
-                    disabled={
-                      busy || !amount || num <= 0
-                      || (subTab === "borrow" && !collaterals.some(c => parseFloat(c.amount) > 0))
-                      || noPoolLiquidity
-                      || borrowExceedsPool
-                      || (subTab === "borrow" && !oracleOk)
-                    }
-                    className="w-full bg-[#FF00C8] text-white font-bold py-3.5 rounded-xl hover:bg-white hover:text-[#0A1428] transition disabled:opacity-40 flex items-center justify-center gap-2 mb-6"
-                  >
-                    {busy
-                      ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing...</>
-                      : `${subTab === "borrow" ? "Borrow" : "Repay"} USDC`
-                    }
-                  </button>
-                </>
+                    {state.step !== "done" && (
+                      <button
+                        onClick={executeBorrowRepay}
+                        disabled={
+                          busy || !amount || num <= 0
+                          || (subTab === "borrow" && !collaterals.some(c => parseFloat(c.amount) > 0))
+                          || noPoolLiquidity
+                          || borrowExceedsPool
+                          || (subTab === "borrow" && !oracleOk)
+                        }
+                        className="w-full bg-[#FF00C8] text-white font-bold py-3.5 rounded-xl hover:bg-white hover:text-[#0A1428] transition disabled:opacity-40 flex items-center justify-center gap-2 mb-6"
+                      >
+                        {busy
+                          ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing...</>
+                          : `${subTab === "borrow" ? "Borrow" : "Repay"} USDC`
+                        }
+                      </button>
+                    )}
+                    {state.step === "done" && <div className="mb-6" />}
+                  </>
                 )}
               </WalletActionGate>
 
