@@ -4,7 +4,6 @@ import { ARC_TOKENS } from "./arcTokens";
 /** Arc Testnet — Vitael Lending (from broadcast/DeployVitael.s.sol) */
 export const LENDING_CONTRACTS = {
   LENDING_POOL: (process.env.NEXT_PUBLIC_LENDING_POOL ?? "") as Address,
-  VUSDC:        (process.env.NEXT_PUBLIC_VUSDC        ?? "") as Address,
   ORACLE:       (process.env.NEXT_PUBLIC_ORACLE       ?? "") as Address,
   USDC:         ARC_TOKENS.USDC.address,
   EURC:         ARC_TOKENS.EURC.address,
@@ -16,5 +15,5 @@ export const ARC_RPC = process.env.NEXT_PUBLIC_ARC_RPC_URL ?? "https://rpc.testn
 export const ARC_CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? "5042002");
 
 export function lendingConfigured(): boolean {
-  return Boolean(LENDING_CONTRACTS.LENDING_POOL && LENDING_CONTRACTS.VUSDC);
+  return Boolean(LENDING_CONTRACTS.LENDING_POOL);
 }

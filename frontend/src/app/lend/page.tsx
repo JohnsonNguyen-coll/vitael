@@ -1,10 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  TrendingUp, TrendingDown, AlertTriangle, ExternalLink, Wallet,
-} from "lucide-react";
+import { useState, useEffect } from "react";import { motion } from "framer-motion";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { useAccount } from "wagmi";
 import WalletActionGate, { WalletConnectPrompt } from "../../components/WalletActionGate";
 import { formatUsd, formatTokenAmount } from "../../lib/format";
@@ -16,41 +13,38 @@ import WaterfallBackground from "../../components/WaterfallBackground";
 import Footer from "../../components/Footer";
 import TokenIcon from "../../components/TokenIcon";
 import {
-  useLending, COLLATERAL_TOKENS,
-  type UserLendingInfo, type ProtocolStats,
+  useLending, SUPPORTED_TOKENS, TOKEN_SYMBOLS,
+  type TokenSymbol, type AssetMarketInfo, type UserPosition,
 } from "../../hooks/useLending";
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-interface Asset {
-  symbol: string; name: string;
-  supplyAPY: number; borrowAPY: number;
-  ltv: number; liquidity: string;
-  supplyOnly?: boolean;
-}
-
-const COLLATERAL_REF = [
-  { symbol: "EURC", name: "Euro Coin", ltv: COLLATERAL_TOKENS.EURC.ltv },
-  { symbol: "cirBTC", name: "Circle BTC", ltv: COLLATERAL_TOKENS.cirBTC.ltv },
-] as const;
-
-function fmtLiquidity(usdc: string): string {
-  const n = parseFloat(usdc);
-  if (isNaN(n)) return "—";
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-  return `$${n.toFixed(0)}`;
-}
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEP_LABELS: Record<string, string> = {
   switching:  "Switching to Arc Testnet...",
-  approving:  "Approving...",
+  approving:  "Approving token...",
   supplying:  "Supplying — sign in wallet...",
   withdrawing:"Withdrawing — sign in wallet...",
   confirming: "Waiting for confirmation...",
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtLiquidity(val: string, symbol: string): string {
+  const n = parseFloat(val);
+  if (isNaN(n) || n === 0) return "—";
+  if (symbol === "cirBTC") {
+    if (n >= 1) return `${n.toFixed(4)} BTC`;
+    return `${(n * 1e8).toFixed(0)} sat`;
+  }
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+  if (n >= 1_000)     return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(2)}`;
+}
+
+function apyColor(apy: number) {
+  if (apy > 5) return "text-emerald-400";
+  if (apy > 2) return "text-[#00F5FF]";
+  return "text-[#8E9FB8]";
+}
+
 function StatCard({ label, value, sub, accent = false, loading = false }: {
   label: string; value: string; sub?: string; accent?: boolean; loading?: boolean;
 }) {
@@ -69,84 +63,102 @@ function StatCard({ label, value, sub, accent = false, loading = false }: {
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function LendPage() {
   const { isConnected, address } = useAccount();
-  const { state, reset, supply, withdraw, getUserInfo, getProtocolStats } = useLending();
+  const { state, reset, supply, withdraw, getMarketInfo, getUserPosition } = useLending();
 
-  const [protocolStats, setProtocolStats] = useState<ProtocolStats | null>(null);
-  const [selected, setSelected] = useState<Asset | null>(null);
-  const [subTab, setSubTab]     = useState<"supply" | "withdraw">("supply");
-  const [amount, setAmount]     = useState("");
-  const [userInfo, setUserInfo] = useState<UserLendingInfo | null>(null);
-  const [infoLoading, setInfoLoading] = useState(false);
+  const [markets, setMarkets]       = useState<AssetMarketInfo[]>([]);
+  const [position, setPosition]     = useState<UserPosition | null>(null);
+  const [marketsLoading, setMarketsLoading] = useState(true);
+  const [posLoading, setPosLoading] = useState(false);
 
-  const usdcAsset: Asset = {
-    symbol: "USDC",
-    name: "USD Coin",
-    supplyAPY: protocolStats?.supplyApyPct ?? 0,
-    borrowAPY: protocolStats?.borrowApyPct ?? 0,
-    ltv: 0,
-    liquidity: protocolStats ? fmtLiquidity(protocolStats.poolUsdcLiquidity) : "—",
-    supplyOnly: true,
-  };
-  const active = selected ?? usdcAsset;
+  const [selectedSymbol, setSelectedSymbol] = useState<TokenSymbol>("USDC");
+  const [subTab, setSubTab]   = useState<"supply" | "withdraw">("supply");
+  const [amount, setAmount]   = useState("");
+
+  // Load markets on mount
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => { if (!cancelled) setMarketsLoading(true); })
+      .then(() => getMarketInfo())
+      .then(data => { if (!cancelled) { setMarkets(data); setMarketsLoading(false); } })
+      .catch(() => { if (!cancelled) setMarketsLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load position when wallet connects/changes
+  useEffect(() => {
+    let cancelled = false;
+    if (!isConnected || !address) {
+      Promise.resolve().then(() => { if (!cancelled) setPosition(null); });
+      return () => { cancelled = true; };
+    }
+    Promise.resolve()
+      .then(() => { if (!cancelled) setPosLoading(true); })
+      .then(() => getUserPosition(address as `0x${string}`))
+      .then(pos => { if (!cancelled) { setPosition(pos); setPosLoading(false); } })
+      .catch(() => { if (!cancelled) setPosLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, address]);
+
+  // Reload after tx
+  useEffect(() => {
+    if (state.step !== "done") return;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => { if (!cancelled) setMarketsLoading(true); })
+      .then(() => getMarketInfo())
+      .then(data => { if (!cancelled) { setMarkets(data); setMarketsLoading(false); } })
+      .catch(() => { if (!cancelled) setMarketsLoading(false); });
+    if (address) {
+      Promise.resolve()
+        .then(() => { if (!cancelled) setPosLoading(true); })
+        .then(() => getUserPosition(address as `0x${string}`))
+        .then(pos => { if (!cancelled) { setPosition(pos); setPosLoading(false); } })
+        .catch(() => { if (!cancelled) setPosLoading(false); });
+    }
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.step]);
+
+  const selectedMarket = markets.find(m => m.symbol === selectedSymbol);
+  const selectedToken  = SUPPORTED_TOKENS[selectedSymbol];
+  const userAsset      = position?.assets.find(a => a.symbol === selectedSymbol);
 
   const num     = parseFloat(amount) || 0;
-  const monthly = (num * (active.supplyAPY / 100)) / 12;
+  const monthly = selectedMarket ? (num * (selectedMarket.supplyApyPct / 100)) / 12 : 0;
   const busy    = state.busy;
 
-  const loadProtocolStats = useCallback(async () => {
-    const stats = await getProtocolStats();
-    if (stats) setProtocolStats(stats);
-  }, [getProtocolStats]);
-
-  const loadUserInfo = useCallback(async () => {
-    if (!address) return;
-    setInfoLoading(true);
-    try {
-      const info = await getUserInfo(address);
-      setUserInfo(info);
-    } finally {
-      setInfoLoading(false);
-    }
-  }, [address, getUserInfo]);
-
-  // Load on mount and when address changes
-  useEffect(() => { loadProtocolStats(); }, [loadProtocolStats]);
-
-  useEffect(() => {
-    if (isConnected && address) {
-      loadUserInfo();
-    } else {
-      setUserInfo(null);
-    }
-  }, [isConnected, address, loadUserInfo]);
-
-  useEffect(() => {
-    if (state.step === "done") {
-      loadUserInfo();
-      loadProtocolStats();
-    }
-  }, [state.step, loadUserInfo, loadProtocolStats]);
+  // Total supplied across all assets (USD approx)
+  const totalSuppliedUSD = position?.totalCollateralUSD
+    ? `$${parseFloat(position.totalCollateralUSD).toFixed(2)}`
+    : "—";
 
   async function execute() {
-    if (active.symbol !== "USDC") return;
     if (!amount || num <= 0) return;
     reset();
     if (subTab === "supply") {
-      await supply(amount);
+      await supply(selectedSymbol, amount);
     } else {
-      // withdraw takes vUSDC amount — user enters USDC amount, convert via exchange rate
-      const rate = userInfo ? parseFloat(userInfo.exchangeRate) : 1;
-      const vAmount = rate > 0 ? (num / rate).toFixed(6) : amount;
-      await withdraw(vAmount);
+      // Withdraw by shares. User enters token amount; convert proportionally.
+      // If user entered MAX (amount == supplyBalance), pass all shares directly.
+      const supplyBal = parseFloat(userAsset?.supplyBalance ?? "0");
+      const totalShares = parseFloat(userAsset?.shares ?? "0");
+      if (totalShares <= 0) return;
+
+      let sharesToRedeem: string;
+      if (supplyBal > 0 && Math.abs(num - supplyBal) < 0.000001) {
+        // MAX — redeem all shares to avoid dust
+        sharesToRedeem = userAsset!.shares;
+      } else {
+        // Proportional: shares = totalShares * (amount / supplyBalance)
+        const pct = Math.min(num / supplyBal, 1);
+        sharesToRedeem = (totalShares * pct).toFixed(selectedToken.decimals);
+      }
+      await withdraw(selectedSymbol, sharesToRedeem);
     }
   }
-
-  const suppliedUsdc  = userInfo?.suppliedUsdc  ?? "0.00";
-  const vUsdcBalance  = userInfo?.vUsdcBalance  ?? "0.00";
-  const exchangeRate  = userInfo?.exchangeRate  ?? "—";
-  const usdcBalance   = userInfo?.usdcBalance   ?? "0.00";
-
-  const fmtUsdc = (v: string) => formatUsd(parseFloat(v));
 
   return (
     <div className="relative min-h-screen text-white font-sans">
@@ -157,263 +169,370 @@ export default function LendPage() {
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-2 block">Arc Testnet · Vitael Protocol</span>
+          <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-2 block">
+            Arc Testnet · Vitael Protocol
+          </span>
           <h1 className="text-4xl font-extrabold text-white">Lend</h1>
-          <p className="text-[#8E9FB8] mt-2 text-sm">Supply USDC to earn yield. Borrow USDC using EURC or cirBTC collateral on Borrow.</p>
+          <p className="text-[#8E9FB8] mt-2 text-sm">
+            Supply USDC, EURC, or cirBTC to earn yield. Use any asset as collateral to borrow others.
+          </p>
         </motion.div>
 
         <ProtocolFlowHint variant="lend" />
 
         {/* Stats */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-4"
+        >
           <StatCard
-            label="Total Supplied"
-            value={fmtUsdc(suppliedUsdc)}
-            sub={protocolStats ? `${protocolStats.supplyApyPct.toFixed(2)}% APY` : "Live APY"}
+            label="My Collateral (USD)"
+            value={isConnected ? totalSuppliedUSD : "—"}
+            sub="All assets combined"
             accent
-            loading={infoLoading}
+            loading={posLoading}
           />
           <StatCard
-            label="vUSDC Balance"
-            value={formatTokenAmount(vUsdcBalance)}
-            sub="Interest-bearing"
-            accent
-            loading={infoLoading}
+            label="Health Factor"
+            value={position?.healthFactor ?? "∞"}
+            sub={position?.healthFactor === "∞" ? "No borrows" : ""}
+            loading={posLoading}
           />
           <StatCard
-            label="Exchange Rate"
-            value={exchangeRate === "—" ? "—" : `1 vUSDC = ${exchangeRate} USDC`}
-            sub="Increases over time"
-            loading={infoLoading}
+            label="USDC Supply APY"
+            value={marketsLoading ? "—" : `${markets.find(m => m.symbol === "USDC")?.supplyApyPct.toFixed(2) ?? "0"}%`}
+            sub="Live rate"
+            loading={marketsLoading}
           />
           <StatCard
-            label="Wallet USDC"
-            value={fmtUsdc(usdcBalance)}
-            sub="Available to supply"
-            loading={infoLoading}
+            label="cirBTC Supply APY"
+            value={marketsLoading ? "—" : `${markets.find(m => m.symbol === "cirBTC")?.supplyApyPct.toFixed(2) ?? "0"}%`}
+            sub="Live rate"
+            loading={marketsLoading}
           />
         </motion.div>
 
-        {/* Main content */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+
+        {/* Main grid */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+        >
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            {/* Asset table */}
+            {/* ── Market table ── */}
             <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden">
               <div className="px-6 py-5 border-b border-white/5">
-                <h2 className="font-bold text-white">Supply market</h2>
-                <p className="text-xs text-[#8E9FB8] mt-0.5">USDC only — deposit into the pool to receive vUSDC and earn APY</p>
+                <h2 className="font-bold text-white">Supply markets</h2>
+                <p className="text-xs text-[#8E9FB8] mt-0.5">
+                  All 3 assets can be supplied to earn yield and used as collateral
+                </p>
               </div>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
                     <tr className="border-b border-white/5 text-xs uppercase tracking-wider text-[#8E9FB8]">
                       <th className="py-3 px-5">Asset</th>
                       <th className="py-3 px-5 text-[#00F5FF]">Supply APY</th>
-                      <th className="py-3 px-5">Pool liquidity</th>
-                      <th className="py-3 px-5" />
+                      <th className="py-3 px-5">Borrow APY</th>
+                      <th className="py-3 px-5">Utilization</th>
+                      <th className="py-3 px-5">Liquidity</th>
+                      <th className="py-3 px-5">LTV</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <motion.tr
-                      onClick={() => setSelected(usdcAsset)}
-                      whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
-                      className={`border-b border-white/5 cursor-pointer ${active.symbol === "USDC" ? "bg-[#00F5FF]/5" : ""}`}
-                    >
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
-                          <TokenIcon symbol="USDC" size={34} />
-                          <div>
-                            <p className="font-bold text-white text-sm">USDC</p>
-                            <p className="text-xs text-[#8E9FB8]">USD Coin · earn yield</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-5 text-[#00F5FF] font-bold text-sm">
-                        {usdcAsset.supplyAPY > 0 ? `${usdcAsset.supplyAPY.toFixed(2)}%` : "—"}
-                      </td>
-                      <td className="py-4 px-5 text-[#8E9FB8] text-sm" title="USDC in the pool available for borrowers">
-                        {usdcAsset.liquidity}
-                      </td>
-                      <td className="py-4 px-5 text-right">
-                        <span className="px-3 py-1 rounded-full text-xs font-semibold border bg-[#00F5FF] text-[#0A1428] border-[#00F5FF]">
-                          Active
-                        </span>
-                      </td>
-                    </motion.tr>
+                    {TOKEN_SYMBOLS.map((sym) => {
+                      const m   = markets.find(x => x.symbol === sym);
+                      const tok = SUPPORTED_TOKENS[sym];
+                      const isSelected = selectedSymbol === sym;
+                      return (
+                        <motion.tr
+                          key={sym}
+                          onClick={() => setSelectedSymbol(sym)}
+                          whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
+                          className={`border-b border-white/5 cursor-pointer transition ${
+                            isSelected ? "bg-[#00F5FF]/5" : ""
+                          }`}
+                        >
+                          <td className="py-4 px-5">
+                            <div className="flex items-center gap-3">
+                              <TokenIcon symbol={sym} size={34} />
+                              <div>
+                                <p className="font-bold text-white text-sm">{sym}</p>
+                                <p className="text-xs text-[#8E9FB8]">{tok.name}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 px-5 font-bold text-sm">
+                            {marketsLoading
+                              ? <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
+                              : <span className={apyColor(m?.supplyApyPct ?? 0)}>
+                                  {m ? `${m.supplyApyPct.toFixed(2)}%` : "—"}
+                                </span>
+                            }
+                          </td>
+                          <td className="py-4 px-5 text-[#FF00C8] font-semibold text-sm">
+                            {marketsLoading
+                              ? <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
+                              : m ? `${m.borrowApyPct.toFixed(2)}%` : "—"
+                            }
+                          </td>
+                          <td className="py-4 px-5 text-sm">
+                            {marketsLoading
+                              ? <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
+                              : (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full bg-[#00F5FF] rounded-full"
+                                      style={{ width: `${Math.min(m?.utilizationPct ?? 0, 100)}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-[#8E9FB8] text-xs">
+                                    {m ? `${m.utilizationPct.toFixed(1)}%` : "—"}
+                                  </span>
+                                </div>
+                              )
+                            }
+                          </td>
+                          <td className="py-4 px-5 text-[#8E9FB8] text-sm">
+                            {marketsLoading
+                              ? <div className="h-4 w-16 bg-white/5 rounded animate-pulse" />
+                              : fmtLiquidity(m?.liquidity ?? "0", sym)
+                            }
+                          </td>
+                          <td className="py-4 px-5 text-white text-sm font-semibold">
+                            {tok.ltv}%
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
-              <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02]">
-                <p className="text-xs font-bold text-[#8E9FB8] uppercase tracking-wider mb-3">
-                  Collateral (not supplied here — used when borrowing)
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {COLLATERAL_REF.map((c) => (
-                    <Link
-                      key={c.symbol}
-                      href="/borrow#collateral"
-                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-white/10 bg-black/20 hover:border-[#FF00C8]/40 transition text-xs"
-                    >
-                      <TokenIcon symbol={c.symbol} size={22} />
-                      <span className="text-white font-semibold">{c.symbol}</span>
-                      <span className="text-[#8E9FB8]">LTV {c.ltv}%</span>
-                    </Link>
-                  ))}
-                  <Link
-                    href="/borrow"
-                    className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#FF00C8] hover:underline"
-                  >
-                    Go to Borrow →
-                  </Link>
-                </div>
-              </div>
-
               {/* My supplied positions */}
               <div className="px-6 py-5 border-t border-white/5">
-                <p className="text-xs uppercase tracking-wider text-[#00F5FF] font-bold mb-4">Your Supplied Positions</p>
+                <p className="text-xs uppercase tracking-wider text-[#00F5FF] font-bold mb-4">
+                  Your Supplied Positions
+                </p>
                 {!isConnected ? (
                   <p className="text-xs text-[#8E9FB8]">Connect wallet to see your positions.</p>
-                ) : infoLoading ? (
+                ) : posLoading ? (
                   <div className="space-y-2">
-                    <div className="h-10 bg-white/5 rounded-lg animate-pulse" />
+                    {[0, 1, 2].map(i => (
+                      <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />
+                    ))}
                   </div>
-                ) : parseFloat(suppliedUsdc) > 0 ? (
-                  <div className="flex justify-between items-center py-2.5 border-b border-white/5 last:border-0">
-                    <div className="flex items-center gap-3">
-                      <TokenIcon symbol="USDC" size={28} />
-                      <div>
-                        <p className="text-sm font-bold text-white">USDC</p>
-                        <p className="text-xs text-[#8E9FB8]">
-                          {formatTokenAmount(suppliedUsdc)} USDC
-                          · {formatTokenAmount(vUsdcBalance, { min: 2, max: 6 })} vUSDC
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-[#00F5FF] font-semibold">
-                        {protocolStats ? `${protocolStats.supplyApyPct.toFixed(2)}% APY` : "—"}
-                      </p>
-                      <p className="text-xs text-[#8E9FB8]">Rate: {exchangeRate}</p>
-                    </div>
+                ) : position?.assets.filter(a => parseFloat(a.supplyBalance) > 0).length ? (
+                  <div className="space-y-1">
+                    {position.assets
+                      .filter(a => parseFloat(a.supplyBalance) > 0)
+                      .map(a => {
+                        const m = markets.find(x => x.symbol === a.symbol);
+                        return (
+                          <div key={a.symbol} className="flex justify-between items-center py-2.5 border-b border-white/5 last:border-0">
+                            <div className="flex items-center gap-3">
+                              <TokenIcon symbol={a.symbol} size={28} />
+                              <div>
+                                <p className="text-sm font-bold text-white">{a.symbol}</p>
+                                <p className="text-xs text-[#8E9FB8]">
+                                  {formatTokenAmount(a.supplyBalance, { min: 4, max: 8 })} {a.symbol}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-xs font-semibold ${apyColor(m?.supplyApyPct ?? 0)}`}>
+                                {m ? `${m.supplyApyPct.toFixed(2)}% APY` : "—"}
+                              </p>
+                              <p className="text-xs text-[#8E9FB8]">
+                                Rate: {m?.exchangeRate ?? "—"}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    }
                   </div>
                 ) : (
                   <p className="text-xs text-[#8E9FB8]">No supplied positions yet.</p>
                 )}
               </div>
+
+              {/* Collateral hint */}
+              <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02]">
+                <p className="text-xs font-bold text-[#8E9FB8] uppercase tracking-wider mb-2">
+                  Want to borrow? Deposit collateral on the Borrow page
+                </p>
+                <Link
+                  href="/borrow"
+                  className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#FF00C8] border border-[#FF00C8]/30 rounded-lg hover:bg-[#FF00C8]/10 transition"
+                >
+                  Go to Borrow →
+                </Link>
+              </div>
             </div>
 
-            {/* Action panel */}
+
+            {/* ── Action panel ── */}
             <div className="glass-panel rounded-3xl p-6 relative overflow-hidden">
               <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00F5FF]/5 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="flex items-center gap-3 mb-5">
-                <TokenIcon symbol={active.symbol} size={44} />
-                <div>
-                  <p className="font-extrabold text-white text-lg">{active.symbol}</p>
-                  <p className="text-xs text-[#8E9FB8]">{active.name}</p>
-                </div>
+              {/* Asset selector */}
+              <div className="flex gap-2 mb-5">
+                {TOKEN_SYMBOLS.map(sym => (
+                  <button
+                    key={sym}
+                    onClick={() => { setSelectedSymbol(sym); reset(); setAmount(""); }}
+                    className={`flex-1 flex flex-col items-center py-2 rounded-xl border text-xs font-bold transition ${
+                      selectedSymbol === sym
+                        ? "border-[#00F5FF] bg-[#00F5FF]/10 text-white"
+                        : "border-white/10 text-[#8E9FB8] hover:border-white/30"
+                    }`}
+                  >
+                    <TokenIcon symbol={sym} size={22} />
+                    <span className="mt-1">{sym}</span>
+                  </button>
+                ))}
               </div>
 
               {/* Sub-tabs */}
               <div className="flex bg-white/3 p-1 rounded-xl mb-5 gap-1">
                 {(["supply", "withdraw"] as const).map(t => (
-                  <button key={t} onClick={() => { setSubTab(t); reset(); setAmount(""); }}
+                  <button
+                    key={t}
+                    onClick={() => { setSubTab(t); reset(); setAmount(""); }}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
                       subTab === t ? "bg-white/8 text-white" : "text-[#8E9FB8] hover:text-white"
-                    }`}>
-                    {t === "supply" ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                    }`}
+                  >
+                    {t === "supply"
+                      ? <TrendingUp className="w-3.5 h-3.5" />
+                      : <TrendingDown className="w-3.5 h-3.5" />
+                    }
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </button>
                 ))}
               </div>
 
-              <TxStatusBanner step={state.step} error={state.error} txHash={state.txHash} stepLabels={STEP_LABELS} />
+              <TxStatusBanner
+                step={state.step}
+                error={state.error}
+                txHash={state.txHash}
+                stepLabels={STEP_LABELS}
+              />
 
-              {active.symbol !== "USDC" ? (
-                <p className="text-sm text-[#8E9FB8] py-4 text-center">
-                  Only USDC can be supplied. Deposit EURC/cirBTC as collateral on the{" "}
-                  <a href="/borrow" className="text-[#00F5FF] hover:underline">Borrow</a> page.
-                </p>
-              ) : (
-                <WalletActionGate connectMessage="Connect wallet to supply">
-                  {!isConnected ? (
-                    <WalletConnectPrompt message="Connect wallet to supply" />
-                  ) : state.step === "done" ? (
-                <button onClick={() => { reset(); setAmount(""); }}
-                  className="w-full bg-white/5 border border-white/10 text-white font-semibold py-3.5 rounded-xl hover:bg-white/10 transition">
-                  {subTab === "supply" ? "Supply More" : "Withdraw More"}
-                </button>
-              ) : (
-                <>
-                  <div className="mb-4">
-                    <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">Amount</label>
-                    <div className="relative">
-                      <input
-                        type="number" placeholder="0.00" value={amount}
-                        onChange={e => { setAmount(e.target.value); reset(); }}
-                        disabled={busy}
-                        className="w-full bg-black/30 border border-white/5 focus:border-[#00F5FF] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
-                      />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#00F5FF] font-bold text-sm">
-                        {subTab === "supply" ? "USDC" : "USDC"}
-                      </span>
+              <WalletActionGate connectMessage={`Connect wallet to ${subTab}`}>
+                {!isConnected ? (
+                  <WalletConnectPrompt message={`Connect wallet to ${subTab}`} />
+                ) : state.step === "done" ? (
+                  <button
+                    onClick={() => { reset(); setAmount(""); }}
+                    className="w-full bg-white/5 border border-white/10 text-white font-semibold py-3.5 rounded-xl hover:bg-white/10 transition"
+                  >
+                    {subTab === "supply" ? "Supply More" : "Withdraw More"}
+                  </button>
+                ) : (
+                  <>
+                    {/* Amount input */}
+                    <div className="mb-4">
+                      <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">
+                        Amount
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          placeholder="0.00"
+                          value={amount}
+                          onChange={e => { setAmount(e.target.value); reset(); }}
+                          disabled={busy}
+                          className="w-full bg-black/30 border border-white/5 focus:border-[#00F5FF] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#00F5FF] font-bold text-sm">
+                          {selectedSymbol}
+                        </span>
+                      </div>
+                      <div className="flex justify-between mt-1.5 text-xs text-[#8E9FB8]">
+                        {subTab === "supply" ? (
+                          <>
+                            <span>Wallet: {formatTokenAmount(userAsset?.walletBalance ?? "0", { min: 4, max: 8 })} {selectedSymbol}</span>
+                            <button
+                              className="text-[#00F5FF] hover:underline"
+                              onClick={() => setAmount(userAsset?.walletBalance ?? "0")}
+                            >
+                              MAX
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span>Supplied: {formatTokenAmount(userAsset?.supplyBalance ?? "0", { min: 4, max: 8 })} {selectedSymbol}</span>
+                            <button
+                              className="text-[#00F5FF] hover:underline"
+                              onClick={() => setAmount(userAsset?.supplyBalance ?? "0")}
+                            >
+                              MAX
+                            </button>
+                          </>                        )}
+                      </div>
                     </div>
-                    <div className="flex justify-between mt-1.5 text-xs text-[#8E9FB8]">
-                      {subTab === "supply" ? (
+
+                    {/* Info box */}
+                    <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-[#8E9FB8]">Supply APY</span>
+                        <span className={`font-bold ${apyColor(selectedMarket?.supplyApyPct ?? 0)}`}>
+                          {selectedMarket ? `${selectedMarket.supplyApyPct.toFixed(2)}%` : "—"}
+                        </span>
+                      </div>
+                      {num > 0 && selectedMarket && (
+                        <div className="flex justify-between">
+                          <span className="text-[#8E9FB8]">Est. monthly yield</span>
+                          <span className="text-emerald-400 font-semibold">
+                            +{selectedSymbol === "cirBTC"
+                              ? `${(monthly * 1e8).toFixed(0)} sat`
+                              : formatUsd(monthly)
+                            }
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-[#8E9FB8]">Exchange rate</span>
+                        <span className="text-white">
+                          {selectedMarket?.exchangeRate
+                            ? `${selectedMarket.exchangeRate} ${selectedSymbol}/share`
+                            : "—"
+                          }
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#8E9FB8]">Max LTV</span>
+                        <span className="text-white">{selectedToken.ltv}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-[#8E9FB8]">Liq. threshold</span>
+                        <span className="text-white">{selectedToken.liquidationThreshold}%</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={execute}
+                      disabled={busy || !amount || num <= 0}
+                      className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2"
+                    >
+                      {busy ? (
                         <>
-                          <span>Wallet: {formatTokenAmount(usdcBalance)} USDC</span>
-                          <button className="text-[#00F5FF] hover:underline" onClick={() => setAmount(usdcBalance)}>MAX</button>
+                          <div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />
+                          Processing...
                         </>
                       ) : (
-                        <>
-                          <span>Supplied: {formatTokenAmount(suppliedUsdc)} USDC</span>
-                          <button className="text-[#00F5FF] hover:underline" onClick={() => setAmount(suppliedUsdc)}>MAX</button>
-                        </>
+                        `${subTab === "supply" ? "Supply" : "Withdraw"} ${selectedSymbol}`
                       )}
-                    </div>
-                  </div>
-
-                  <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-[#8E9FB8]">Supply APY</span>
-                      <span className="text-[#00F5FF] font-bold">
-                        {active.supplyAPY > 0 ? `${active.supplyAPY.toFixed(2)}%` : "—"}
-                      </span>
-                    </div>
-                    {num > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Est. monthly yield</span>
-                        <span className="text-emerald-400 font-semibold">+${monthly.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-[#8E9FB8]">Exchange rate</span>
-                      <span className="text-white">{exchangeRate === "—" ? "—" : `${exchangeRate} USDC/vUSDC`}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[#8E9FB8]">Receive</span>
-                      <span className="text-white">vUSDC (interest-bearing)</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={execute}
-                    disabled={busy || !amount || num <= 0}
-                    className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2"
-                  >
-                    {busy
-                      ? <><div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />Processing...</>
-                      : `${subTab === "supply" ? "Supply" : "Withdraw"} ${active.symbol}`
-                    }
-                  </button>
-                </>
-                  )}
-                </WalletActionGate>
-              )}
+                    </button>
+                  </>
+                )}
+              </WalletActionGate>
             </div>
+
           </div>
         </motion.div>
 

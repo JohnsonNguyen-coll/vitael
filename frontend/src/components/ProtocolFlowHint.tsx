@@ -4,24 +4,26 @@ type Variant = "lend" | "borrow";
 
 const COPY: Record<Variant, { title: string; lines: string[] }> = {
   lend: {
-    title: "Lend = supply USDC to earn yield",
+    title: "Supply any asset to earn yield",
     lines: [
-      "You supply USDC and receive interest-bearing vUSDC.",
-      "EURC / cirBTC are not supplied here — use them as collateral on the Borrow page.",
+      "Deposit USDC, EURC, or cirBTC — your balance earns interest automatically.",
+      "Supplied assets also count as collateral when you borrow on the Borrow page.",
     ],
   },
   borrow: {
-    title: "Borrow = collateral → borrow USDC",
+    title: "Borrow USDC against your collateral",
     lines: [
-      "Step 1: Deposit EURC, cirBTC, or USDC as collateral (right panel).",
-      "Step 2: Borrow USDC — only USDC can be borrowed from the pool.",
+      "Deposit EURC, cirBTC, or USDC as collateral in the panel below.",
+      "Borrow USDC — prices are sourced from Stork oracle in real time.",
     ],
   },
 };
 
 export default function ProtocolFlowHint({ variant }: { variant: Variant }) {
   const { title, lines } = COPY[variant];
-  const accent = variant === "lend" ? "text-[#00F5FF] border-[#00F5FF]/20 bg-[#00F5FF]/5" : "text-[#FF00C8] border-[#FF00C8]/20 bg-[#FF00C8]/5";
+  const accent = variant === "lend"
+    ? "text-[#00F5FF] border-[#00F5FF]/20 bg-[#00F5FF]/5"
+    : "text-[#FF00C8] border-[#FF00C8]/20 bg-[#FF00C8]/5";
 
   return (
     <div className={`rounded-xl border px-4 py-3 text-xs ${accent}`}>

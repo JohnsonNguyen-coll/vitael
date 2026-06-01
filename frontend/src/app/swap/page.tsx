@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowUpDown, Settings, ChevronDown, Wallet, RefreshCw } from "lucide-react";
+import { ArrowUpDown, Settings, ChevronDown, Wallet, RefreshCw, ExternalLink } from "lucide-react";
 import TxStatusBanner from "../../components/TxStatusBanner";
 import { useAccount } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
@@ -98,8 +98,8 @@ export default function SwapPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="lg:col-span-3 glass-panel rounded-3xl p-6 relative overflow-hidden">
-            <div className="absolute -top-16 -right-16 w-56 h-56 bg-[#00F5FF]/4 rounded-full blur-3xl pointer-events-none" />
+            className="lg:col-span-3 glass-panel rounded-3xl p-6 relative">
+            <div className="absolute -top-16 -right-16 w-56 h-56 bg-[#00F5FF]/4 rounded-full blur-3xl pointer-events-none overflow-hidden" />
 
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-white text-lg">Swap Tokens</h2>

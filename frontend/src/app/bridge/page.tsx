@@ -152,9 +152,9 @@ export default function BridgePage() {
 
           {/* Bridge card */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className="lg:col-span-3 glass-panel rounded-3xl p-6 relative overflow-hidden">
+            className="lg:col-span-3 glass-panel rounded-3xl p-6 relative">
 
-            <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-[#8B00FF]/8 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-[#8B00FF]/8 rounded-full blur-3xl pointer-events-none overflow-hidden" />
 
             <h2 className="font-bold text-white text-lg mb-5">Bridge USDC</h2>
 

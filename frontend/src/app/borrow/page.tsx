@@ -1,16 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import {
-  TrendingUp, TrendingDown, ShieldCheck, Info,
-  AlertTriangle, ExternalLink, Wallet, Droplets,
+  TrendingUp, TrendingDown,
+  AlertTriangle, ExternalLink, Droplets,
 } from "lucide-react";
 import { useAccount } from "wagmi";
 import WalletActionGate, { WalletConnectPrompt } from "../../components/WalletActionGate";
 import { formatUsd, formatTokenAmount } from "../../lib/format";
-import BorrowGuideBanner from "../../components/BorrowGuideBanner";
-import ProtocolFlowHint from "../../components/ProtocolFlowHint";
 import TxStatusBanner from "../../components/TxStatusBanner";
 import OracleStatusBanner from "../../components/OracleStatusBanner";
 import { checkOracleFeeds, oracleReadyForBorrow, type OracleAssetStatus } from "../../lib/oracleHealth";
@@ -129,23 +127,12 @@ export default function BorrowPage() {
 
   const monthly = (num * (active.borrowAPY / 100)) / 12;
 
-  const loadProtocolStats = useCallback(async () => {
-    const stats = await getProtocolStats();
-    if (stats) setProtocolStats(stats);
-  }, [getProtocolStats]);
-
-  const loadUserInfo = useCallback(async () => {
-    if (!address) return;
-    setInfoLoading(true);
-    try {
-      const info = await getUserInfo(address);
-      setUserInfo(info);
-    } finally {
-      setInfoLoading(false);
-    }
-  }, [address, getUserInfo]);
-
-  useEffect(() => { loadProtocolStats(); }, [loadProtocolStats]);
+  useEffect(() => {
+    let cancelled = false;
+    getProtocolStats().then(stats => { if (!cancelled && stats) setProtocolStats(stats); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     checkOracleFeeds()
@@ -154,27 +141,37 @@ export default function BorrowPage() {
   }, []);
 
   useEffect(() => {
-    if (isConnected && address) {
-      loadUserInfo();
-    } else {
-      setUserInfo(null);
-    }
-  }, [isConnected, address, loadUserInfo]);
+    if (!isConnected || !address) { setUserInfo(null); return; }
+    let cancelled = false;
+    setInfoLoading(true);
+    getUserInfo(address)
+      .then(info => { if (!cancelled) setUserInfo(info); })
+      .finally(() => { if (!cancelled) setInfoLoading(false); });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isConnected, address]);
 
   useEffect(() => {
-    if (state.step === "done") {
-      loadUserInfo();
-      loadProtocolStats();
+    if (state.step !== "done") return;
+    let cancelled = false;
+    getProtocolStats().then(stats => { if (!cancelled && stats) setProtocolStats(stats); });
+    if (address) {
+      setInfoLoading(true);
+      getUserInfo(address)
+        .then(info => { if (!cancelled) setUserInfo(info); })
+        .finally(() => { if (!cancelled) setInfoLoading(false); });
     }
-  }, [state.step, loadUserInfo, loadProtocolStats]);
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.step]);
 
   async function executeBorrowRepay() {
     if (!amount || num <= 0) return;
     reset();
     if (subTab === "borrow") {
-      await borrow(amount);
+      await borrow("USDC", amount);
     } else {
-      await repay(amount);
+      await repay("USDC", amount);
     }
   }
 
@@ -206,13 +203,7 @@ export default function BorrowPage() {
           <p className="text-[#8E9FB8] mt-2 text-sm">Get Arc tokens → deposit collateral → borrow USDC (Stork oracle).</p>
         </motion.div>
 
-        <ProtocolFlowHint variant="borrow" />
-
         <OracleStatusBanner status={oracleStatus} loading={oracleLoading} />
-
-        <BorrowGuideBanner
-          hasCollateral={collaterals.some(c => parseFloat(c.amount) > 0)}
-        />
 
         {/* Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
@@ -489,7 +480,7 @@ export default function BorrowPage() {
               </WalletActionGate>
 
               {/* Collateral */}
-              <p id="collateral" className="text-xs uppercase tracking-wider text-[#8B00FF] font-bold mb-1">Collateral (step 2)</p>
+              <p id="collateral" className="text-xs uppercase tracking-wider text-[#8B00FF] font-bold mb-1">Collateral</p>
               <p className="text-[10px] text-[#8E9FB8] mb-3">Deposit Arc collateral before borrowing USDC.</p>
               <div className="flex bg-white/3 p-1 rounded-xl mb-3 gap-1">
                 {(["deposit", "withdraw"] as const).map(t => (

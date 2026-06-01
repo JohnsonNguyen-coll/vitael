@@ -6,449 +6,610 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "./vUSDC.sol";
 import "./VitaelOracle.sol";
 
 /**
  * @title VitaelLendingPool
- * @notice Core lending & borrowing contract for Vitael Lending Protocol.
+ * @notice Multi-asset lending & borrowing — USDC, EURC, cirBTC on Arc Testnet.
+ * @dev Each asset can be supplied (earning yield) AND used as collateral to borrow others.
+ *      Interest model: kinked rate (Aave-style). Oracle: Stork via VitaelOracle (8 dec).
  */
 contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     using SafeERC20 for IERC20;
 
-    struct CollateralConfig {
-        bool isSupported;
-        uint256 ltv;                  // Loan-to-Value in basis points (e.g. 7500 = 75%)
-        uint256 liquidationThreshold; // Liquidation threshold in basis points (e.g. 8000 = 80%)
-        uint256 liquidationBonus;     // Liquidation bonus in basis points (e.g. 500 = 5% bonus)
-        uint256 decimals;             // Token decimals
+    // ─── Structs ──────────────────────────────────────────────────────────────
+
+    struct AssetConfig {
+        bool    isSupported;
+        uint8   decimals;
+        uint256 ltv;                  // basis points, e.g. 7500 = 75%
+        uint256 liquidationThreshold; // basis points, e.g. 8000 = 80%
+        uint256 liquidationBonus;     // basis points, e.g. 500  = 5%
+        // Interest model (per-asset)
+        uint256 baseRate;             // 1e18 scale, e.g. 2e16 = 2%
+        uint256 optimalUtilization;   // 1e18 scale, e.g. 8e17 = 80%
+        uint256 slope1;               // 1e18 scale
+        uint256 slope2;               // 1e18 scale
+        uint256 reserveFactor;        // basis points, e.g. 1000 = 10%
     }
 
-    // Underlying USDC (6 decimals)
-    IERC20 public immutable usdc;
-    // Interest bearing vUSDC (6 decimals)
-    vUSDC public immutable vUsdc;
-    // Price Oracle
+    struct AssetState {
+        uint256 totalBorrowed;   // compounded total borrowed (asset decimals)
+        uint256 totalReserves;   // protocol reserves (asset decimals)
+        uint256 borrowIndex;     // cumulative borrow index (1e18)
+        uint256 lastAccruedTime;
+        // Supply-side: share-based (like Compound cTokens)
+        uint256 totalShares;     // total supply shares
+    }
+
+    struct UserBorrow {
+        uint256 principal;   // principal at last update (asset decimals)
+        uint256 borrowIndex; // borrow index at last update
+    }
+
+    // ─── State ────────────────────────────────────────────────────────────────
+
     VitaelOracle public immutable oracle;
 
-    // Collateral token address => Config
-    mapping(address => CollateralConfig) public collateralConfigs;
-    address[] public supportedCollaterals;
+    address[] public supportedAssets;
+    mapping(address => AssetConfig) public assetConfigs;
+    mapping(address => AssetState)  public assetStates;
 
-    // User Collateral: User => Collateral Token => Amount
+    // user => asset => supply shares
+    mapping(address => mapping(address => uint256)) public userShares;
+    // user => collateral asset => amount deposited (separate from supply)
     mapping(address => mapping(address => uint256)) public userCollateral;
+    // user => borrow asset => borrow state
+    mapping(address => mapping(address => UserBorrow)) public userBorrows;
 
-    // Cumulative parameters
-    uint256 public totalBorrowedUSDC; // Compounded total USDC borrowed
-    uint256 public totalReservesUSDC; // Accumulated protocol reserves
+    uint256 public constant CLOSE_FACTOR = 5000; // 50% max liquidation
 
-    uint256 public borrowIndex;       // Cumulative borrow index (scaled 1e18)
-    uint256 public lastAccruedTime;   // Last timestamp interest was accrued
+    // ─── Events ───────────────────────────────────────────────────────────────
 
-    // Compounded borrow state: User => Borrowed Principal
-    mapping(address => uint256) public userBorrowedPrincipal;
-    // User Borrow Index: User => Cumulative borrow index at last borrow/repay/update
-    mapping(address => uint256) public userBorrowIndex;
-
-    // Constant parameters (in 18 decimals / bps)
-    uint256 public constant BASE_RATE = 2 * 1e16;           // 2% base interest rate (1e18 scale)
-    uint256 public constant OPTIMAL_UTILIZATION = 8 * 1e17;  // 80% optimal utilization (1e18 scale)
-    uint256 public constant SLOPE_1 = 4 * 1e16;              // 4% slope 1 (1e18 scale)
-    uint256 public constant SLOPE_2 = 75 * 1e16;            // 75% slope 2 (1e18 scale)
-    uint256 public constant RESERVE_FACTOR = 1000;          // 10% reserve factor in basis points (10000 bps = 100%)
-    uint256 public constant CLOSE_FACTOR = 5000;            // 50% max liquidation close factor (10000 bps = 100%)
-
-    // Events
-    event Supplied(address indexed user, uint256 amount, uint256 vAmount);
-    event Withdrawn(address indexed user, uint256 amount, uint256 vAmount);
-    event CollateralDeposited(address indexed user, address indexed token, uint256 amount);
-    event CollateralWithdrawn(address indexed user, address indexed token, uint256 amount);
-    event Borrowed(address indexed user, uint256 amount);
-    event Repaid(address indexed user, uint256 amount);
+    event AssetAdded(address indexed asset);
+    event Supplied(address indexed user, address indexed asset, uint256 amount, uint256 shares);
+    event Withdrawn(address indexed user, address indexed asset, uint256 amount, uint256 shares);
+    event CollateralDeposited(address indexed user, address indexed asset, uint256 amount);
+    event CollateralWithdrawn(address indexed user, address indexed asset, uint256 amount);
+    event Borrowed(address indexed user, address indexed asset, uint256 amount);
+    event Repaid(address indexed user, address indexed asset, uint256 amount);
     event Liquidated(
-        address indexed borrower,
-        address indexed liquidator,
-        uint256 repaidAmount,
-        address collateralToken,
-        uint256 seizedCollateral
+        address indexed borrower, address indexed liquidator,
+        address indexed collateralAsset, address debtAsset,
+        uint256 repaidAmount, uint256 seizedCollateral
     );
-    event InterestAccrued(uint256 timeElapsed, uint256 borrowRate, uint256 borrowIndex);
-    event ReservesWithdrawn(address indexed owner, uint256 amount);
+    event InterestAccrued(address indexed asset, uint256 borrowIndex);
+    event ReservesWithdrawn(address indexed asset, uint256 amount);
 
-    // Custom Errors
+    // ─── Errors ───────────────────────────────────────────────────────────────
+
     error ZeroAmount();
-    error CollateralNotSupported();
-    error InsufficientCollateral();
+    error AssetNotSupported();
+    error InsufficientBalance();
     error InsufficientLiquidity();
     error HealthFactorTooLow();
     error PositionHealthy();
-    error RepayAmountExceedsDebt();
-    error LiquidationAmountExceedsCloseFactor();
+    error RepayExceedsDebt();
+    error ExceedsCloseFactor();
     error InsufficientReserves();
+    error SameAsset();
 
-    constructor(
-        address _usdc,
-        address _vUsdc,
-        address _oracle
-    ) Ownable(msg.sender) {
-        usdc = IERC20(_usdc);
-        vUsdc = vUSDC(_vUsdc);
+
+    // ─── Constructor ──────────────────────────────────────────────────────────
+
+    constructor(address _oracle) Ownable(msg.sender) {
         oracle = VitaelOracle(_oracle);
-
-        borrowIndex = 1e18;
-        lastAccruedTime = block.timestamp;
     }
 
+    // ─── Admin ────────────────────────────────────────────────────────────────
+
     /**
-     * @notice Add support for a collateral token.
+     * @notice Register a new asset. Call once per token.
+     * @param asset          Token address
+     * @param decimals       Token decimals (6 for USDC/EURC, 8 for cirBTC)
+     * @param ltv            Loan-to-value in bps (e.g. 7500)
+     * @param liqThreshold   Liquidation threshold in bps (e.g. 8000)
+     * @param liqBonus       Liquidation bonus in bps (e.g. 500)
+     * @param baseRate       Annual base borrow rate 1e18 (e.g. 2e16 = 2%)
+     * @param optimalUtil    Optimal utilization 1e18 (e.g. 8e17 = 80%)
+     * @param slope1         Slope below optimal 1e18 (e.g. 4e16 = 4%)
+     * @param slope2         Slope above optimal 1e18 (e.g. 75e16 = 75%)
+     * @param reserveFactor  Reserve factor in bps (e.g. 1000 = 10%)
      */
-    function addCollateral(
-        address token,
+    function addAsset(
+        address asset,
+        uint8   decimals,
         uint256 ltv,
-        uint256 liquidationThreshold,
-        uint256 liquidationBonus,
-        uint256 decimals
+        uint256 liqThreshold,
+        uint256 liqBonus,
+        uint256 baseRate,
+        uint256 optimalUtil,
+        uint256 slope1,
+        uint256 slope2,
+        uint256 reserveFactor
     ) external onlyOwner {
-        if (!collateralConfigs[token].isSupported) {
-            supportedCollaterals.push(token);
+        if (!assetConfigs[asset].isSupported) {
+            supportedAssets.push(asset);
+            assetStates[asset].borrowIndex     = 1e18;
+            assetStates[asset].lastAccruedTime = block.timestamp;
         }
-        collateralConfigs[token] = CollateralConfig({
-            isSupported: true,
-            ltv: ltv,
-            liquidationThreshold: liquidationThreshold,
-            liquidationBonus: liquidationBonus,
-            decimals: decimals
+        assetConfigs[asset] = AssetConfig({
+            isSupported:          true,
+            decimals:             decimals,
+            ltv:                  ltv,
+            liquidationThreshold: liqThreshold,
+            liquidationBonus:     liqBonus,
+            baseRate:             baseRate,
+            optimalUtilization:   optimalUtil,
+            slope1:               slope1,
+            slope2:               slope2,
+            reserveFactor:        reserveFactor
         });
+        emit AssetAdded(asset);
     }
 
-    /**
-     * @notice Accrues interest on borrowed and supplied USDC based on utilization rate.
-     */
-    function accrueInterest() public {
-        uint256 timeElapsed = block.timestamp - lastAccruedTime;
-        if (timeElapsed == 0) return;
+    function pause()   external onlyOwner { _pause(); }
+    function unpause() external onlyOwner { _unpause(); }
 
-        if (totalBorrowedUSDC == 0) {
-            lastAccruedTime = block.timestamp;
+
+    // ─── Interest accrual ─────────────────────────────────────────────────────
+
+    function accrueInterest(address asset) public {
+        AssetState  storage s = assetStates[asset];
+        AssetConfig storage c = assetConfigs[asset];
+        uint256 elapsed = block.timestamp - s.lastAccruedTime;
+        if (elapsed == 0 || s.totalBorrowed == 0) {
+            s.lastAccruedTime = block.timestamp;
             return;
         }
 
-        uint256 cash = usdc.balanceOf(address(this));
-        uint256 totalSupply = cash + totalBorrowedUSDC;
+        uint256 cash = IERC20(asset).balanceOf(address(this));
+        uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
 
-        uint256 u = (totalBorrowedUSDC * 1e18) / totalSupply;
-        uint256 borrowRate;
+        uint256 interest    = (s.totalBorrowed * rate * elapsed) / (365 days * 1e18);
+        uint256 reserve     = (interest * c.reserveFactor) / 10000;
 
-        if (u < OPTIMAL_UTILIZATION) {
-            borrowRate = BASE_RATE + (u * SLOPE_1) / OPTIMAL_UTILIZATION;
-        } else {
-            borrowRate = BASE_RATE + SLOPE_1 + ((u - OPTIMAL_UTILIZATION) * SLOPE_2) / (1e18 - OPTIMAL_UTILIZATION);
-        }
+        s.totalBorrowed  += interest;
+        s.totalReserves  += reserve;
+        s.borrowIndex    += (s.borrowIndex * rate * elapsed) / (365 days * 1e18);
+        s.lastAccruedTime = block.timestamp;
 
-        uint256 interestPaid = (totalBorrowedUSDC * borrowRate * timeElapsed) / (365 days * 1e18);
-        uint256 reserveShare = (interestPaid * RESERVE_FACTOR) / 10000;
-
-        totalBorrowedUSDC += interestPaid;
-        totalReservesUSDC += reserveShare;
-
-        borrowIndex = borrowIndex + (borrowIndex * borrowRate * timeElapsed) / (365 days * 1e18);
-        lastAccruedTime = block.timestamp;
-
-        emit InterestAccrued(timeElapsed, borrowRate, borrowIndex);
+        emit InterestAccrued(asset, s.borrowIndex);
     }
 
-    /**
-     * @notice Predicts the borrow index and total borrows dynamically for view functions.
-     */
-    function getLatestState() public view returns (uint256 currentBorrowIndex, uint256 currentTotalBorrowed) {
-        uint256 timeElapsed = block.timestamp - lastAccruedTime;
-        if (timeElapsed == 0 || totalBorrowedUSDC == 0) {
-            return (borrowIndex, totalBorrowedUSDC);
+    function _borrowRate(
+        AssetConfig storage c,
+        uint256 totalBorrowed,
+        uint256 cash
+    ) internal view returns (uint256) {
+        if (totalBorrowed == 0) return c.baseRate;
+        uint256 total = cash + totalBorrowed;
+        uint256 u     = (totalBorrowed * 1e18) / total;
+        if (u <= c.optimalUtilization) {
+            return c.baseRate + (u * c.slope1) / c.optimalUtilization;
         }
-        uint256 cash = usdc.balanceOf(address(this));
-        uint256 totalSupply = cash + totalBorrowedUSDC;
-
-        uint256 u = (totalBorrowedUSDC * 1e18) / totalSupply;
-        uint256 borrowRate;
-
-        if (u < OPTIMAL_UTILIZATION) {
-            borrowRate = BASE_RATE + (u * SLOPE_1) / OPTIMAL_UTILIZATION;
-        } else {
-            borrowRate = BASE_RATE + SLOPE_1 + ((u - OPTIMAL_UTILIZATION) * SLOPE_2) / (1e18 - OPTIMAL_UTILIZATION);
-        }
-
-        uint256 interestPaid = (totalBorrowedUSDC * borrowRate * timeElapsed) / (365 days * 1e18);
-        uint256 nextTotalBorrowed = totalBorrowedUSDC + interestPaid;
-        uint256 nextBorrowIndex = borrowIndex + (borrowIndex * borrowRate * timeElapsed) / (365 days * 1e18);
-        return (nextBorrowIndex, nextTotalBorrowed);
+        return c.baseRate + c.slope1
+            + ((u - c.optimalUtilization) * c.slope2) / (1e18 - c.optimalUtilization);
     }
 
+    // ─── Exchange rate (shares → asset) ──────────────────────────────────────
+
     /**
-     * @notice Get current exchange rate of vUSDC to USDC.
+     * @notice 1 share = how many asset tokens (1e18 scaled).
+     *         Increases over time as interest accrues.
      */
-    function getExchangeRate() public view returns (uint256) {
-        uint256 vUsdcSupply = vUsdc.totalSupply();
-        if (vUsdcSupply == 0) return 1e18; // 1:1 initial exchange rate (scaled to 1e18)
+    function exchangeRate(address asset) public view returns (uint256) {
+        AssetState storage s = assetStates[asset];
+        if (s.totalShares == 0) return 1e18;
 
-        (, uint256 currentTotalBorrowed) = getLatestState();
-
-        uint256 timeElapsed = block.timestamp - lastAccruedTime;
-        uint256 pendingReserves = 0;
-        if (timeElapsed > 0 && totalBorrowedUSDC > 0) {
-            uint256 cash = usdc.balanceOf(address(this));
-            uint256 totalSupply = cash + totalBorrowedUSDC;
-            uint256 u = (totalBorrowedUSDC * 1e18) / totalSupply;
-            uint256 borrowRate;
-            if (u < OPTIMAL_UTILIZATION) {
-                borrowRate = BASE_RATE + (u * SLOPE_1) / OPTIMAL_UTILIZATION;
-            } else {
-                borrowRate = BASE_RATE + SLOPE_1 + ((u - OPTIMAL_UTILIZATION) * SLOPE_2) / (1e18 - OPTIMAL_UTILIZATION);
-            }
-            uint256 interestPaid = (totalBorrowedUSDC * borrowRate * timeElapsed) / (365 days * 1e18);
-            pendingReserves = (interestPaid * RESERVE_FACTOR) / 10000;
+        // Simulate pending interest
+        AssetConfig storage c = assetConfigs[asset];
+        uint256 elapsed = block.timestamp - s.lastAccruedTime;
+        uint256 cash    = IERC20(asset).balanceOf(address(this));
+        uint256 pendingInterest = 0;
+        uint256 pendingReserve  = 0;
+        if (elapsed > 0 && s.totalBorrowed > 0) {
+            uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
+            pendingInterest = (s.totalBorrowed * rate * elapsed) / (365 days * 1e18);
+            pendingReserve  = (pendingInterest * c.reserveFactor) / 10000;
         }
 
-        uint256 currentReserves = totalReservesUSDC + pendingReserves;
-        uint256 cashBalance = usdc.balanceOf(address(this));
-        uint256 totalSupplied = cashBalance + currentTotalBorrowed - currentReserves;
+        uint256 totalAssets = cash
+            + s.totalBorrowed + pendingInterest
+            - s.totalReserves - pendingReserve;
 
-        return (totalSupplied * 1e18) / vUsdcSupply;
+        return (totalAssets * 1e18) / s.totalShares;
     }
 
+    function _sharesToAsset(address asset, uint256 shares) internal view returns (uint256) {
+        return (shares * exchangeRate(asset)) / 1e18;
+    }
+
+    function _assetToShares(address asset, uint256 amount) internal view returns (uint256) {
+        uint256 rate = exchangeRate(asset);
+        return (amount * 1e18) / rate;
+    }
+
+
+    // ─── Supply / Withdraw ────────────────────────────────────────────────────
+
     /**
-     * @notice Supply USDC to earn interest and receive vUSDC.
+     * @notice Supply any supported asset to earn yield.
+     *         Receive supply shares (like cTokens) tracked internally.
      */
-    function supply(uint256 amount) external nonReentrant whenNotPaused {
+    function supply(address asset, uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
-        accrueInterest();
+        if (!assetConfigs[asset].isSupported) revert AssetNotSupported();
 
-        uint256 rate = getExchangeRate();
-        uint256 vAmount = (amount * 1e18) / rate;
+        accrueInterest(asset);
 
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
-        vUsdc.mint(msg.sender, vAmount);
+        uint256 shares = _assetToShares(asset, amount);
+        assetStates[asset].totalShares += shares;
+        userShares[msg.sender][asset]  += shares;
 
-        emit Supplied(msg.sender, amount, vAmount);
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        emit Supplied(msg.sender, asset, amount, shares);
     }
 
     /**
-     * @notice Withdraw supplied USDC by burning vUSDC.
+     * @notice Withdraw supplied asset by burning shares.
+     * @param asset   Token to withdraw
+     * @param shares  Number of supply shares to redeem (use type(uint256).max for all)
      */
-    function withdraw(uint256 vAmount) external nonReentrant whenNotPaused {
-        if (vAmount == 0) revert ZeroAmount();
-        accrueInterest();
+    function withdraw(address asset, uint256 shares) external nonReentrant whenNotPaused {
+        if (shares == 0) revert ZeroAmount();
+        if (!assetConfigs[asset].isSupported) revert AssetNotSupported();
 
-        uint256 rate = getExchangeRate();
-        uint256 amount = (vAmount * rate) / 1e18;
+        accrueInterest(asset);
 
-        if (usdc.balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+        uint256 userSh = userShares[msg.sender][asset];
+        if (shares > userSh) revert InsufficientBalance();
 
-        vUsdc.burn(msg.sender, vAmount);
+        uint256 amount = _sharesToAsset(asset, shares);
+        if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
 
-        // Verify that the user still has a safe position if they have active loans
-        if (userBorrowedPrincipal[msg.sender] > 0) {
-            if (getHealthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
+        assetStates[asset].totalShares -= shares;
+        userShares[msg.sender][asset]  -= shares;
+
+        // Health check if user also has borrows
+        if (_hasBorrow(msg.sender)) {
+            if (_healthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
         }
 
-        usdc.safeTransfer(msg.sender, amount);
+        IERC20(asset).safeTransfer(msg.sender, amount);
+        emit Withdrawn(msg.sender, asset, amount, shares);
+    }
 
-        emit Withdrawn(msg.sender, amount, vAmount);
+    // ─── Collateral ───────────────────────────────────────────────────────────
+
+    /**
+     * @notice Deposit collateral (separate from supply — not earning yield).
+     *         Use this to back borrows without earning supply APY.
+     */
+    function depositCollateral(address asset, uint256 amount) external nonReentrant whenNotPaused {
+        if (amount == 0) revert ZeroAmount();
+        if (!assetConfigs[asset].isSupported) revert AssetNotSupported();
+
+        userCollateral[msg.sender][asset] += amount;
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        emit CollateralDeposited(msg.sender, asset, amount);
     }
 
     /**
-     * @notice Deposit collateral (EURC, cirBTC, USDC) to borrow USDC against.
+     * @notice Withdraw collateral. Reverts if health factor would drop below 1.
      */
-    function depositCollateral(address token, uint256 amount) external nonReentrant whenNotPaused {
+    function withdrawCollateral(address asset, uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
-        if (!collateralConfigs[token].isSupported) revert CollateralNotSupported();
+        if (userCollateral[msg.sender][asset] < amount) revert InsufficientBalance();
 
-        userCollateral[msg.sender][token] += amount;
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        userCollateral[msg.sender][asset] -= amount;
 
-        emit CollateralDeposited(msg.sender, token, amount);
-    }
-
-    /**
-     * @notice Withdraw deposited collateral.
-     */
-    function withdrawCollateral(address token, uint256 amount) external nonReentrant whenNotPaused {
-        if (amount == 0) revert ZeroAmount();
-        if (userCollateral[msg.sender][token] < amount) revert InsufficientCollateral();
-
-        userCollateral[msg.sender][token] -= amount;
-
-        // Verify safety of remaining position
-        if (userBorrowedPrincipal[msg.sender] > 0) {
-            if (getHealthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
+        if (_hasBorrow(msg.sender)) {
+            if (_healthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
         }
 
-        IERC20(token).safeTransfer(msg.sender, amount);
-
-        emit CollateralWithdrawn(msg.sender, token, amount);
+        IERC20(asset).safeTransfer(msg.sender, amount);
+        emit CollateralWithdrawn(msg.sender, asset, amount);
     }
 
+
+    // ─── Borrow / Repay ───────────────────────────────────────────────────────
+
     /**
-     * @notice Borrow USDC.
+     * @notice Borrow any supported asset against collateral or supplied assets.
+     * @param asset   Token to borrow
+     * @param amount  Amount in token decimals
      */
-    function borrow(uint256 amount) external nonReentrant whenNotPaused {
+    function borrow(address asset, uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
-        accrueInterest();
+        if (!assetConfigs[asset].isSupported) revert AssetNotSupported();
 
-        if (usdc.balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+        accrueInterest(asset);
 
-        uint256 currentDebt = getCompoundedBorrowBalance(msg.sender);
-        uint256 newPrincipal = currentDebt + amount;
+        if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
 
-        userBorrowedPrincipal[msg.sender] = newPrincipal;
-        userBorrowIndex[msg.sender] = borrowIndex;
+        // Update user borrow state
+        UserBorrow storage ub = userBorrows[msg.sender][asset];
+        AssetState  storage s  = assetStates[asset];
 
-        totalBorrowedUSDC += amount;
+        uint256 currentDebt = _compoundedDebt(ub, s.borrowIndex);
+        ub.principal   = currentDebt + amount;
+        ub.borrowIndex = s.borrowIndex;
 
-        // Verify position health
-        if (getHealthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
+        s.totalBorrowed += amount;
 
-        usdc.safeTransfer(msg.sender, amount);
+        // Health check AFTER updating state
+        if (_healthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
 
-        emit Borrowed(msg.sender, amount);
+        IERC20(asset).safeTransfer(msg.sender, amount);
+        emit Borrowed(msg.sender, asset, amount);
     }
 
     /**
-     * @notice Repay borrowed USDC.
+     * @notice Repay borrowed asset.
+     * @param asset   Token to repay
+     * @param amount  Amount to repay (use type(uint256).max to repay full debt)
      */
-    function repay(uint256 amount) external nonReentrant whenNotPaused {
+    function repay(address asset, uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
-        accrueInterest();
+        if (!assetConfigs[asset].isSupported) revert AssetNotSupported();
 
-        uint256 currentDebt = getCompoundedBorrowBalance(msg.sender);
-        if (amount > currentDebt) revert RepayAmountExceedsDebt();
+        accrueInterest(asset);
 
-        uint256 newPrincipal = currentDebt - amount;
+        UserBorrow storage ub = userBorrows[msg.sender][asset];
+        AssetState  storage s  = assetStates[asset];
 
-        userBorrowedPrincipal[msg.sender] = newPrincipal;
-        userBorrowIndex[msg.sender] = borrowIndex;
+        uint256 currentDebt = _compoundedDebt(ub, s.borrowIndex);
+        if (currentDebt == 0) revert ZeroAmount();
 
-        totalBorrowedUSDC -= amount;
+        // Allow repaying full debt with max uint
+        if (amount > currentDebt) amount = currentDebt;
 
-        usdc.safeTransferFrom(msg.sender, address(this), amount);
+        ub.principal   = currentDebt - amount;
+        ub.borrowIndex = s.borrowIndex;
+        s.totalBorrowed -= amount;
 
-        emit Repaid(msg.sender, amount);
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        emit Repaid(msg.sender, asset, amount);
     }
 
+
+    // ─── Liquidation ──────────────────────────────────────────────────────────
+
     /**
-     * @notice Liquidate a position with Health Factor < 1.
+     * @notice Liquidate an unhealthy position.
+     * @param borrower        Address of the borrower
+     * @param debtAsset       Asset the borrower owes
+     * @param collateralAsset Asset to seize as reward
+     * @param repayAmount     Amount of debtAsset to repay (≤ 50% of total debt)
      */
     function liquidate(
         address borrower,
-        address collateralToken,
+        address debtAsset,
+        address collateralAsset,
         uint256 repayAmount
     ) external nonReentrant whenNotPaused {
         if (repayAmount == 0) revert ZeroAmount();
-        accrueInterest();
+        if (debtAsset == collateralAsset) revert SameAsset();
 
-        uint256 healthFactor = getHealthFactor(borrower);
-        if (healthFactor >= 1e18) revert PositionHealthy();
+        accrueInterest(debtAsset);
 
-        uint256 totalDebt = getCompoundedBorrowBalance(borrower);
+        if (_healthFactor(borrower) >= 1e18) revert PositionHealthy();
+
+        AssetState  storage ds = assetStates[debtAsset];
+        UserBorrow  storage ub = userBorrows[borrower][debtAsset];
+        uint256 totalDebt = _compoundedDebt(ub, ds.borrowIndex);
+
         uint256 maxRepay = (totalDebt * CLOSE_FACTOR) / 10000;
-        if (repayAmount > maxRepay) revert LiquidationAmountExceedsCloseFactor();
+        if (repayAmount > maxRepay) revert ExceedsCloseFactor();
 
-        CollateralConfig memory config = collateralConfigs[collateralToken];
-        if (!config.isSupported) revert CollateralNotSupported();
+        AssetConfig storage cc = assetConfigs[collateralAsset];
+        if (!cc.isSupported) revert AssetNotSupported();
 
-        // Calculate USD value of repayAmount (repayAmount is USDC with 6 decimals)
-        // Oracle price is in 8 decimals (USDC price usually $1 = 1e8)
-        uint256 usdcPrice = oracle.getAssetPrice(address(usdc));
-        uint256 repayValueUSD = (repayAmount * usdcPrice) / 1e6; // Scale down 6 decimals (USD value has 8 decimals)
+        // USD value of repayAmount (oracle returns 8-decimal price)
+        uint256 debtPrice       = oracle.getAssetPrice(debtAsset);
+        uint256 collateralPrice = oracle.getAssetPrice(collateralAsset);
+        uint8   debtDec         = assetConfigs[debtAsset].decimals;
 
-        // Seize amount = (repayValueUSD * (1 + liquidationBonus)) / collateralPrice
-        uint256 collateralPrice = oracle.getAssetPrice(collateralToken);
-        uint256 bonusFactor = 10000 + config.liquidationBonus; // e.g. 10500 for 5% bonus
+        // repayValueUSD in 8-decimal precision
+        uint256 repayValueUSD = (repayAmount * debtPrice) / (10 ** debtDec);
 
-        // Tính seized amount với đúng decimals
-        uint256 seizedCollateral = (repayValueUSD * bonusFactor * (10 ** config.decimals)) 
+        // seizedCollateral = repayValueUSD * (1 + bonus) / collateralPrice
+        uint256 bonusFactor = 10000 + cc.liquidationBonus;
+        uint256 seizedCollateral = (repayValueUSD * bonusFactor * (10 ** cc.decimals))
                                  / (collateralPrice * 10000);
 
-        if (seizedCollateral > userCollateral[borrower][collateralToken]) {
-            seizedCollateral = userCollateral[borrower][collateralToken];
+        // Cap at available collateral (dedicated + supplied)
+        uint256 availableCollateral = userCollateral[borrower][collateralAsset]
+            + _sharesToAsset(collateralAsset, userShares[borrower][collateralAsset]);
+
+        if (seizedCollateral > availableCollateral) {
+            seizedCollateral = availableCollateral;
         }
 
-        userCollateral[borrower][collateralToken] -= seizedCollateral;
-        
-        // Cập nhật lại nợ sau khi bị thanh lý
-        uint256 newPrincipal = totalDebt - repayAmount;
-        userBorrowedPrincipal[borrower] = newPrincipal;
-        userBorrowIndex[borrower] = borrowIndex;
+        // Deduct from dedicated collateral first, then from supply shares
+        uint256 fromDedicated = userCollateral[borrower][collateralAsset];
+        if (seizedCollateral <= fromDedicated) {
+            userCollateral[borrower][collateralAsset] -= seizedCollateral;
+        } else {
+            uint256 remainder = seizedCollateral - fromDedicated;
+            userCollateral[borrower][collateralAsset] = 0;
+            // Convert remainder to shares and burn
+            accrueInterest(collateralAsset);
+            uint256 sharesToBurn = _assetToShares(collateralAsset, remainder);
+            if (sharesToBurn > userShares[borrower][collateralAsset]) {
+                sharesToBurn = userShares[borrower][collateralAsset];
+            }
+            userShares[borrower][collateralAsset]      -= sharesToBurn;
+            assetStates[collateralAsset].totalShares   -= sharesToBurn;
+        }
 
-        totalBorrowedUSDC -= repayAmount;
+        // Update debt
+        ub.principal   = totalDebt - repayAmount;
+        ub.borrowIndex = ds.borrowIndex;
+        ds.totalBorrowed -= repayAmount;
 
-        // Transfers
-        usdc.safeTransferFrom(msg.sender, address(this), repayAmount);
-        IERC20(collateralToken).safeTransfer(msg.sender, seizedCollateral);
+        IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), repayAmount);
+        IERC20(collateralAsset).safeTransfer(msg.sender, seizedCollateral);
 
-        emit Liquidated(borrower, msg.sender, repayAmount, collateralToken, seizedCollateral);
+        emit Liquidated(borrower, msg.sender, collateralAsset, debtAsset, repayAmount, seizedCollateral);
+    }
+
+
+    // ─── View functions ───────────────────────────────────────────────────────
+
+    /**
+     * @notice Compounded borrow balance for a user on a specific asset.
+     */
+    function getBorrowBalance(address user, address asset) public view returns (uint256) {
+        UserBorrow storage ub = userBorrows[user][asset];
+        if (ub.principal == 0) return 0;
+        // Simulate pending index
+        AssetState  storage s = assetStates[asset];
+        AssetConfig storage c = assetConfigs[asset];
+        uint256 elapsed = block.timestamp - s.lastAccruedTime;
+        uint256 currentIndex = s.borrowIndex;
+        if (elapsed > 0 && s.totalBorrowed > 0) {
+            uint256 cash = IERC20(asset).balanceOf(address(this));
+            uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
+            currentIndex += (s.borrowIndex * rate * elapsed) / (365 days * 1e18);
+        }
+        return _compoundedDebt(ub, currentIndex);
     }
 
     /**
-     * @notice Returns the compounded borrow balance of a user (including pending interest).
+     * @notice Supply balance (in asset tokens) for a user.
      */
-    function getCompoundedBorrowBalance(address user) public view returns (uint256) {
-        uint256 principal = userBorrowedPrincipal[user];
-        if (principal == 0) return 0;
-        (uint256 currentBorrowIndex, ) = getLatestState();
-        return (principal * currentBorrowIndex) / userBorrowIndex[user];
+    function getSupplyBalance(address user, address asset) public view returns (uint256) {
+        uint256 shares = userShares[user][asset];
+        if (shares == 0) return 0;
+        return _sharesToAsset(asset, shares);
     }
 
     /**
-     * @notice Computes safety metric. HF >= 1e18 is healthy.
+     * @notice Health factor for a user. Returns type(uint256).max if no borrows.
+     *         HF < 1e18 → liquidatable.
      */
-    function getHealthFactor(address user) public view returns (uint256) {
-        uint256 borrowBalanceUSD = 0;
-        uint256 collateralThresholdValueUSD = 0;
+    function getHealthFactor(address user) external view returns (uint256) {
+        return _healthFactor(user);
+    }
 
-        // 1. Calculate borrow balance in USD (8 decimals)
-        uint256 borrowBalance = getCompoundedBorrowBalance(user);
-        if (borrowBalance == 0) return type(uint256).max; // Infinite HF for no borrows
+    /**
+     * @notice Full position summary for a user.
+     * @return totalCollateralUSD  Total collateral value (8-dec USD)
+     * @return totalBorrowUSD      Total borrow value (8-dec USD)
+     * @return healthFactor        HF scaled 1e18
+     */
+    function getPosition(address user) external view returns (
+        uint256 totalCollateralUSD,
+        uint256 totalBorrowUSD,
+        uint256 healthFactor
+    ) {
+        (totalCollateralUSD, , totalBorrowUSD) = _positionValues(user);
+        healthFactor = _healthFactor(user);
+    }
 
-        uint256 usdcPrice = oracle.getAssetPrice(address(usdc));
-        borrowBalanceUSD = (borrowBalance * usdcPrice) / 1e6;
+    /**
+     * @notice Current borrow APY for an asset (1e18 scale).
+     */
+    function getBorrowRate(address asset) external view returns (uint256) {
+        AssetState  storage s = assetStates[asset];
+        AssetConfig storage c = assetConfigs[asset];
+        uint256 cash = IERC20(asset).balanceOf(address(this));
+        return _borrowRate(c, s.totalBorrowed, cash);
+    }
 
-        // 2. Sum collateral threshold value in USD (8 decimals)
-        for (uint256 i = 0; i < supportedCollaterals.length; i++) {
-            address token = supportedCollaterals[i];
-            uint256 amount = userCollateral[user][token];
-            if (amount > 0) {
-                CollateralConfig memory config = collateralConfigs[token];
-                uint256 price = oracle.getAssetPrice(token);
-                uint256 collateralValueUSD = (amount * price) / (10 ** config.decimals);
-                collateralThresholdValueUSD += (collateralValueUSD * config.liquidationThreshold) / 10000;
+    /**
+     * @notice Current supply APY for an asset (1e18 scale).
+     */
+    function getSupplyRate(address asset) external view returns (uint256) {
+        AssetState  storage s = assetStates[asset];
+        AssetConfig storage c = assetConfigs[asset];
+        uint256 cash = IERC20(asset).balanceOf(address(this));
+        if (s.totalBorrowed == 0) return 0;
+        uint256 total = cash + s.totalBorrowed;
+        uint256 u     = (s.totalBorrowed * 1e18) / total;
+        uint256 borrowRate = _borrowRate(c, s.totalBorrowed, cash);
+        return (borrowRate * u * (10000 - c.reserveFactor)) / (1e18 * 10000);
+    }
+
+    /**
+     * @notice Utilization rate for an asset (1e18 scale).
+     */
+    function getUtilization(address asset) external view returns (uint256) {
+        AssetState storage s = assetStates[asset];
+        if (s.totalBorrowed == 0) return 0;
+        uint256 cash  = IERC20(asset).balanceOf(address(this));
+        uint256 total = cash + s.totalBorrowed;
+        return (s.totalBorrowed * 1e18) / total;
+    }
+
+    function getSupportedAssets() external view returns (address[] memory) {
+        return supportedAssets;
+    }
+
+
+    // ─── Owner: withdraw reserves ─────────────────────────────────────────────
+
+    function withdrawReserves(address asset, uint256 amount) external onlyOwner nonReentrant {
+        accrueInterest(asset);
+        AssetState storage s = assetStates[asset];
+        if (amount > s.totalReserves) revert InsufficientReserves();
+        s.totalReserves -= amount;
+        IERC20(asset).safeTransfer(msg.sender, amount);
+        emit ReservesWithdrawn(asset, amount);
+    }
+
+    // ─── Internal helpers ─────────────────────────────────────────────────────
+
+    function _compoundedDebt(UserBorrow storage ub, uint256 currentIndex)
+        internal view returns (uint256)
+    {
+        if (ub.principal == 0 || ub.borrowIndex == 0) return 0;
+        return (ub.principal * currentIndex) / ub.borrowIndex;
+    }
+
+    function _hasBorrow(address user) internal view returns (bool) {
+        for (uint256 i = 0; i < supportedAssets.length; i++) {
+            if (userBorrows[user][supportedAssets[i]].principal > 0) return true;
+        }
+        return false;
+    }
+
+    /**
+     * @dev Returns (collateralThresholdUSD, collateralLtvUSD, totalBorrowUSD) in 8-dec precision.
+     */
+    function _positionValues(address user) internal view returns (
+        uint256 collateralThresholdUSD,
+        uint256 collateralLtvUSD,
+        uint256 totalBorrowUSD
+    ) {
+        for (uint256 i = 0; i < supportedAssets.length; i++) {
+            address asset = supportedAssets[i];
+            AssetConfig storage c = assetConfigs[asset];
+            uint256 price = oracle.getAssetPrice(asset);
+
+            // Collateral: dedicated deposits + supply positions
+            uint256 collAmt = userCollateral[user][asset]
+                + _sharesToAsset(asset, userShares[user][asset]);
+
+            if (collAmt > 0) {
+                uint256 valueUSD = (collAmt * price) / (10 ** c.decimals);
+                collateralThresholdUSD += (valueUSD * c.liquidationThreshold) / 10000;
+                collateralLtvUSD       += (valueUSD * c.ltv) / 10000;
+            }
+
+            // Borrows
+            uint256 debt = getBorrowBalance(user, asset);
+            if (debt > 0) {
+                totalBorrowUSD += (debt * price) / (10 ** c.decimals);
             }
         }
-
-        return (collateralThresholdValueUSD * 1e18) / borrowBalanceUSD;
     }
 
-    /**
-     * @notice Allows owner to withdraw protocol reserves.
-     */
-    function withdrawReserves(uint256 amount) external onlyOwner nonReentrant {
-        accrueInterest();
-        if (amount > totalReservesUSDC) revert InsufficientReserves();
-        totalReservesUSDC -= amount;
-        usdc.safeTransfer(msg.sender, amount);
-        emit ReservesWithdrawn(msg.sender, amount);
-    }
-
-    /**
-     * @notice Pauses contract activity (emergency stop).
-     */
-    function pause() external onlyOwner {
-        _pause();
-    }
-
-    /**
-     * @notice Unpauses contract activity.
-     */
-    function unpause() external onlyOwner {
-        _unpause();
+    function _healthFactor(address user) internal view returns (uint256) {
+        (uint256 collThreshUSD, , uint256 borrowUSD) = _positionValues(user);
+        if (borrowUSD == 0) return type(uint256).max;
+        return (collThreshUSD * 1e18) / borrowUSD;
     }
 }
