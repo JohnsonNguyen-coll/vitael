@@ -12,7 +12,7 @@ export default function Footer() {
         <div className="flex flex-col items-center md:items-start gap-2">
           <div className="flex items-center gap-3">
             <Image
-              src="/vitael_logo.jpg"
+              src="/vitael_logo.png"
               alt="Vitael"
               width={40}
               height={40}

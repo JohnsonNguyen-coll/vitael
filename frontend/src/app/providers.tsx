@@ -22,7 +22,7 @@ export const arcTestnet = {
 
 const config = getDefaultConfig({
   appName: "Vitael Lending Protocol",
-  projectId: "YOUR_PROJECT_ID",
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
   chains: [
     arcTestnet,
     sepolia,
@@ -34,12 +34,12 @@ const config = getDefaultConfig({
   ],
   transports: {
     [arcTestnet.id]:         http("https://rpc.testnet.arc.network"),
-    [sepolia.id]:            http(),
-    [arbitrumSepolia.id]:    http(),
-    [baseSepolia.id]:        http(),
-    [polygonAmoy.id]:        http(),
-    [avalancheFuji.id]:      http(),
-    [optimismSepolia.id]:    http(),
+    [sepolia.id]:            http("https://rpc2.sepolia.org"),
+    [arbitrumSepolia.id]:    http("https://sepolia-rollup.arbitrum.io/rpc"),
+    [baseSepolia.id]:        http("https://sepolia.base.org"),
+    [polygonAmoy.id]:        http("https://rpc-amoy.polygon.technology"),
+    [avalancheFuji.id]:      http("https://api.avax-test.network/ext/bc/C/rpc"),
+    [optimismSepolia.id]:    http("https://sepolia.optimism.io"),
   },
   ssr: true,
 });

@@ -22,6 +22,11 @@ const raleway = Raleway({
 export const metadata: Metadata = {
   title: "Vitael",
   description: "The premium stablecoin-native lending and borrowing protocol on Arc Network. Earn optimized yield on USDC.",
+  icons: {
+    icon: "/vitael_logo.jpg",
+    shortcut: "/vitael_logo.jpg",
+    apple: "/vitael_logo.jpg",
+  },
 };
 
 export default function RootLayout({

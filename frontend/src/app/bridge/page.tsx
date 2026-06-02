@@ -7,6 +7,7 @@ import {
   ChevronDown, AlertTriangle, Wallet, XCircle,
 } from "lucide-react";
 import { useAccount } from "wagmi";
+import { useSwitchChain } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
 import Header from "../../components/Header";
 import WaterfallBackground from "../../components/WaterfallBackground";
@@ -103,17 +104,49 @@ function StepBar({ currentStep }: { currentStep: string }) {
 export default function BridgePage() {
   const { isConnected } = useAccount();
   const { state, bridge, reset } = useCCTPBridge();
+  const { switchChainAsync } = useSwitchChain();
 
   const [fromChain, setFromChain] = useState<Chain>(CHAINS[1]); // Ethereum Sepolia
   const [toChain,   setToChain]   = useState<Chain>(CHAINS[0]); // Arc Testnet
   const [amount,    setAmount]    = useState("");
+  const [switchingChain, setSwitchingChain] = useState(false);
+
+  // Map chain ID strings to actual chain IDs
+  const chainIdMap: Record<string, number> = {
+    "Arc_Testnet":           5042002,
+    "Ethereum_Sepolia":      11155111,
+    "Arbitrum_Sepolia":      421614,
+    "Base_Sepolia":          84532,
+    "Polygon_Amoy_Testnet":  80002,
+    "Avalanche_Fuji":        43113,
+    "OP_Sepolia":            11155420,
+  };
 
   const numAmt    = parseFloat(amount) || 0;
   const sameChain = fromChain.id === toChain.id;
-  const busy        = !["idle", "done", "error", "cancelled"].includes(state.step);
+  const busy        = !["idle", "done", "error", "cancelled"].includes(state.step) || switchingChain;
   const isDone      = state.step === "done";
   const isError     = state.step === "error";
   const isCancelled = state.step === "cancelled";
+
+  // Auto-switch wallet when fromChain changes
+  async function handleFromChainChange(chain: Chain) {
+    setFromChain(chain);
+    reset();
+    
+    if (!isConnected) return;
+    
+    setSwitchingChain(true);
+    try {
+      await switchChainAsync({ chainId: chainIdMap[chain.id] });
+      // Wait a bit for wallet to fully sync
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } catch (err) {
+      console.error("Failed to switch chain:", err);
+    } finally {
+      setSwitchingChain(false);
+    }
+  }
 
   function swapChains() {
     const tmp = fromChain;
@@ -163,13 +196,21 @@ export default function BridgePage() {
 
             {/* Chain selectors */}
             <div className="flex items-end gap-3 mb-5">
-              <ChainSelector selected={fromChain} onSelect={c => { setFromChain(c); reset(); }} label="From" exclude={toChain.id} />
+              <ChainSelector selected={fromChain} onSelect={handleFromChainChange} label="From" exclude={toChain.id} />
               <button onClick={swapChains} disabled={busy}
                 className="mb-1 w-10 h-10 flex-shrink-0 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[#00F5FF] hover:bg-[#00F5FF]/10 hover:border-[#00F5FF]/30 transition duration-200 disabled:opacity-40">
                 <ArrowRight className="w-4 h-4" />
               </button>
               <ChainSelector selected={toChain} onSelect={c => { setToChain(c); reset(); }} label="To" exclude={fromChain.id} />
             </div>
+
+            {/* Switching chain indicator */}
+            {switchingChain && (
+              <div className="bg-[#00F5FF]/5 border border-[#00F5FF]/15 rounded-xl px-4 py-3 mb-4 flex items-center gap-3">
+                <div className="w-4 h-4 border-2 border-[#00F5FF]/30 border-t-[#00F5FF] rounded-full animate-spin flex-shrink-0" />
+                <p className="text-sm text-[#00F5FF]">Switching wallet to {fromChain.name}...</p>
+              </div>
+            )}
 
             {/* Same chain warning */}
             <AnimatePresence>
@@ -320,7 +361,7 @@ export default function BridgePage() {
               <button onClick={execute} disabled={busy || !amount || numAmt <= 0 || sameChain}
                 className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition duration-300 disabled:opacity-40 flex items-center justify-center gap-2">
                 {busy
-                  ? <><div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />{state.stepLabel}</>
+                  ? <><div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />{switchingChain ? "Switching network..." : state.stepLabel}</>
                   : `Bridge ${numAmt || ""} USDC → ${toChain.name}`}
               </button>
             )}

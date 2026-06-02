@@ -24,7 +24,7 @@ export default function Header() {
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3 group">
         <Image
-          src="/vitael_logo.jpg"
+          src="/vitael_logo.png"
           alt="Vitael Logo"
           width={34}
           height={34}
