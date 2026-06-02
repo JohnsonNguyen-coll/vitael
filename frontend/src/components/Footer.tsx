@@ -20,8 +20,8 @@ export default function Footer() {
               unoptimized
             />
             <span
-              className="text-2xl font-black tracking-[0.18em] text-white"
-              style={{ fontFamily: "var(--font-raleway)", letterSpacing: "0.18em" }}
+              className="text-2xl font-bold tracking-[0.12em] text-white"
+              style={{ fontFamily: "var(--font-raleway)", letterSpacing: "0.12em" }}
             >
               VITAEL
             </span>

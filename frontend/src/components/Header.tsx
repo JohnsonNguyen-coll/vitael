@@ -32,8 +32,8 @@ export default function Header() {
           onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
         />
         <span
-          className="font-black text-xl text-white group-hover:text-[#00F5FF] transition duration-200"
-          style={{ fontFamily: "var(--font-raleway)", letterSpacing: "0.15em" }}
+          className="font-bold text-xl text-white group-hover:text-[#00F5FF] transition duration-200"
+          style={{ fontFamily: "var(--font-raleway)", letterSpacing: "0.12em" }}
         >
           VITAEL
         </span>
