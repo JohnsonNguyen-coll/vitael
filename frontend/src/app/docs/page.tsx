@@ -3,9 +3,7 @@
 import React from "react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Header from "../../components/Header";
-import WaterfallBackground from "../../components/WaterfallBackground";
-import Footer from "../../components/Footer";
+import PageLayout from "../../components/PageLayout";
 import { ChevronRight, ExternalLink } from "lucide-react";
 
 // ─── Sections ─────────────────────────────────────────────────────────────────
@@ -542,10 +540,7 @@ export default function DocsPage() {
   const activeIdx = SECTIONS.findIndex(s => s.id === active);
 
   return (
-    <div className="relative min-h-screen text-white font-sans">
-      <WaterfallBackground />
-      <Header />
-
+    <PageLayout variant="app">
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-12">
         {/* Title */}
         <motion.div
@@ -646,8 +641,6 @@ export default function DocsPage() {
           </main>
         </div>
       </div>
-
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

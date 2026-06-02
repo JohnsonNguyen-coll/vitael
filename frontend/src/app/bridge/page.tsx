@@ -9,9 +9,7 @@ import {
 import { useAccount } from "wagmi";
 import { useSwitchChain } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
-import Header from "../../components/Header";
-import WaterfallBackground from "../../components/WaterfallBackground";
-import Footer from "../../components/Footer";
+import PageLayout from "../../components/PageLayout";
 import ChainIcon from "../../components/ChainIcon";
 import TokenIcon from "../../components/TokenIcon";
 import { useCCTPBridge } from "../../hooks/useCCTPBridge";
@@ -164,10 +162,7 @@ export default function BridgePage() {
   }
 
   return (
-    <div className="relative min-h-screen text-white font-sans">
-      <WaterfallBackground />
-      <Header />
-
+    <PageLayout variant="app">
       <main className="relative z-10 max-w-5xl mx-auto px-6 py-12">
 
         {/* Title */}
@@ -434,7 +429,6 @@ export default function BridgePage() {
           </div>
         </div>
       </main>
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

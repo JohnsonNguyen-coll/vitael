@@ -13,9 +13,7 @@ import { formatUsd, formatTokenAmount } from "../../lib/format";
 import TxStatusBanner from "../../components/TxStatusBanner";
 import OracleStatusBanner from "../../components/OracleStatusBanner";
 import { checkOracleFeeds, oracleReadyForBorrow, type OracleAssetStatus } from "../../lib/oracleHealth";
-import Header from "../../components/Header";
-import WaterfallBackground from "../../components/WaterfallBackground";
-import Footer from "../../components/Footer";
+import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
 import {
   useLending, COLLATERAL_TOKENS,
@@ -219,10 +217,7 @@ export default function BorrowPage() {
   const fmtUsdc = (v: string) => formatUsd(parseFloat(v));
 
   return (
-    <div className="relative min-h-screen text-white font-sans">
-      <WaterfallBackground />
-      <Header />
-
+    <PageLayout variant="app">
       <main className="relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-8">
 
         {/* Title */}
@@ -255,7 +250,7 @@ export default function BorrowPage() {
             <StatCard
               key={c.symbol}
               label={`${c.symbol} Collateral`}
-              value={formatTokenAmount(c.amount, { min: 4, max: 6 })}
+              value={formatTokenAmount(c.amount, { min: 2, max: 3 })}
               sub={`LTV ${COLLATERAL_TOKENS[c.symbol].ltv}%`}
               loading={infoLoading}
             />
@@ -340,7 +335,7 @@ export default function BorrowPage() {
                           <div>
                             <p className="text-sm font-bold text-white">{c.symbol}</p>
                             <p className="text-xs text-[#8E9FB8]">
-                              {formatTokenAmount(c.amount, { min: 4, max: 6 })}
+                              {formatTokenAmount(c.amount, { min: 2, max: 3 })}
                             </p>
                           </div>
                         </div>
@@ -577,7 +572,7 @@ export default function BorrowPage() {
               <div className="flex justify-between mb-3 text-xs text-[#8E9FB8]">
                 {collateralTab === "deposit" ? (
                   <>
-                    <span>Wallet: {formatTokenAmount(collWalletBalance, { min: 4, max: 8 })} {collSymbol}</span>
+                    <span>Wallet: {formatTokenAmount(collWalletBalance, { min: 2, max: 3 })} {collSymbol}</span>
                     <button
                       className="text-[#8B00FF] hover:underline"
                       onClick={() => setCollAmount(collWalletBalance)}
@@ -587,7 +582,7 @@ export default function BorrowPage() {
                   </>
                 ) : (
                   <>
-                    <span>Deposited: {formatTokenAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0", { min: 4, max: 8 })} {collSymbol}</span>
+                    <span>Deposited: {formatTokenAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0", { min: 2, max: 3 })} {collSymbol}</span>
                     <button
                       className="text-[#8B00FF] hover:underline"
                       onClick={() => setCollAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0")}
@@ -623,7 +618,6 @@ export default function BorrowPage() {
         </motion.div>
 
       </main>
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

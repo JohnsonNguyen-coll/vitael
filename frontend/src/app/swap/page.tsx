@@ -6,9 +6,7 @@ import { ArrowUpDown, Settings, ChevronDown, Wallet, RefreshCw, ExternalLink } f
 import TxStatusBanner from "../../components/TxStatusBanner";
 import { useAccount, useReadContract } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
-import Header from "../../components/Header";
-import WaterfallBackground from "../../components/WaterfallBackground";
-import Footer from "../../components/Footer";
+import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
 import { useVitaelDEX, type TokenSymbol, TOKENS } from "../../hooks/useVitaelDEX";
 import { formatUnits } from "viem";
@@ -106,9 +104,7 @@ export default function SwapPage() {
   function flip() { setTokenIn(tokenOut); setTokenOut(tokenIn); setAmountIn(""); setQuote(""); reset(); }
 
   return (
-    <div className="relative min-h-screen text-white font-sans">
-      <WaterfallBackground />
-      <Header />
+    <PageLayout variant="app">
       <main className="relative z-10 max-w-5xl mx-auto px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
           <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-2 block">Arc Testnet · Vitael DEX V2</span>
@@ -169,7 +165,7 @@ export default function SwapPage() {
                 <TokenSelector selected={tokenIn} onSelect={s => { setTokenIn(s); reset(); }} exclude={tokenOut} />
               </div>
               <div className="flex justify-between mt-2 text-xs text-[#8E9FB8]">
-                <span>Balance: {formatTokenAmount(balance, { min: 4, max: 8 })} {tokenIn}</span>
+                <span>Balance: {formatTokenAmount(balance, { min: 2, max: 3 })} {tokenIn}</span>
                 <button
                   className="text-[#00F5FF] hover:underline"
                   onClick={() => setAmountIn(balance)}
@@ -251,7 +247,6 @@ export default function SwapPage() {
           </div>
         </div>
       </main>
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

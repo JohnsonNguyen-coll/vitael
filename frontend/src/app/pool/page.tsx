@@ -7,9 +7,8 @@ import TxStatusBanner from "../../components/TxStatusBanner";
 import { useAccount } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
 import { formatUnits } from "viem";
-import Header from "../../components/Header";
-import WaterfallBackground from "../../components/WaterfallBackground";
-import Footer from "../../components/Footer";
+import { formatTokenAmount } from "../../lib/format";
+import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
 import { useVitaelDEX, type TokenSymbol, TOKENS } from "../../hooks/useVitaelDEX";
 
@@ -112,16 +111,16 @@ function AddPanel() {
           <p className="text-[#8E9FB8] uppercase tracking-wider font-semibold mb-1">Pool Info</p>
           <div className="flex justify-between">
             <span className="text-[#8E9FB8]">{tA.symbol} reserve</span>
-            <span className="text-white">{formatUnits(poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve0 : poolInfo.reserve1, tA.decimals)}</span>
+            <span className="text-white">{formatTokenAmount(formatUnits(poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve0 : poolInfo.reserve1, tA.decimals))}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-[#8E9FB8]">{tB.symbol} reserve</span>
-            <span className="text-white">{formatUnits(poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve1 : poolInfo.reserve0, tB.decimals)}</span>
+            <span className="text-white">{formatTokenAmount(formatUnits(poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve1 : poolInfo.reserve0, tB.decimals))}</span>
           </div>
           {poolInfo.userLpBalance > 0n && (
             <div className="flex justify-between pt-1 border-t border-white/5">
               <span className="text-[#8E9FB8]">Your LP</span>
-              <span className="text-[#00F5FF] font-semibold">{parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(6)}</span>
+              <span className="text-[#00F5FF] font-semibold">{formatTokenAmount(formatUnits(poolInfo.userLpBalance, 18))}</span>
             </div>
           )}
         </div>
@@ -372,9 +371,7 @@ export default function PoolPage() {
   const [tab, setTab] = useState<Tab>("add");
 
   return (
-    <div className="relative min-h-screen text-white font-sans">
-      <WaterfallBackground />
-      <Header />
+    <PageLayout variant="app">
       <main className="relative z-10 max-w-5xl mx-auto px-6 py-12">
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
@@ -462,7 +459,6 @@ export default function PoolPage() {
           </div>
         </div>
       </main>
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

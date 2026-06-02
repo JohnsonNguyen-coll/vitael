@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { useAccount } from "wagmi";
 import WalletActionGate, { WalletConnectPrompt } from "../../components/WalletActionGate";
 import { formatUsd, formatTokenAmount } from "../../lib/format";
 import ProtocolFlowHint from "../../components/ProtocolFlowHint";
 import TxStatusBanner from "../../components/TxStatusBanner";
-import Header from "../../components/Header";
+import PageLayout from "../../components/PageLayout";
 import Link from "next/link";
-import WaterfallBackground from "../../components/WaterfallBackground";
-import Footer from "../../components/Footer";
 import TokenIcon from "../../components/TokenIcon";
 import {
   useLending, SUPPORTED_TOKENS, TOKEN_SYMBOLS,
@@ -161,10 +160,7 @@ export default function LendPage() {
   }
 
   return (
-    <div className="relative min-h-screen text-white font-sans">
-      <WaterfallBackground />
-      <Header />
-
+    <PageLayout variant="app">
       <main className="relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-8">
 
         {/* Title */}
@@ -337,7 +333,7 @@ export default function LendPage() {
                               <div>
                                 <p className="text-sm font-bold text-white">{a.symbol}</p>
                                 <p className="text-xs text-[#8E9FB8]">
-                                  {formatTokenAmount(a.supplyBalance, { min: 4, max: 8 })} {a.symbol}
+                                  {formatTokenAmount(a.supplyBalance, { min: 2, max: 3 })} {a.symbol}
                                 </p>
                               </div>
                             </div>
@@ -475,7 +471,7 @@ export default function LendPage() {
                       <div className="flex justify-between mt-1.5 text-xs text-[#8E9FB8]">
                         {subTab === "supply" ? (
                           <>
-                            <span>Wallet: {formatTokenAmount(userAsset?.walletBalance ?? "0", { min: 4, max: 8 })} {selectedSymbol}</span>
+                            <span>Wallet: {formatTokenAmount(userAsset?.walletBalance ?? "0", { min: 2, max: 3 })} {selectedSymbol}</span>
                             <button
                               className="text-[#00F5FF] hover:underline"
                               onClick={() => setAmount(userAsset?.walletBalance ?? "0")}
@@ -485,7 +481,7 @@ export default function LendPage() {
                           </>
                         ) : (
                           <>
-                            <span>Supplied: {formatTokenAmount(userAsset?.supplyBalance ?? "0", { min: 4, max: 8 })} {selectedSymbol}</span>
+                            <span>Supplied: {formatTokenAmount(userAsset?.supplyBalance ?? "0", { min: 2, max: 3 })} {selectedSymbol}</span>
                             <button
                               className="text-[#00F5FF] hover:underline"
                               onClick={() => setAmount(userAsset?.supplyBalance ?? "0")}
@@ -560,7 +556,6 @@ export default function LendPage() {
         </motion.div>
 
       </main>
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

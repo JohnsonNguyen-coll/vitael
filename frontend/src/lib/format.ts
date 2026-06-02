@@ -20,6 +20,6 @@ export function formatTokenAmount(
 ): string {
   const n = typeof value === "string" ? parseFloat(value) : value;
   const min = options?.min ?? 2;
-  const max = options?.max ?? 2;
+  const max = options?.max ?? 3; // Default to 3 decimals
   return formatDecimalEn(n, min, max);
 }

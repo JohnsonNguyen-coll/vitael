@@ -2,9 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import Header from "../components/Header";
-import WaterfallBackground from "../components/WaterfallBackground";
-import Footer from "../components/Footer";
+import PageLayout from "../components/PageLayout";
 import TokenIcon from "../components/TokenIcon";
 import {
   ArrowRight, Zap, Shield, TrendingUp, Repeat2,
@@ -84,10 +82,7 @@ function fadeUp(delay = 0) {
 // ─── PAGE ─────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   return (
-    <div className="relative min-h-screen text-white font-sans">
-      <WaterfallBackground />
-      <Header />
-
+    <PageLayout variant="landing">
       <main className="relative z-10">
 
         {/* ── Hero ── */}
@@ -308,7 +303,6 @@ export default function LandingPage() {
         </section>
 
       </main>
-      <Footer />
-    </div>
+    </PageLayout>
   );
 }

@@ -5,7 +5,7 @@ import Image from "next/image";
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/5 py-12 text-[#8E9FB8] text-sm bg-[#0A1428] w-full">
+    <footer className="border-t border-white/5 py-12 text-[#8E9FB8] text-sm bg-[#0f1419] w-full">
       <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
 
         {/* Logo + brand */}
