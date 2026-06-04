@@ -117,8 +117,7 @@ export default function LandingPage() {
               className="text-[#8E9FB8] text-lg leading-relaxed max-w-lg"
             >
               Vitael is a multi-asset lending & DEX protocol on Arc Testnet.
-              Supply USDC, EURC, or cirBTC — earn yield, borrow against collateral,
-              and swap with real Stork oracle prices.
+              Supply USDC, EURC, or cirBTC — earn yield, borrow against collateral, swap on liquidity pools, and add liquidity to earn trading fees.
             </motion.p>
 
             <motion.div
