@@ -120,7 +120,7 @@ function AddPanel() {
           {poolInfo.userLpBalance > 0n && (
             <div className="flex justify-between pt-1 border-t border-white/5">
               <span className="text-[#8E9FB8]">Your LP</span>
-              <span className="text-[#00F5FF] font-semibold">{formatTokenAmount(formatUnits(poolInfo.userLpBalance, 18))}</span>
+              <span className="text-[#00F5FF] font-semibold">{formatTokenAmount(formatUnits(poolInfo.userLpBalance, 18), { min: 6, max: 10 })}</span>
             </div>
           )}
         </div>

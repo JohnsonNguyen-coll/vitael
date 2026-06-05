@@ -501,6 +501,11 @@ export default function LendPage() {
                           {selectedMarket ? `${selectedMarket.supplyApyPct.toFixed(2)}%` : "—"}
                         </span>
                       </div>
+                      {selectedMarket && selectedMarket.supplyApyPct === 0 && (
+                        <p className="text-[10px] text-[#8E9FB8] italic">
+                          APY increases as utilization grows when borrowers use the pool.
+                        </p>
+                      )}
                       {num > 0 && selectedMarket && (
                         <div className="flex justify-between">
                           <span className="text-[#8E9FB8]">Est. monthly yield</span>
