@@ -154,7 +154,7 @@ const STEP_LABELS: Record<BridgeStep, string> = {
   fetching_fees:        "Fetching CCTP fees...",
   approving:            "Step 1/2 — Approve USDC (sign in wallet)",
   burning:              "Step 2/2 — Burn & Bridge (sign in wallet)",
-  waiting_attestation:  "Waiting for Circle attestation (~2 min)...",
+  waiting_attestation:  "Waiting for Circle attestation (~15s)...",
   done:                 "Bridge complete ✓",
   error:                "Error",
   cancelled:            "Cancelled",
