@@ -8,6 +8,7 @@ import { useAccount, useReadContract } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
 import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
+import NetworkGuard from "../../components/NetworkGuard";
 import { useVitaelDEX, type TokenSymbol, TOKENS } from "../../hooks/useVitaelDEX";
 import { formatUnits } from "viem";
 import { formatTokenAmount } from "../../lib/format";
@@ -83,6 +84,11 @@ export default function SwapPage() {
     ? formatUnits(balanceData as bigint, TOKENS[tokenIn].decimals)
     : "0";
 
+  // Balance validation
+  const numAmt = parseFloat(amountIn) || 0;
+  const balAmt = parseFloat(balance);
+  const insufficientBalance = numAmt > balAmt;
+
   // Refetch balance when token changes or tx completes
   useEffect(() => {
     if (address) refetchBalance();
@@ -112,7 +118,8 @@ export default function SwapPage() {
           <p className="text-[#8E9FB8] mt-2 text-sm">Swap tokens on Arc Testnet. You sign all transactions in your wallet.</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+        <NetworkGuard>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="lg:col-span-3 glass-panel rounded-3xl p-6 relative">
             <div className="absolute -top-16 -right-16 w-56 h-56 bg-[#00F5FF]/4 rounded-full blur-3xl pointer-events-none overflow-hidden" />
@@ -174,6 +181,11 @@ export default function SwapPage() {
                   MAX
                 </button>
               </div>
+              {insufficientBalance && amountIn && (
+                <p className="text-xs text-red-400 mt-1">
+                  Insufficient {tokenIn} balance
+                </p>
+              )}
             </div>
 
             <div className="flex justify-center my-1">
@@ -214,7 +226,7 @@ export default function SwapPage() {
                 className="w-full bg-white/5 border border-white/10 text-white font-semibold py-3.5 rounded-xl hover:bg-white/10 transition">Swap Again</button>
             ) : (
               <button onClick={() => swap(tokenIn, tokenOut, amountIn, slippage)}
-                disabled={busy || !amountIn || parseFloat(amountIn) <= 0}
+                disabled={busy || !amountIn || parseFloat(amountIn) <= 0 || insufficientBalance}
                 className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2">
                 {busy ? <><div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />Processing...</>
                   : `Swap ${tokenIn} → ${tokenOut}`}
@@ -245,7 +257,8 @@ export default function SwapPage() {
               </a>
             </motion.div>
           </div>
-        </div>
+          </div>
+        </NetworkGuard>
       </main>
     </PageLayout>
   );

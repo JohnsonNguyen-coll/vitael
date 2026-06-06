@@ -15,6 +15,7 @@ import OracleStatusBanner from "../../components/OracleStatusBanner";
 import { checkOracleFeeds, oracleReadyForBorrow, type OracleAssetStatus } from "../../lib/oracleHealth";
 import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
+import NetworkGuard from "../../components/NetworkGuard";
 import {
   useLending, COLLATERAL_TOKENS,
   type UserLendingInfo, type CollateralSymbol, type ProtocolStats,
@@ -143,9 +144,23 @@ export default function BorrowPage() {
   const collaterals  = userInfo?.collaterals  ?? [];
 
   // Calculate max borrow based on collateral value and LTV
-  const totalCollateralValueUsd = collaterals.reduce((sum, c) => sum + parseFloat(c.valueUsd), 0);
+  const totalCollateralValueUsd = collaterals.reduce((sum, c) => {
+    const val = c.valueUsd.replace(/[$,]/g, "");
+    return sum + (val === "—" ? 0 : parseFloat(val));
+  }, 0);
   const currentBorrowedUsd = parseFloat(borrowedUsdc);
   const maxBorrowUSD = Math.max(0, totalCollateralValueUsd * 0.9 - currentBorrowedUsd); // Assuming 90% max LTV
+
+  // Borrow/Repay balance validation
+  const borrowMaxBal = subTab === "borrow" ? maxBorrowUSD : parseFloat(borrowedUsdc);
+  const insufficientBorrowBalance = num > borrowMaxBal;
+
+  // Collateral balance validation
+  const collNum = parseFloat(collAmount) || 0;
+  const collMaxBal = collateralTab === "deposit" 
+    ? parseFloat(collWalletBalance)
+    : parseFloat(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0");
+  const insufficientCollBalance = collNum > collMaxBal;
 
   const monthly = (num * (active.borrowAPY / 100)) / 12;
 
@@ -229,6 +244,7 @@ export default function BorrowPage() {
 
         <OracleStatusBanner status={oracleStatus} loading={oracleLoading} />
 
+        <NetworkGuard>
         {/* Stats */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -457,6 +473,11 @@ export default function BorrowPage() {
                           </>
                         )}
                       </div>
+                      {insufficientBorrowBalance && amount && (
+                        <p className="text-xs text-red-400 mt-1">
+                          {subTab === "borrow" ? "Insufficient collateral to borrow this amount" : "Amount exceeds borrowed balance"}
+                        </p>
+                      )}
                     </div>
 
                     <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
@@ -512,6 +533,7 @@ export default function BorrowPage() {
                           || (subTab === "borrow" && !collaterals.some(c => parseFloat(c.amount) > 0))
                           || noPoolLiquidity
                           || borrowExceedsPool
+                          || insufficientBorrowBalance
                           || (subTab === "borrow" && !oracleOk)
                         }
                         className="w-full bg-[#FF00C8] text-white font-bold py-3.5 rounded-xl hover:bg-white hover:text-[#0A1428] transition disabled:opacity-40 flex items-center justify-center gap-2 mb-6"
@@ -592,9 +614,14 @@ export default function BorrowPage() {
                   </>
                 )}
               </div>
+              {insufficientCollBalance && collAmount && (
+                <p className="text-xs text-red-400 mb-3">
+                  Insufficient {collSymbol} balance
+                </p>
+              )}
               <button
                 onClick={executeCollateral}
-                disabled={busy || !isConnected || !collAmount || parseFloat(collAmount) <= 0}
+                disabled={busy || !isConnected || !collAmount || parseFloat(collAmount) <= 0 || insufficientCollBalance}
                 className="w-full border border-white/30 text-white font-semibold py-2.5 rounded-xl hover:bg-white/10 transition disabled:opacity-40 text-sm mb-5"
               >
                 {collateralTab === "deposit" ? "Deposit" : "Withdraw"} {collSymbol}
@@ -616,6 +643,7 @@ export default function BorrowPage() {
             </div>
           </div>
         </motion.div>
+        </NetworkGuard>
 
       </main>
     </PageLayout>

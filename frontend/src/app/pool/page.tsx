@@ -10,6 +10,7 @@ import { formatUnits } from "viem";
 import { formatTokenAmount } from "../../lib/format";
 import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
+import NetworkGuard from "../../components/NetworkGuard";
 import { useVitaelDEX, type TokenSymbol, TOKENS } from "../../hooks/useVitaelDEX";
 
 type Tab = "add" | "remove";
@@ -74,6 +75,14 @@ function AddPanel() {
   const busy = state.busy;
   const tA = TOKENS[tokenA];
   const tB = TOKENS[tokenB];
+
+  // Validation
+  const amtA = parseFloat(amountA) || 0;
+  const amtB = parseFloat(amountB) || 0;
+  const balA = poolInfo ? parseFloat(formatUnits(poolInfo.balanceA, tA.decimals)) : 0;
+  const balB = poolInfo ? parseFloat(formatUnits(poolInfo.balanceB, tB.decimals)) : 0;
+  const insufficientA = amtA > balA;
+  const insufficientB = amtB > balB;
 
   useEffect(() => {
     if (!address) return;
@@ -160,6 +169,9 @@ function AddPanel() {
             </button>
           </div>
         )}
+        {insufficientA && amountA && (
+          <p className="text-xs text-red-400 mt-1">Insufficient {tokenA} balance</p>
+        )}
       </div>
 
       <div className="flex justify-center my-1">
@@ -203,6 +215,9 @@ function AddPanel() {
             </button>
           </div>
         )}
+        {insufficientB && amountB && (
+          <p className="text-xs text-red-400 mt-1">Insufficient {tokenB} balance</p>
+        )}
       </div>
 
       <TxStatusBanner step={state.step} error={state.error} txHash={state.txHash} stepLabels={POOL_STEP_LABELS} />
@@ -217,7 +232,7 @@ function AddPanel() {
           className="w-full bg-white/5 border border-white/10 text-white font-semibold py-3.5 rounded-xl hover:bg-white/10 transition">Add More</button>
       ) : (
         <button onClick={() => addLiquidity(tokenA, tokenB, amountA, amountB, slippage)}
-          disabled={busy || !amountA || !amountB || parseFloat(amountA) <= 0}
+          disabled={busy || !amountA || !amountB || parseFloat(amountA) <= 0 || insufficientA || insufficientB}
           className="w-full bg-emerald-400 text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-emerald-300 transition disabled:opacity-40 flex items-center justify-center gap-2">
           {busy ? <><div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />Processing...</>
             : <><Droplets className="w-4 h-4" />Add {tokenA} / {tokenB} Liquidity</>}
@@ -380,7 +395,8 @@ export default function PoolPage() {
           <p className="text-[#8E9FB8] mt-2 text-sm">Provide liquidity to earn 0.3% fees on every swap. You sign all transactions in your wallet.</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
+        <NetworkGuard>
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-start">
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className="lg:col-span-3 glass-panel rounded-3xl p-6 relative">
@@ -458,6 +474,7 @@ export default function PoolPage() {
             </motion.div>
           </div>
         </div>
+        </NetworkGuard>
       </main>
     </PageLayout>
   );

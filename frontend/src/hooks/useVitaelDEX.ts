@@ -117,7 +117,10 @@ export function useVitaelDEX() {
         account, to: token,
         data: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [spender, amount * 10n] }),
       });
-      await arcClient.waitForTransactionReceipt({ hash });
+      const receipt = await arcClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("Approval transaction failed");
+      }
     }
   }
 
@@ -184,7 +187,10 @@ export function useVitaelDEX() {
         }),
       });
       setStep("confirming", { txHash: hash });
-      await arcClient.waitForTransactionReceipt({ hash });
+      const receipt = await arcClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("Swap transaction failed on-chain");
+      }
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
       failTx(err);
@@ -216,14 +222,20 @@ export function useVitaelDEX() {
         account, to: tA.address,
         data: encodeFunctionData({ abi: ERC20_ABI, functionName: "transfer", args: [pair, amountA] }),
       });
-      await arcClient.waitForTransactionReceipt({ hash: tx1 });
+      const receipt1 = await arcClient.waitForTransactionReceipt({ hash: tx1 });
+      if (receipt1.status === "reverted") {
+        throw new Error(`Transfer of ${tokenA} failed - insufficient balance`);
+      }
 
       setStep("approving");
       const tx2 = await walletClient.sendTransaction({
         account, to: tB.address,
         data: encodeFunctionData({ abi: ERC20_ABI, functionName: "transfer", args: [pair, amountB] }),
       });
-      await arcClient.waitForTransactionReceipt({ hash: tx2 });
+      const receipt2 = await arcClient.waitForTransactionReceipt({ hash: tx2 });
+      if (receipt2.status === "reverted") {
+        throw new Error(`Transfer of ${tokenB} failed - insufficient balance`);
+      }
 
       setStep("adding");
       const hash = await walletClient.sendTransaction({
@@ -231,7 +243,10 @@ export function useVitaelDEX() {
         data: encodeFunctionData({ abi: PAIR_ABI, functionName: "mint", args: [account] }),
       });
       setStep("confirming", { txHash: hash });
-      await arcClient.waitForTransactionReceipt({ hash });
+      const receipt = await arcClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("Add liquidity transaction failed on-chain");
+      }
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
       failTx(err);
@@ -262,7 +277,10 @@ export function useVitaelDEX() {
         account, to: pair,
         data: encodeFunctionData({ abi: PAIR_ABI, functionName: "transfer", args: [pair, lpAmount] }),
       });
-      await arcClient.waitForTransactionReceipt({ hash: tx1 });
+      const receipt1 = await arcClient.waitForTransactionReceipt({ hash: tx1 });
+      if (receipt1.status === "reverted") {
+        throw new Error("Transfer of LP tokens failed - insufficient balance");
+      }
 
       setStep("removing");
       const hash = await walletClient.sendTransaction({
@@ -270,7 +288,10 @@ export function useVitaelDEX() {
         data: encodeFunctionData({ abi: PAIR_ABI, functionName: "burn", args: [account] }),
       });
       setStep("confirming", { txHash: hash });
-      await arcClient.waitForTransactionReceipt({ hash });
+      const receipt = await arcClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("Remove liquidity transaction failed on-chain");
+      }
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err: unknown) {
       failTx(err);

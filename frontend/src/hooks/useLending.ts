@@ -216,7 +216,10 @@ export function useLending() {
           args: [POOL, amount * 10n],
         }),
       });
-      await arcClient.waitForTransactionReceipt({ hash });
+      const receipt = await arcClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("Approval transaction failed");
+      }
     }
   }
 
@@ -233,7 +236,10 @@ export function useLending() {
       data: encodeFunctionData({ abi: POOL_ABI, functionName: fnName as never, args: args as never }),
     });
     setStep("confirming", { txHash: hash });
-    await arcClient.waitForTransactionReceipt({ hash });
+    const receipt = await arcClient.waitForTransactionReceipt({ hash });
+    if (receipt.status === "reverted") {
+      throw new Error(`${fnName} transaction failed on-chain`);
+    }
     return hash;
   }
 
@@ -518,7 +524,10 @@ export function useLending() {
         data: encodeFunctionData({ abi: MINT_ABI, functionName: "mint", args: [account, amount] }),
       });
       setStep("confirming", { txHash: hash });
-      await arcClient.waitForTransactionReceipt({ hash });
+      const receipt = await arcClient.waitForTransactionReceipt({ hash });
+      if (receipt.status === "reverted") {
+        throw new Error("Mint transaction failed on-chain");
+      }
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err) { failTx(err); }
   // eslint-disable-next-line react-hooks/exhaustive-deps

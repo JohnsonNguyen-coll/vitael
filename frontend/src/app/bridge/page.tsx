@@ -15,8 +15,17 @@ import TokenIcon from "../../components/TokenIcon";
 import { useCCTPBridge } from "../../hooks/useCCTPBridge";
 
 // ─── Supported chains (all CCTP V2 testnets) ─────────────────────────────────
+type ChainName = 
+  | "Arc_Testnet"
+  | "Ethereum_Sepolia"
+  | "Arbitrum_Sepolia"
+  | "Base_Sepolia"
+  | "Polygon_Amoy_Testnet"
+  | "Avalanche_Fuji"
+  | "OP_Sepolia";
+
 interface Chain {
-  id: string;   // matches CONTRACTS key in hook
+  id: ChainName;
   name: string;
   domain: number;
 }
@@ -33,7 +42,7 @@ const CHAINS: Chain[] = [
 
 // ─── Chain selector ───────────────────────────────────────────────────────────
 function ChainSelector({ selected, onSelect, label, exclude }: {
-  selected: Chain; onSelect: (c: Chain) => void; label: string; exclude: string;
+  selected: Chain; onSelect: (c: Chain) => void; label: string; exclude: ChainName;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -155,8 +164,8 @@ export default function BridgePage() {
   async function execute() {
     if (!amount || numAmt <= 0 || sameChain || !isConnected) return;
     await bridge(
-      fromChain.id as any,
-      toChain.id   as any,
+      fromChain.id,
+      toChain.id,
       amount,
     );
   }

@@ -11,6 +11,7 @@ import TxStatusBanner from "../../components/TxStatusBanner";
 import PageLayout from "../../components/PageLayout";
 import Link from "next/link";
 import TokenIcon from "../../components/TokenIcon";
+import NetworkGuard from "../../components/NetworkGuard";
 import {
   useLending, SUPPORTED_TOKENS, TOKEN_SYMBOLS,
   type TokenSymbol, type AssetMarketInfo, type UserPosition,
@@ -129,6 +130,12 @@ export default function LendPage() {
   const monthly = selectedMarket ? (num * (selectedMarket.supplyApyPct / 100)) / 12 : 0;
   const busy    = state.busy;
 
+  // Balance validation
+  const walletBal = parseFloat(userAsset?.walletBalance ?? "0");
+  const supplyBal = parseFloat(userAsset?.supplyBalance ?? "0");
+  const maxBal = subTab === "supply" ? walletBal : supplyBal;
+  const insufficientBalance = num > maxBal;
+
   // Total supplied across all assets (USD approx)
   const totalSuppliedUSD = position?.totalCollateralUSD
     ? `$${parseFloat(position.totalCollateralUSD).toFixed(2)}`
@@ -176,6 +183,7 @@ export default function LendPage() {
 
         <ProtocolFlowHint variant="lend" />
 
+        <NetworkGuard>
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
@@ -491,6 +499,11 @@ export default function LendPage() {
                           </>
                         )}
                       </div>
+                      {insufficientBalance && amount && (
+                        <p className="text-xs text-red-400 mt-1">
+                          Insufficient {selectedSymbol} balance
+                        </p>
+                      )}
                     </div>
 
                     {/* Info box — always visible */}
@@ -501,11 +514,6 @@ export default function LendPage() {
                           {selectedMarket ? `${selectedMarket.supplyApyPct.toFixed(2)}%` : "—"}
                         </span>
                       </div>
-                      {selectedMarket && selectedMarket.supplyApyPct === 0 && (
-                        <p className="text-[10px] text-[#8E9FB8] italic">
-                          APY increases as utilization grows when borrowers use the pool.
-                        </p>
-                      )}
                       {num > 0 && selectedMarket && (
                         <div className="flex justify-between">
                           <span className="text-[#8E9FB8]">Est. monthly yield</span>
@@ -534,12 +542,19 @@ export default function LendPage() {
                         <span className="text-[#8E9FB8]">Liq. threshold</span>
                         <span className="text-white">{selectedToken.liquidationThreshold}%</span>
                       </div>
+                      {selectedMarket && (selectedMarket.supplyApyPct ?? 0) < 0.5 && (
+                        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2 -mx-1 mt-1">
+                          <p className="text-xs text-yellow-300">
+                            APY increases as utilization grows when borrowers use the pool.
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {state.step !== "done" && (
                       <button
                         onClick={execute}
-                        disabled={busy || !amount || num <= 0}
+                        disabled={busy || !amount || num <= 0 || insufficientBalance}
                         className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2"
                       >
                         {busy ? (
@@ -559,6 +574,7 @@ export default function LendPage() {
 
           </div>
         </motion.div>
+        </NetworkGuard>
 
       </main>
     </PageLayout>
