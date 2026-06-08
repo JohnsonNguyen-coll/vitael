@@ -266,7 +266,7 @@ export default function BridgePage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#8E9FB8] flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Est. time</span>
-                  <span className="text-white">~2 min</span>
+                  <span className="text-white">~15s</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#8E9FB8]">Wallet confirmations</span>
@@ -390,7 +390,7 @@ export default function BridgePage() {
                 {[
                   { n: "1", title: "Approve USDC", desc: "You sign an ERC-20 approve transaction on the source chain." },
                   { n: "2", title: "Burn & Bridge", desc: "You sign depositForBurnWithHook — USDC is burned and a CCTP message is emitted." },
-                  { n: "3", title: "Circle Attestation", desc: "Circle's Forwarding Service picks up the message and mints USDC on the destination (~2 min)." },
+                  { n: "3", title: "Circle Attestation", desc: "Circle's Forwarding Service picks up the message and mints USDC on the destination (~15s)." },
                 ].map(s => (
                   <div key={s.n} className="flex gap-3">
                     <div className="w-6 h-6 rounded-full bg-[#00F5FF]/10 border border-[#00F5FF]/20 flex items-center justify-center text-xs font-bold text-[#00F5FF] flex-shrink-0 mt-0.5">
@@ -419,7 +419,7 @@ export default function BridgePage() {
                 ))}
               </div>
               <p className="text-xs text-[#8E9FB8] mt-3 leading-relaxed">
-                Bridge USDC between any of these chains. All routes take ~2 min.
+                Bridge USDC between any of these chains. All routes take ~15s.
               </p>
             </motion.div>
 
