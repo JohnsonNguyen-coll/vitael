@@ -51,7 +51,7 @@ lerna-debug.log*
 # frontend/out/
 
 # Dependencies (handled by subproject .gitignore)
-# node_modules/
+node_modules/
 # lib/
 
 # Backup files
