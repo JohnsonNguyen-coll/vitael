@@ -6,13 +6,19 @@ import { usePathname } from "next/navigation";
 import WalletConnectButton from "./WalletConnectButton";
 import ChainIcon from "./ChainIcon";
 
-const NAV = [
+type NavItem = {
+  label: string;
+  href: string;
+  comingSoon?: boolean;
+};
+
+const NAV: NavItem[] = [
   { label: "Lend",    href: "/lend" },
   { label: "Borrow",  href: "/borrow" },
   { label: "Swap",    href: "/swap" },
   { label: "Pool",    href: "/pool" },
   { label: "Bridge",  href: "/bridge" },
-  { label: "Agent",   href: "#", comingSoon: true },
+  { label: "Agent",   href: "/agent" },
   { label: "Docs",    href: "/docs" },
 ];
 
