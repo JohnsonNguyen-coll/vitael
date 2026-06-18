@@ -3,20 +3,23 @@ import { encodeFunctionData } from 'viem';
 import { ERC20_ABI, LENDING_POOL_ABI, ROUTER_ABI, BRIDGE_ABI } from '../contracts/abi.js';
 
 // Mock contract addresses for testnets (replace with real addresses in production)
-const ADDRESSES: Record<SupportedChain, { pool: string, router: string, bridge: string, factory?: string, quoter?: string }> = {
-  sepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-  arbitrumSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-  baseSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-  polygonAmoy: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-  avalancheFuji: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-  optimismSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-  arcTestnet: { 
-    pool: process.env.LENDING_POOL || process.env.NEXT_PUBLIC_LENDING_POOL || '0x0000000000000000000000000000000000000001', 
-    router: process.env.DEX_ROUTER || process.env.NEXT_PUBLIC_DEX_ROUTER || '0x0000000000000000000000000000000000000002', 
-    bridge: process.env.BRIDGE || '0x0000000000000000000000000000000000000003',
-    factory: process.env.DEX_FACTORY || process.env.NEXT_PUBLIC_DEX_FACTORY || '0x0000000000000000000000000000000000000004',
-    quoter: process.env.DEX_QUOTER || process.env.NEXT_PUBLIC_DEX_QUOTER || '0x0000000000000000000000000000000000000005'
-  }
+const getAddresses = (chain: SupportedChain): { pool: string, router: string, bridge: string, factory?: string, quoter?: string } => {
+  const addresses: Record<SupportedChain, { pool: string, router: string, bridge: string, factory?: string, quoter?: string }> = {
+    sepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
+    arbitrumSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
+    baseSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
+    polygonAmoy: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
+    avalancheFuji: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
+    optimismSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x0000000000000000000000000000000000000003', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
+    arcTestnet: { 
+      pool: process.env.LENDING_POOL || process.env.NEXT_PUBLIC_LENDING_POOL || '0x0000000000000000000000000000000000000001', 
+      router: process.env.DEX_ROUTER || process.env.NEXT_PUBLIC_DEX_ROUTER || '0x0000000000000000000000000000000000000002', 
+      bridge: process.env.BRIDGE || '0x0000000000000000000000000000000000000003',
+      factory: process.env.DEX_FACTORY || process.env.NEXT_PUBLIC_DEX_FACTORY || '0x0000000000000000000000000000000000000004',
+      quoter: process.env.DEX_QUOTER || process.env.NEXT_PUBLIC_DEX_QUOTER || '0x0000000000000000000000000000000000000005'
+    }
+  };
+  return addresses[chain];
 };
 
 export class DefiService {
@@ -47,23 +50,26 @@ export class DefiService {
 
   static async getPosition(chain: SupportedChain, userAddress: string) {
     const client = getClient(chain);
-    const poolAddress = ADDRESSES[chain].pool as `0x${string}`;
+    const poolAddress = getAddresses(chain).pool as `0x${string}`;
     
     try {
       const data = await client.readContract({
         address: poolAddress,
         abi: LENDING_POOL_ABI,
-        functionName: 'getUserAccountData',
+        functionName: 'getPosition',
         args: [userAddress as `0x${string}`]
       });
+      // VitaelLendingPool.getPosition returns: (totalCollateralUSD, totalBorrowUSD, healthFactor)
+      // totalCollateralUSD is data[0], totalBorrowUSD is data[1], healthFactor is data[2]
       return {
         totalCollateralBase: data[0].toString(),
         totalDebtBase: data[1].toString(),
-        availableBorrowsBase: data[2].toString(),
-        healthFactor: data[5].toString()
+        // Mock availableBorrowsBase as difference (simplified)
+        availableBorrowsBase: (data[0] > data[1] ? (data[0] - data[1]).toString() : "0"),
+        healthFactor: data[2].toString()
       };
-    } catch (e) {
-      console.warn("Mocking getPosition due to no real contract");
+    } catch (e: any) {
+      console.warn("Mocking getPosition due to no real contract. Error:", e.message);
       return { totalCollateralBase: "1000", totalDebtBase: "500", availableBorrowsBase: "500", healthFactor: "2000000000000000000" };
     }
   }
@@ -88,7 +94,7 @@ export class DefiService {
   // -- WRITE PAYLOAD GENERATORS (UNSIGNED TRANSACTIONS) --
 
   static generateDepositPayload(chain: SupportedChain, asset: string, amount: string, onBehalfOf: string) {
-    const poolAddress = ADDRESSES[chain].pool as `0x${string}`;
+    const poolAddress = getAddresses(chain).pool as `0x${string}`;
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'supply',
@@ -103,7 +109,7 @@ export class DefiService {
   }
 
   static generateWithdrawPayload(chain: SupportedChain, asset: string, amount: string, to: string) {
-    const poolAddress = ADDRESSES[chain].pool as `0x${string}`;
+    const poolAddress = getAddresses(chain).pool as `0x${string}`;
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'withdraw',
@@ -118,7 +124,7 @@ export class DefiService {
   }
 
   static generateBorrowPayload(chain: SupportedChain, asset: string, amount: string, onBehalfOf: string) {
-    const poolAddress = ADDRESSES[chain].pool as `0x${string}`;
+    const poolAddress = getAddresses(chain).pool as `0x${string}`;
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'borrow',
@@ -133,7 +139,7 @@ export class DefiService {
   }
 
   static generateRepayPayload(chain: SupportedChain, asset: string, amount: string, onBehalfOf: string) {
-    const poolAddress = ADDRESSES[chain].pool as `0x${string}`;
+    const poolAddress = getAddresses(chain).pool as `0x${string}`;
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'repay',
@@ -148,7 +154,7 @@ export class DefiService {
   }
 
   static generateSwapPayload(chain: SupportedChain, amountIn: string, amountOutMin: string, path: string[], to: string, deadline: string) {
-    const routerAddress = ADDRESSES[chain].router as `0x${string}`;
+    const routerAddress = getAddresses(chain).router as `0x${string}`;
     const data = encodeFunctionData({
       abi: ROUTER_ABI,
       functionName: 'swapExactTokensForTokens',
@@ -163,7 +169,7 @@ export class DefiService {
   }
 
   static generateBridgePayload(chain: SupportedChain, amount: string, destinationDomain: number, mintRecipient: string, burnToken: string) {
-    const bridgeAddress = ADDRESSES[chain].bridge as `0x${string}`;
+    const bridgeAddress = getAddresses(chain).bridge as `0x${string}`;
     const data = encodeFunctionData({
       abi: BRIDGE_ABI,
       functionName: 'depositForBurn',
@@ -178,7 +184,7 @@ export class DefiService {
   }
 
   static generateAddLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, amountA: string, amountB: string, to: string, deadline: string) {
-    const routerAddress = ADDRESSES[chain].router as `0x${string}`;
+    const routerAddress = getAddresses(chain).router as `0x${string}`;
     const data = encodeFunctionData({
       abi: ROUTER_ABI,
       functionName: 'addLiquidity',
@@ -193,7 +199,7 @@ export class DefiService {
   }
 
   static generateRemoveLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, liquidity: string, to: string, deadline: string) {
-    const routerAddress = ADDRESSES[chain].router as `0x${string}`;
+    const routerAddress = getAddresses(chain).router as `0x${string}`;
     const data = encodeFunctionData({
       abi: ROUTER_ABI,
       functionName: 'removeLiquidity',

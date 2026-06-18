@@ -90,12 +90,12 @@ export function ChatWindow() {
       <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-[#0A1428] to-transparent z-10 pointer-events-none" />
 
       {/* Main Scrollable Area */}
-      <div className="flex-1 overflow-y-auto scrollbar-thin relative pb-32">
-        <div className="max-w-3xl mx-auto px-4 w-full h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
+        <div className="max-w-3xl mx-auto px-4 w-full flex flex-col min-h-full">
           
           {messages.length === 0 ? (
             /* Welcome State */
-            <div className="flex-1 flex flex-col items-center justify-center min-h-[60vh] text-center relative z-10">
+            <div className="flex-1 flex flex-col items-center justify-center py-20 text-center relative z-10">
               <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-4 block">Arc Testnet · AI Agent</span>
               <div className="inline-flex items-center justify-center w-16 h-16 bg-[#00F5FF]/10 rounded-full mb-6 border border-[#00F5FF]/20 shadow-[0_0_30px_rgba(0,245,255,0.2)]">
                 <Bot className="w-8 h-8 text-[#00F5FF]" />
@@ -121,7 +121,7 @@ export function ChatWindow() {
             </div>
           ) : (
             /* Messages List */
-            <div className="pt-10 pb-6 flex-1 flex flex-col">
+            <div className="pt-10 pb-6 flex-1 flex flex-col justify-end">
                <MessageList messages={messages} />
                {error && (
                  <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm flex items-start gap-3">
@@ -137,8 +137,8 @@ export function ChatWindow() {
         </div>
       </div>
 
-      {/* Sticky Input Area */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-20 pb-6 px-4">
+      {/* Input Area */}
+      <div className="w-full shrink-0 bg-[#0A1428] pt-2 pb-6 px-4">
         <div className="max-w-3xl mx-auto w-full relative">
           <form 
             onSubmit={onSubmit} 

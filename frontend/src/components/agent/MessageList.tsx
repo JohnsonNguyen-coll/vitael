@@ -15,17 +15,17 @@ const WRITE_TOOLS = [
 ];
 
 export function MessageList({ messages }: MessageListProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+    <div className="flex-1 w-full space-y-4">
       {messages.map((m) => (
         <div key={m.id}>
           {/* Render Text Content */}
@@ -80,6 +80,7 @@ export function MessageList({ messages }: MessageListProps) {
           })}
         </div>
       ))}
+      <div ref={bottomRef} className="h-4" />
     </div>
   );
 }

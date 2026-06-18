@@ -3,7 +3,7 @@ import { sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, opti
 
 // Define Arc Testnet as it might not be in viem/chains natively
 export const arcTestnet = defineChain({
-  id: 4242, // Dummy ID for Arc testnet, update if specific ID exists
+  id: 5042002, // Arc Testnet chain ID
   name: 'Arc Testnet',
   network: 'arc-testnet',
   nativeCurrency: { name: 'Arc', symbol: 'ARC', decimals: 18 },

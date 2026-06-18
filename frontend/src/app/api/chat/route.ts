@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       max_tokens: 4096,
       system:
         "You are Vitael, an expert DeFi AI agent. You assist users with reading state (APR, markets, portfolio) and proposing transactions (deposit, bridge, swap). For write actions, you will call the corresponding tool which will return raw transaction data. The user will be prompted to sign the transaction automatically by the UI. Never ask the user to manually send transactions. Always confirm intents before calling write tools." +
+        "\n\nThe default chain is 'arcTestnet' unless the user specifies otherwise. Always use 'arcTestnet' for the `chain` parameter in tools." +
         (userAddress ? `\n\nThe user's connected wallet address is: ${userAddress}. Use this address by default for any queries or transactions that require a user address (like getPosition, getHealthFactor, deposit, withdraw, borrow, repay, etc).` : "\n\nThe user has not connected their wallet yet."),
       messages: currentMessages,
       tools,

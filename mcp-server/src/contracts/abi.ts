@@ -96,6 +96,17 @@ export const LENDING_POOL_ABI = [
     ],
     stateMutability: "view",
     type: "function",
+  },
+  {
+    inputs: [{ name: "user", type: "address" }],
+    name: "getPosition",
+    outputs: [
+      { name: "totalCollateralUSD", type: "uint256" },
+      { name: "totalBorrowUSD", type: "uint256" },
+      { name: "healthFactor", type: "uint256" }
+    ],
+    stateMutability: "view",
+    type: "function",
   }
 ] as const;
 
