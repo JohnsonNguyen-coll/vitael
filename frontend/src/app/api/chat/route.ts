@@ -27,6 +27,13 @@ export async function POST(req: Request) {
   }));
 
   let finalText = "";
+  const allToolInvocations: Array<{
+    toolCallId: string;
+    toolName: string;
+    state: string;
+    args: any;
+    result?: any;
+  }> = [];
 
   for (let step = 0; step < 5; step++) {
     const response = await client.messages.create({
@@ -62,6 +69,18 @@ export async function POST(req: Request) {
         const result = await callMCPTool(toolUse.name, toolUse.input as Record<string, any>);
         const text =
           result.content.find((c: any) => c.type === "text")?.text || "{}";
+          
+        let parsedResult = null;
+        try { parsedResult = JSON.parse(text); } catch(e) { parsedResult = text; }
+
+        allToolInvocations.push({
+          toolCallId: toolUse.id,
+          toolName: toolUse.name,
+          state: "result",
+          args: toolUse.input,
+          result: parsedResult,
+        });
+
         toolResults.push({
           type: "tool_result",
           tool_use_id: toolUse.id,
@@ -85,7 +104,10 @@ export async function POST(req: Request) {
     ];
   }
 
-  return new Response(finalText, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  return new Response(JSON.stringify({
+    text: finalText,
+    toolInvocations: allToolInvocations
+  }), {
+    headers: { "Content-Type": "application/json; charset=utf-8" },
   });
 }

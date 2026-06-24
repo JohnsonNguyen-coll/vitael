@@ -15,15 +15,6 @@ const WRITE_TOOLS = [
 ];
 
 export function MessageList({ messages }: MessageListProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom
-  useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
   return (
     <div className="flex-1 w-full space-y-4">
       {messages.map((m) => (
@@ -39,10 +30,9 @@ export function MessageList({ messages }: MessageListProps) {
             const toolName = toolInvocation.toolName;
             const isWriteTool = WRITE_TOOLS.includes(toolName);
 
-            // If it's a read tool or currently "calling", show ToolCallCard
-            if (toolInvocation.state === 'call' || (!isWriteTool && toolInvocation.state === 'result')) {
-              // Optionally, hide read tool results once they are done by only showing if state === 'call'.
-              // But for transparency, we can show CheckCircle2.
+            // Only show ToolCallCard if it's currently calling. 
+            // Hide read tool results once they are done to reduce UI clutter.
+            if (toolInvocation.state === 'call') {
               return (
                 <ToolCallCard 
                   key={toolCallId} 
@@ -58,12 +48,13 @@ export function MessageList({ messages }: MessageListProps) {
               // Ensure we received a valid tx payload before rendering
               if (unsignedTx && unsignedTx.to) {
                 return (
-                  <TransactionPreviewCard 
-                    key={toolCallId} 
-                    toolName={toolName} 
-                    args={toolInvocation.args} 
-                    unsignedTx={unsignedTx} 
-                  />
+                  <div key={toolCallId} className="pl-12">
+                    <TransactionPreviewCard 
+                      toolName={toolName} 
+                      args={toolInvocation.args} 
+                      unsignedTx={unsignedTx} 
+                    />
+                  </div>
                 );
               } else {
                 return (
@@ -80,7 +71,6 @@ export function MessageList({ messages }: MessageListProps) {
           })}
         </div>
       ))}
-      <div ref={bottomRef} className="h-4" />
     </div>
   );
 }

@@ -38,9 +38,7 @@ export const LENDING_POOL_ABI = [
   {
     inputs: [
       { name: "asset", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "onBehalfOf", type: "address" },
-      { name: "referralCode", type: "uint16" }
+      { name: "amount", type: "uint256" }
     ],
     name: "supply",
     outputs: [],
@@ -50,21 +48,17 @@ export const LENDING_POOL_ABI = [
   {
     inputs: [
       { name: "asset", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "to", type: "address" }
+      { name: "shares", type: "uint256" }
     ],
     name: "withdraw",
-    outputs: [{ name: "", type: "uint256" }],
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },
   {
     inputs: [
       { name: "asset", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "interestRateMode", type: "uint256" },
-      { name: "referralCode", type: "uint16" },
-      { name: "onBehalfOf", type: "address" }
+      { name: "amount", type: "uint256" }
     ],
     name: "borrow",
     outputs: [],
@@ -74,12 +68,30 @@ export const LENDING_POOL_ABI = [
   {
     inputs: [
       { name: "asset", type: "address" },
-      { name: "amount", type: "uint256" },
-      { name: "interestRateMode", type: "uint256" },
-      { name: "onBehalfOf", type: "address" }
+      { name: "amount", type: "uint256" }
     ],
     name: "repay",
-    outputs: [{ name: "", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "asset", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    name: "depositCollateral",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "asset", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    name: "withdrawCollateral",
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },

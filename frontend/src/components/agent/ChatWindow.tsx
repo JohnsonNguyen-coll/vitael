@@ -29,6 +29,7 @@ export function ChatWindow() {
   const { address } = useAccount();
   const [localInput, setLocalInput] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const [messages, setMessages] = useState<Array<ChatMessage>>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,8 +48,13 @@ export function ChatWindow() {
         body: JSON.stringify({ messages: newMessages, userAddress: address }),
       });
       if (!response.ok) throw new Error(await response.text());
-      const text = await response.text();
-      setMessages([...newMessages, { id: Date.now().toString(), role: 'assistant', content: text }]);
+      const data = await response.json();
+      setMessages([...newMessages, { 
+        id: Date.now().toString(), 
+        role: 'assistant', 
+        content: data.text,
+        toolInvocations: data.toolInvocations 
+      }]);
     } catch (err: any) {
       setError(err);
     } finally {
@@ -65,6 +71,13 @@ export function ChatWindow() {
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [localInput]);
+
+  // Auto-scroll to bottom of the chat container
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const onSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -90,7 +103,7 @@ export function ChatWindow() {
       <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-[#0A1428] to-transparent z-10 pointer-events-none" />
 
       {/* Main Scrollable Area */}
-      <div className="flex-1 overflow-y-auto relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20">
         <div className="max-w-3xl mx-auto px-4 w-full flex flex-col min-h-full">
           
           {messages.length === 0 ? (

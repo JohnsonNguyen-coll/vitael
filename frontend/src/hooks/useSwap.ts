@@ -63,26 +63,37 @@ export function useSwap() {
     try {
       set("signing");
 
-      // Circle Swap Kit phải chạy server-side (gọi Circle API bị CORS từ browser)
-      // Gọi qua API route — server dùng private key để ký và broadcast
+      // Gọi qua API route để lấy calldata (không chứa private key)
       const res = await fetch("/api/swap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenIn, tokenOut, amountIn, chain: "Arc_Testnet" }),
+        body: JSON.stringify({ tokenIn, tokenOut, amountIn, chain: "Arc_Testnet", userAddress: walletClient.account.address }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Swap failed");
 
+      if (!data.unsignedTx) {
+        throw new Error("API did not return a valid transaction payload");
+      }
+
+      set("signing", { stepLabel: "Please sign in your wallet..." });
+
+      const txHash = await walletClient.sendTransaction({
+        to: data.unsignedTx.to as `0x${string}`,
+        data: data.unsignedTx.data as `0x${string}`,
+        value: BigInt(data.unsignedTx.value || "0"),
+      });
+
       set("done", {
         result: {
-          tokenIn:     data.tokenIn,
-          tokenOut:    data.tokenOut,
-          amountIn:    data.amountIn,
-          amountOut:   data.amountOut,
-          txHash:      data.txHash,
-          explorerUrl: data.explorerUrl,
-          fees:        data.fees ?? [],
+          tokenIn,
+          tokenOut,
+          amountIn,
+          amountOut: "0", // we didn't quote exactly in this simplified flow
+          txHash,
+          explorerUrl: `https://testnet.arcscan.app/tx/${txHash}`,
+          fees: [],
         },
       });
 

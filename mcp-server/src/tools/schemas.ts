@@ -7,7 +7,7 @@ export const GetPoolsSchema = z.object({ chain: chainEnum });
 export const GetAPRSchema = z.object({ chain: chainEnum, asset: z.string() });
 export const GetPositionSchema = z.object({ chain: chainEnum, userAddress: z.string() });
 export const GetHealthFactorSchema = z.object({ chain: chainEnum, userAddress: z.string() });
-
+export const GetBalanceSchema = z.object({ chain: chainEnum, userAddress: z.string(), asset: z.string() });
 export const QuoteSwapSchema = z.object({ chain: chainEnum, amountIn: z.string(), path: z.array(z.string()) });
 export const QuoteBridgeSchema = z.object({ fromChain: chainEnum, toChain: chainEnum, amount: z.string() });
 export const QuoteAddLiquiditySchema = z.object({ chain: chainEnum, tokenA: z.string(), tokenB: z.string(), amountA: z.string() });

@@ -1,47 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AppKit } from "@circle-fin/app-kit";
-import { createViemAdapterFromPrivateKey } from "@circle-fin/adapter-viem-v2";
+import { encodeFunctionData, pad } from "viem";
 
-const kit = new AppKit();
-
-// BigInt cannot be serialized by JSON.stringify — convert to string recursively
-function serializeBigInt(obj: unknown): unknown {
-  if (typeof obj === "bigint") return obj.toString();
-  if (Array.isArray(obj)) return obj.map(serializeBigInt);
-  if (obj !== null && typeof obj === "object") {
-    return Object.fromEntries(
-      Object.entries(obj as Record<string, unknown>).map(([k, v]) => [k, serializeBigInt(v)])
-    );
+const BRIDGE_ABI = [
+  {
+    inputs: [
+      { name: "amount", type: "uint256" },
+      { name: "destinationDomain", type: "uint32" },
+      { name: "mintRecipient", type: "bytes32" },
+      { name: "burnToken", type: "address" }
+    ],
+    name: "depositForBurn",
+    outputs: [{ name: "nonce", type: "uint64" }],
+    stateMutability: "nonpayable",
+    type: "function",
   }
-  return obj;
-}
+] as const;
 
 export async function POST(req: NextRequest) {
   try {
-    const { fromChain, toChain, amount } = await req.json();
+    const { amount, destinationDomain, burnToken, userAddress } = await req.json();
 
-    const privateKey = process.env.PRIVATE_KEY;
-
-    if (!privateKey) {
-      return NextResponse.json(
-        { error: "Server not configured: missing PRIVATE_KEY" },
-        { status: 500 }
-      );
+    if (!userAddress) {
+      return NextResponse.json({ error: "Missing userAddress" }, { status: 400 });
     }
 
-    const adapter = createViemAdapterFromPrivateKey({
-      privateKey: privateKey as `0x${string}`,
+    const bridgeAddress = process.env.BRIDGE || "0x0000000000000000000000000000000000000003";
+
+    // Format mintRecipient to bytes32 (padded address)
+    const mintRecipient = pad(userAddress as `0x${string}`);
+
+    const data = encodeFunctionData({
+      abi: BRIDGE_ABI,
+      functionName: 'depositForBurn',
+      args: [BigInt(amount), destinationDomain, mintRecipient, burnToken as `0x${string}`]
     });
 
-    const result = await kit.bridge({
-      from: { adapter, chain: fromChain },
-      to:   { adapter, chain: toChain },
-      amount,
+    return NextResponse.json({
+      unsignedTx: {
+        to: bridgeAddress,
+        data,
+        value: "0"
+      }
     });
-
-    return NextResponse.json(serializeBigInt(result));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+

@@ -35,6 +35,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       { name: "getAPR", description: "Get APR for an asset", inputSchema: { type: "object", properties: { chain: { type: "string" }, asset: { type: "string" } }, required: ["chain", "asset"] } },
       { name: "getPosition", description: "Get user position", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "userAddress"] } },
       { name: "getHealthFactor", description: "Get user health factor", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "userAddress"] } },
+      { name: "getBalance", description: "Get user wallet balance for an asset", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" }, asset: { type: "string" } }, required: ["chain", "userAddress", "asset"] } },
       
       // Quotes
       { name: "quoteSwap", description: "Quote a token swap", inputSchema: { type: "object", properties: { chain: { type: "string" }, amountIn: { type: "string" }, path: { type: "array", items: { type: "string" } } }, required: ["chain", "amountIn", "path"] } },
@@ -83,6 +84,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "getHealthFactor": {
         const parsed = schemas.GetHealthFactorSchema.parse(args);
         result = await DefiService.getHealthFactor(parsed.chain, parsed.userAddress);
+        break;
+      }
+      case "getBalance": {
+        const parsed = schemas.GetBalanceSchema.parse(args);
+        result = await DefiService.getBalance(parsed.chain, parsed.userAddress, parsed.asset);
         break;
       }
       case "quoteSwap": {

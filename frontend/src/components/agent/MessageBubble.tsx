@@ -42,7 +42,7 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
               remarkPlugins={[remarkGfm]}
               components={{
                 code(props) {
-                  const {children, className, node, ...rest} = props
+                  const {children, className, node, ref, ...rest} = props
                   const match = /language-(\w+)/.exec(className || '')
                   return match ? (
                     <div className="rounded-xl overflow-hidden my-4 border border-white/10">
@@ -63,6 +63,19 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
                       {children}
                     </code>
                   )
+                },
+                table(props) {
+                  return (
+                    <div className="overflow-x-auto my-4 rounded-xl border border-white/10 bg-black/20">
+                      <table className="w-full text-left text-sm" {...props} />
+                    </div>
+                  )
+                },
+                th(props) {
+                  return <th className="border-b border-white/10 bg-white/5 px-4 py-3 font-semibold text-[#00F5FF]" {...props} />
+                },
+                td(props) {
+                  return <td className="border-b border-white/5 px-4 py-3 text-gray-300 last:border-b-0" {...props} />
                 }
               }}
             >
