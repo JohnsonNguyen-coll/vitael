@@ -12,7 +12,6 @@ interface PageLayoutProps {
 
 export default function PageLayout({ children, variant = "app" }: PageLayoutProps) {
   if (variant === "landing") {
-    // Landing page: keep waterfall background
     return (
       <div className="relative min-h-screen text-white font-sans">
         <WaterfallBackground />
@@ -23,7 +22,6 @@ export default function PageLayout({ children, variant = "app" }: PageLayoutProp
     );
   }
 
-  // App pages: clean dark professional background
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0f1419] via-[#141920] to-[#0f1419] text-white font-sans">
       <Header />

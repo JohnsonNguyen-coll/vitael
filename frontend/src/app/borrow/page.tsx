@@ -172,9 +172,20 @@ export default function BorrowPage() {
   }, []);
 
   useEffect(() => {
-    checkOracleFeeds()
-      .then(setOracleStatus)
-      .finally(() => setOracleLoading(false));
+    let active = true;
+    const loadOracleStatus = async () => {
+      const status = await checkOracleFeeds();
+      if (!active) return;
+      setOracleStatus(status);
+      setOracleLoading(false);
+    };
+
+    void loadOracleStatus();
+    const retry = window.setInterval(() => void loadOracleStatus(), 15_000);
+    return () => {
+      active = false;
+      window.clearInterval(retry);
+    };
   }, []);
 
   useEffect(() => {

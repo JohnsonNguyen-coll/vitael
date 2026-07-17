@@ -19,6 +19,8 @@ const NAV: NavItem[] = [
   { label: "Pool",    href: "/pool" },
   { label: "Bridge",  href: "/bridge" },
   { label: "Agent",   href: "/agent" },
+  { label: "Profile", href: "/profile" },
+  { label: "Analytics", href: "/analytics" },
   { label: "Docs",    href: "/docs" },
 ];
 
@@ -55,10 +57,10 @@ export default function Header() {
             return (
               <div
                 key={n.label}
-                className="relative flex items-center gap-2 text-[#8E9FB8] cursor-not-allowed"
+                  className="relative flex items-center gap-2 text-[#8E9FB8] cursor-not-allowed"
               >
                 <span>{n.label}</span>
-                <span className="text-[10px] uppercase tracking-wider bg-[#FF00C8]/10 text-[#FF00C8] border border-[#FF00C8]/20 px-2 py-0.5 rounded-full font-bold">
+                  <span className="text-[10px] uppercase tracking-wider bg-[#FF00C8]/10 text-[#FF00C8] border border-[#FF00C8]/20 px-2 py-0.5 rounded-full font-bold">
                   Soon
                 </span>
               </div>

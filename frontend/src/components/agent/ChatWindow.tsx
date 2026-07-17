@@ -23,6 +23,7 @@ export interface ChatMessage {
     args: any;
     result?: any;
   }>;
+  strategyExecution?: boolean;
 }
 
 export function ChatWindow() {
@@ -53,7 +54,8 @@ export function ChatWindow() {
         id: Date.now().toString(), 
         role: 'assistant', 
         content: data.text,
-        toolInvocations: data.toolInvocations 
+        toolInvocations: data.toolInvocations,
+        strategyExecution: Boolean(data.strategyExecution),
       }]);
     } catch (err: any) {
       setError(err);
@@ -135,7 +137,15 @@ export function ChatWindow() {
           ) : (
             /* Messages List */
             <div className="pt-10 pb-6 flex-1 flex flex-col justify-end">
-               <MessageList messages={messages} />
+               <MessageList
+                 messages={messages}
+                 onStrategyStepSuccess={() => {
+                   sendMessage({
+                     role: 'user',
+                     content: 'The previous strategy step has completed on-chain. Continue the active strategy with the next remaining step now. Do not ask for confirmation.',
+                   });
+                 }}
+               />
                {error && (
                  <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 text-sm flex items-start gap-3">
                    <div className="shrink-0 mt-0.5">⚠️</div>
@@ -157,7 +167,7 @@ export function ChatWindow() {
             onSubmit={onSubmit} 
             className="flex relative bg-black/40 backdrop-blur-xl border border-white/10 focus-within:border-[#00F5FF]/30 rounded-2xl overflow-hidden transition-all shadow-2xl"
           >
-            <button type="button" className="pl-4 pr-2 pt-4 text-[#8E9FB8] hover:text-[#00F5FF] transition-colors self-end pb-4">
+              <button type="button" className="pl-4 pr-2 pt-4 text-[#8E9FB8] hover:text-[#00F5FF] transition-colors self-end pb-4">
               <Paperclip className="w-5 h-5" />
             </button>
             <textarea

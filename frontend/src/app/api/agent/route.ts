@@ -4,9 +4,13 @@ import { getMCPTools, callMCPTool } from "@/lib/mcp";
 export const maxDuration = 60;
 
 const client = new Anthropic();
+const STRATEGY_INTENT = /\b(strategy|strategies|optimi[sz]e|yield plan|portfolio plan|loop|leverage)\b|chi[eế]n lược|tối ưu|lợi nhuận|đòn bẩy/i;
+const STRATEGY_CONTINUATION = /previous strategy step has completed|continue (the )?(active )?strategy|tiếp tục.*chiến lược/i;
 
 export async function POST(req: Request) {
   const { messages, userAddress } = await req.json();
+  const latestUserMessage = [...messages].reverse().find((m: any) => m.role === "user")?.content ?? "";
+  const strategyExecution = STRATEGY_INTENT.test(latestUserMessage) || STRATEGY_CONTINUATION.test(latestUserMessage);
 
   const mcpToolsList = await getMCPTools();
 
@@ -40,7 +44,8 @@ export async function POST(req: Request) {
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system:
-        "You are Vitael, an expert DeFi AI agent. You assist users with reading state (APR, markets, portfolio) and proposing transactions (deposit, bridge, swap). For write actions, you will call the corresponding tool which will return raw transaction data. The user will be prompted to sign the transaction automatically by the UI. Never ask the user to manually send transactions. Always confirm intents before calling write tools." +
+        "You are Vitael, an expert DeFi AI agent. You assist users with reading state (APR, markets, portfolio) and proposing transactions (deposit, bridge, swap). For write actions, you will call the corresponding tool which will return raw transaction data. The user will be prompted to sign the transaction automatically by the UI. Never ask the user to manually send transactions. When the user's request contains the required action and parameters, call the relevant tool immediately. Do not ask for a conversational confirmation such as 'yes', 'confirm', or 'proceed' before preparing a transaction. The wallet signature shown by the UI is the only required user approval. Ask a follow-up only when a required parameter is genuinely missing or ambiguous. Never claim that a transaction has executed until the wallet/UI reports success." +
+        "\n\nSTRATEGY EXECUTION: When the user asks for a strategy, optimisation, yield plan, loop, or portfolio plan, first use read/quote tools needed to assess the current position. State a concise ordered plan with objective, risk assumptions, and the next action. Then prepare only the next dependent write transaction. Do not generate several dependent write transactions at once: the UI automatically returns after each confirmed transaction so you can re-read state and prepare the following step. Never ask for chat confirmation between steps. If the strategy is complete, state that it is complete and do not call a write tool." +
         "\n\nIMPORTANT FORMATTING RULES:" +
         "\n- Make your messages visually appealing, incredibly concise, and highly professional." +
         "\n- Use Markdown tables ALWAYS when displaying lists of data, assets, or balances. Never just list them as plain text." +
@@ -113,7 +118,8 @@ export async function POST(req: Request) {
 
   return new Response(JSON.stringify({
     text: finalText,
-    toolInvocations: allToolInvocations
+    toolInvocations: allToolInvocations,
+    strategyExecution
   }), {
     headers: { "Content-Type": "application/json; charset=utf-8" },
   });

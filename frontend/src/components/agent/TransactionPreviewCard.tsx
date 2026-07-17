@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSendTransaction, useWaitForTransactionReceipt, useAccount, useReadContract, useWriteContract, usePublicClient, useSwitchChain, useConfig } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
 import { erc20Abi, maxUint256 } from 'viem';
@@ -12,6 +12,8 @@ interface TransactionPreviewCardProps {
     data: string;
     value: string;
   };
+  /** Starts the following strategy step only after this wallet transaction is mined. */
+  onStrategyStepSuccess?: () => void;
 }
 
 import { ARC_TOKENS } from '@/lib/arcTokens';
@@ -61,7 +63,7 @@ function resolveAddress(tokenOrAddress: string, chainName?: string): string {
   return tokenOrAddress;
 }
 
-export function TransactionPreviewCard({ toolName, args, unsignedTx }: TransactionPreviewCardProps) {
+export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyStepSuccess }: TransactionPreviewCardProps) {
   const { address: userAddress, chainId: currentChainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
 
@@ -168,11 +170,18 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx }: Transacti
   });
 
   const [isToastClosed, setIsToastClosed] = useState(false);
+  const reportedStrategySuccess = useRef(false);
 
   // Reset toast if a new transaction starts
   useEffect(() => {
     if (isConfirming) setIsToastClosed(false);
   }, [isConfirming]);
+
+  useEffect(() => {
+    if (!isSuccess || !onStrategyStepSuccess || reportedStrategySuccess.current) return;
+    reportedStrategySuccess.current = true;
+    onStrategyStepSuccess();
+  }, [isSuccess, onStrategyStepSuccess]);
 
 
 

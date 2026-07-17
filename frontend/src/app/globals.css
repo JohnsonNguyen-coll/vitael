@@ -27,7 +27,6 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
-/* Glassmorphism utility */
 .glass-panel {
   background: rgba(10, 20, 40, 0.45);
   backdrop-filter: blur(16px) saturate(180%);
@@ -39,7 +38,6 @@ body {
   border-color: rgba(0, 245, 255, 0.2);
 }
 
-/* Custom Text Gradient */
 .text-gradient {
   background: linear-gradient(135deg, var(--cyan) 0%, var(--magenta) 100%);
   -webkit-background-clip: text;

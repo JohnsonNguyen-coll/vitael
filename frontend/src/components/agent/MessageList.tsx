@@ -6,6 +6,7 @@ import { TransactionPreviewCard } from './TransactionPreviewCard';
 
 interface MessageListProps {
   messages: ChatMessage[];
+  onStrategyStepSuccess?: () => void;
 }
 
 // Write tools that return unsigned transactions
@@ -14,7 +15,7 @@ const WRITE_TOOLS = [
   'swap', 'bridge', 'addLiquidity', 'removeLiquidity'
 ];
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, onStrategyStepSuccess }: MessageListProps) {
   return (
     <div className="flex-1 w-full space-y-4">
       {messages.map((m) => (
@@ -53,6 +54,7 @@ export function MessageList({ messages }: MessageListProps) {
                       toolName={toolName} 
                       args={toolInvocation.args} 
                       unsignedTx={unsignedTx} 
+                      onStrategyStepSuccess={m.strategyExecution ? onStrategyStepSuccess : undefined}
                     />
                   </div>
                 );
