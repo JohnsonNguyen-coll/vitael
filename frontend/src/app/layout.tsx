@@ -13,6 +13,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const raleway = Raleway({
+  variable: "--font-raleway",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+});
+
 
 export const metadata: Metadata = {
   title: "Vitael",
@@ -40,8 +46,3 @@ export default function RootLayout({
     </html>
   );
 }
-const raleway = Raleway({
-  variable: "--font-raleway",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
-});
