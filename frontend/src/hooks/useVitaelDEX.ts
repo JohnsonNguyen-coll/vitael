@@ -2,9 +2,10 @@
 
 import { useState, useCallback } from "react";
 import { useWalletClient, useSwitchChain } from "wagmi";
-import { parseUnits, formatUnits, encodeFunctionData, createPublicClient, http, type Address, type Hash } from "viem";
+import { parseUnits, formatUnits, encodeFunctionData, createPublicClient, type Address, type Hash, type Hex } from "viem";
 import { arcTestnet } from "../app/providers";
 import { parseWalletError } from "../lib/walletErrors";
+import { arcTransport } from "../lib/arcTransport";
 
 // ─── Contract addresses ───────────────────────────────────────────────────────
 const ROUTER  = (process.env.NEXT_PUBLIC_DEX_ROUTER  ?? "") as Address;
@@ -13,7 +14,7 @@ const FACTORY = (process.env.NEXT_PUBLIC_DEX_FACTORY ?? "") as Address;
 // Arc Testnet public client — always reads from Arc, regardless of wallet chain
 const arcClient = createPublicClient({
   chain: arcTestnet,
-  transport: http("https://rpc.testnet.arc.network"),
+  transport: arcTransport(),
 });
 
 // ─── Token addresses on Arc Testnet ──────────────────────────────────────────
@@ -105,6 +106,18 @@ export function useVitaelDEX() {
     if (walletClient.chain.id !== arcTestnet.id) await switchChainAsync({ chainId: arcTestnet.id });
   }
 
+  async function sendWithEstimatedGas(to: Address, data: Hex): Promise<Hash> {
+    if (!walletClient) throw new Error("Not connected");
+    const account = walletClient.account.address;
+    const estimatedGas = await arcClient.estimateGas({ account, to, data });
+    return walletClient.sendTransaction({
+      account,
+      to,
+      data,
+      gas: estimatedGas * 125n / 100n,
+    });
+  }
+
   async function ensureApproval(token: Address, spender: Address, amount: bigint) {
     if (!walletClient) throw new Error("Not connected");
     const account = walletClient.account.address;
@@ -113,10 +126,8 @@ export function useVitaelDEX() {
     }) as bigint;
     if (allowance < amount) {
       setStep("approving");
-      const hash = await walletClient.sendTransaction({
-        account, to: token,
-        data: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [spender, amount * 10n] }),
-      });
+      const data = encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [spender, amount * 10n] });
+      const hash = await sendWithEstimatedGas(token, data);
       const receipt = await arcClient.waitForTransactionReceipt({ hash });
       if (receipt.status === "reverted") {
         throw new Error("Approval transaction failed");
@@ -145,7 +156,10 @@ export function useVitaelDEX() {
         address: ROUTER, abi: ROUTER_ABI, functionName: "getAmountOut", args: [amountIn, rIn, rOut],
       }) as bigint;
       return formatUnits(out, tOut.decimals);
-    } catch { return ""; }
+    } catch (error) {
+      console.warn("[DEX] Unable to load swap quote", error);
+      return "";
+    }
   }, []);
 
   // ── Swap — approve Router then call swapExactTokensForTokens ─────────────
@@ -179,13 +193,11 @@ export function useVitaelDEX() {
       await ensureApproval(tIn.address, ROUTER, amountIn);
 
       setStep("swapping");
-      const hash = await walletClient.sendTransaction({
-        account, to: ROUTER,
-        data: encodeFunctionData({
-          abi: ROUTER_ABI, functionName: "swapExactTokensForTokens",
-          args: [amountIn, amountOutMin, [tIn.address, tOut.address], account, dl()],
-        }),
+      const data = encodeFunctionData({
+        abi: ROUTER_ABI, functionName: "swapExactTokensForTokens",
+        args: [amountIn, amountOutMin, [tIn.address, tOut.address], account, dl()],
       });
+      const hash = await sendWithEstimatedGas(ROUTER, data);
       setStep("confirming", { txHash: hash });
       const receipt = await arcClient.waitForTransactionReceipt({ hash });
       if (receipt.status === "reverted") {
@@ -218,30 +230,30 @@ export function useVitaelDEX() {
       if (!pair || pair === "0x0000000000000000000000000000000000000000") throw new Error("Pair not found");
 
       setStep("approving");
-      const tx1 = await walletClient.sendTransaction({
-        account, to: tA.address,
-        data: encodeFunctionData({ abi: ERC20_ABI, functionName: "transfer", args: [pair, amountA] }),
-      });
+      const tx1 = await sendWithEstimatedGas(
+        tA.address,
+        encodeFunctionData({ abi: ERC20_ABI, functionName: "transfer", args: [pair, amountA] }),
+      );
       const receipt1 = await arcClient.waitForTransactionReceipt({ hash: tx1 });
       if (receipt1.status === "reverted") {
         throw new Error(`Transfer of ${tokenA} failed - insufficient balance`);
       }
 
       setStep("approving");
-      const tx2 = await walletClient.sendTransaction({
-        account, to: tB.address,
-        data: encodeFunctionData({ abi: ERC20_ABI, functionName: "transfer", args: [pair, amountB] }),
-      });
+      const tx2 = await sendWithEstimatedGas(
+        tB.address,
+        encodeFunctionData({ abi: ERC20_ABI, functionName: "transfer", args: [pair, amountB] }),
+      );
       const receipt2 = await arcClient.waitForTransactionReceipt({ hash: tx2 });
       if (receipt2.status === "reverted") {
         throw new Error(`Transfer of ${tokenB} failed - insufficient balance`);
       }
 
       setStep("adding");
-      const hash = await walletClient.sendTransaction({
-        account, to: pair,
-        data: encodeFunctionData({ abi: PAIR_ABI, functionName: "mint", args: [account] }),
-      });
+      const hash = await sendWithEstimatedGas(
+        pair,
+        encodeFunctionData({ abi: PAIR_ABI, functionName: "mint", args: [account] }),
+      );
       setStep("confirming", { txHash: hash });
       const receipt = await arcClient.waitForTransactionReceipt({ hash });
       if (receipt.status === "reverted") {
@@ -273,20 +285,20 @@ export function useVitaelDEX() {
       const lpAmount = parseUnits(lpAmountHuman, 18);
 
       setStep("approving");
-      const tx1 = await walletClient.sendTransaction({
-        account, to: pair,
-        data: encodeFunctionData({ abi: PAIR_ABI, functionName: "transfer", args: [pair, lpAmount] }),
-      });
+      const tx1 = await sendWithEstimatedGas(
+        pair,
+        encodeFunctionData({ abi: PAIR_ABI, functionName: "transfer", args: [pair, lpAmount] }),
+      );
       const receipt1 = await arcClient.waitForTransactionReceipt({ hash: tx1 });
       if (receipt1.status === "reverted") {
         throw new Error("Transfer of LP tokens failed - insufficient balance");
       }
 
       setStep("removing");
-      const hash = await walletClient.sendTransaction({
-        account, to: pair,
-        data: encodeFunctionData({ abi: PAIR_ABI, functionName: "burn", args: [account] }),
-      });
+      const hash = await sendWithEstimatedGas(
+        pair,
+        encodeFunctionData({ abi: PAIR_ABI, functionName: "burn", args: [account] }),
+      );
       setStep("confirming", { txHash: hash });
       const receipt = await arcClient.waitForTransactionReceipt({ hash });
       if (receipt.status === "reverted") {
@@ -327,7 +339,10 @@ export function useVitaelDEX() {
         balanceA: balA as bigint,
         balanceB: balB as bigint,
       };
-    } catch { return null; }
+    } catch (error) {
+      console.warn("[DEX] Unable to load pool info", error);
+      return null;
+    }
   }, []);
 
   const reset = useCallback(() => setState({ step: "idle", busy: false, error: null, txHash: null }), []);
