@@ -22,13 +22,13 @@ export function MetricCard({
   isLoading,
 }: MetricCardProps) {
   return (
-    <div className="bg-[#1C1F26]/50 backdrop-blur-xl border border-white/5 rounded-2xl p-6 flex flex-col justify-between hover:bg-[#1C1F26]/80 transition-all duration-300 shadow-xl group">
+    <article className="glass-panel group flex min-h-40 flex-col justify-between rounded-2xl p-5 transition-all duration-300 hover:-translate-y-0.5">
       <div className="flex justify-between items-start mb-4">
-        <h3 className="text-[#A0AEC0] font-medium text-sm tracking-wide">
+        <h3 className="text-xs font-medium text-[#858da8]">
           {title}
         </h3>
-        <div className="p-2 bg-blue-500/10 text-blue-400 rounded-lg group-hover:scale-110 transition-transform duration-300">
-          <Icon size={20} />
+        <div className="grid size-9 place-items-center rounded-xl border border-[#A998FF]/10 bg-[#A998FF]/[0.06] text-[#aa9aff] transition-colors group-hover:border-[#A998FF]/20">
+          <Icon size={17} />
         </div>
       </div>
 
@@ -36,7 +36,7 @@ export function MetricCard({
         {isLoading ? (
           <div className="h-8 w-1/2 bg-white/10 animate-pulse rounded"></div>
         ) : (
-          <div className="text-2xl font-bold text-white tracking-tight flex items-baseline gap-2">
+          <div className="marketing-display flex items-baseline gap-2 text-3xl font-semibold tracking-[-0.04em] text-white">
             {value}
             {trend && (
               <span
@@ -51,9 +51,9 @@ export function MetricCard({
           </div>
         )}
         {description && (
-          <p className="text-xs text-[#718096]">{description}</p>
+          <p className="mt-1.5 text-[11px] leading-5 text-[#6f7894]">{description}</p>
         )}
       </div>
-    </div>
+    </article>
   );
 }

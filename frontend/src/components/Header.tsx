@@ -4,88 +4,37 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import WalletConnectButton from "./WalletConnectButton";
-import ChainIcon from "./ChainIcon";
 
-type NavItem = {
-  label: string;
-  href: string;
-  comingSoon?: boolean;
-};
-
-const NAV: NavItem[] = [
-  { label: "Lend",    href: "/lend" },
-  { label: "Borrow",  href: "/borrow" },
-  { label: "Swap",    href: "/swap" },
-  { label: "Pool",    href: "/pool" },
-  { label: "Bridge",  href: "/bridge" },
-  { label: "Agent",   href: "/agent" },
-  { label: "Profile", href: "/profile" },
+const NAV = [
+  { label: "Lend", href: "/lend" },
+  { label: "Borrow", href: "/borrow" },
+  { label: "Swap", href: "/swap" },
+  { label: "Pool", href: "/pool" },
+  { label: "Agent", href: "/agent" },
   { label: "Analytics", href: "/analytics" },
-  { label: "Docs",    href: "/docs" },
+  { label: "Profile", href: "/profile" },
 ];
 
 export default function Header() {
   const pathname = usePathname();
-
   return (
-    <header className="sticky top-0 w-full flex justify-between items-center py-4 px-8 md:px-16 border-b border-white/5 bg-[#0f1419]/90 backdrop-blur-md z-50">
-      {/* Logo */}
-      <Link href="/" className="flex items-center gap-3 group">
-        <Image
-          src="/vitael_logo.png"
-          alt="Vitael Logo"
-          width={34}
-          height={34}
-          className="rounded-xl object-cover"
-          onError={(e) => { (e.target as HTMLElement).style.display = "none"; }}
-        />
-        <span
-          className="font-bold text-xl text-white group-hover:text-[#00F5FF] transition duration-200"
-          style={{ fontFamily: "var(--font-raleway)", letterSpacing: "0.12em" }}
-        >
-          VITAEL
-        </span>
-      </Link>
+    <header className="app-header sticky top-0 z-50">
+      <div className="mx-auto flex h-[72px] max-w-[1480px] items-center gap-5 px-4 sm:px-6 lg:px-8">
+        <Link href="/" className="group flex shrink-0 items-center gap-2.5">
+          <span className="app-logo"><Image src="/vitael_logo.png" alt="Vitael" width={27} height={27} priority /></span>
+          <span className="hidden text-sm font-bold tracking-[0.18em] text-white sm:block">VITAEL</span>
+        </Link>
 
-      {/* Nav */}
-      <nav className="hidden md:flex gap-8 text-sm font-medium">
-        {NAV.map((n) => {
-          const active = pathname === n.href && !n.comingSoon;
-          const isComingSoon = n.comingSoon;
-          
-          if (isComingSoon) {
-            return (
-              <div
-                key={n.label}
-                  className="relative flex items-center gap-2 text-[#8E9FB8] cursor-not-allowed"
-              >
-                <span>{n.label}</span>
-                  <span className="text-[10px] uppercase tracking-wider bg-[#FF00C8]/10 text-[#FF00C8] border border-[#FF00C8]/20 px-2 py-0.5 rounded-full font-bold">
-                  Soon
-                </span>
-              </div>
-            );
-          }
-          
-          return (
-            <Link
-              key={n.href}
-              href={n.href}
-              className={`transition duration-200 ${
-                active
-                  ? "text-[#00F5FF] border-b border-[#00F5FF] pb-0.5"
-                  : "text-[#8E9FB8] hover:text-[#00F5FF]"
-              }`}
-            >
-              {n.label}
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="app-nav-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+          {NAV.map(({ label, href }) => {
+            const active = pathname === href;
+            return <Link key={href} href={href} className={`app-nav-item ${active ? "app-nav-active" : ""}`}><span>{label}</span>{active && <i />}</Link>;
+          })}
+        </nav>
 
-      {/* Right side: wallet */}
-      <div className="flex items-center gap-3">
-        <WalletConnectButton />
+        <div className="flex shrink-0 items-center gap-3">
+          <WalletConnectButton />
+        </div>
       </div>
     </header>
   );

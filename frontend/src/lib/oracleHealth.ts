@@ -1,10 +1,11 @@
-import { createPublicClient, http, type Address } from "viem";
+import { createPublicClient, type Address } from "viem";
 import { arcTestnet } from "../app/providers";
-import { LENDING_CONTRACTS, ARC_RPC } from "./contracts";
+import { LENDING_CONTRACTS } from "./contracts";
+import { arcTransport } from "./arcTransport";
 
 const client = createPublicClient({
   chain: arcTestnet,
-  transport: http(ARC_RPC, { retryCount: 4, retryDelay: 400 }),
+  transport: arcTransport(),
 });
 
 const ORACLE_ABI = [

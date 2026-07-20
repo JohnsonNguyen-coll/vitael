@@ -3,8 +3,8 @@
 import React from "react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import PageLayout from "../../components/PageLayout";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import MarketingHeader from "../../components/MarketingHeader";
+import { ArrowLeft, ArrowRight, ChevronRight, ExternalLink } from "lucide-react";
 
 // ─── Sections ─────────────────────────────────────────────────────────────────
 const SECTIONS = [
@@ -20,37 +20,44 @@ const SECTIONS = [
   { id: "faq",         label: "FAQ" },
 ] as const;
 
+const SECTION_GROUPS = [
+  { label: "Overview", items: ["what"] },
+  { label: "Lending protocol", items: ["lend", "borrow", "interest", "health", "liquidation"] },
+  { label: "Move assets", items: ["swap", "pool", "bridge"] },
+  { label: "Resources", items: ["faq"] },
+] as const;
+
 type SectionId = typeof SECTIONS[number]["id"];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function H2({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-2xl font-extrabold text-white mb-5" style={{ fontFamily: "var(--font-raleway)" }}>
+    <h2 className="marketing-display mb-6 text-3xl font-semibold tracking-[-0.04em] text-white sm:text-4xl">
       {children}
     </h2>
   );
 }
 function H3({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-base font-bold text-[#00F5FF] mb-2 mt-7">{children}</h3>;
+  return <h3 className="mb-3 mt-9 text-sm font-semibold tracking-[-0.01em] text-[#b7a8ff]">{children}</h3>;
 }
 function P({ children }: { children: React.ReactNode }) {
-  return <p className="text-[#8E9FB8] text-sm leading-relaxed mb-3">{children}</p>;
+  return <p className="mb-4 text-[15px] leading-7 text-[#979eb8]">{children}</p>;
 }
 function Highlight({ children }: { children: React.ReactNode }) {
   return <span className="text-white font-semibold">{children}</span>;
 }
-function InfoBox({ title, children, color = "#00F5FF" }: { title: string; children: React.ReactNode; color?: string }) {
+function InfoBox({ title, children, color = "#A998FF" }: { title: string; children: React.ReactNode; color?: string }) {
   return (
-    <div className="rounded-2xl border p-5 mb-5" style={{ borderColor: `${color}25`, background: `${color}08` }}>
+    <div className="docs-callout mb-5 rounded-2xl border p-5" style={{ borderColor: `${color}25`, background: `${color}08` }}>
       <p className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color }}>{title}</p>
-      <div className="text-sm text-[#8E9FB8] leading-relaxed space-y-1">{children}</div>
+      <div className="space-y-1 text-sm leading-6 text-[#9199b4]">{children}</div>
     </div>
   );
 }
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between items-center py-3 px-5 border-b border-white/5 last:border-0 text-sm">
-      <span className="text-[#8E9FB8] flex-1 pr-4">{label}</span>
+    <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-3.5 text-sm last:border-0">
+      <span className="text-[#8991AF] flex-1 pr-4">{label}</span>
       <span className="text-white font-semibold text-right flex-1">{value}</span>
     </div>
   );
@@ -73,27 +80,27 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       </P>
 
       <H3>What can you do on Vitael?</H3>
-      <InfoBox title="Lend" color="#00F5FF">
+      <InfoBox title="Lend" color="#A998FF">
         <p>Deposit USDC, EURC, or cirBTC into the lending pool. Your balance earns interest automatically — no claiming needed. The longer you leave it, the more you earn.</p>
       </InfoBox>
-      <InfoBox title="Borrow" color="#FF00C8">
+      <InfoBox title="Borrow" color="#7EE2B7">
         <p>Use your deposited assets as collateral to borrow USDC. You keep your original assets and get extra liquidity. You pay interest on what you borrow.</p>
       </InfoBox>
-      <InfoBox title="Swap" color="#8B00FF">
+      <InfoBox title="Swap" color="#7968E8">
         <p>Trade USDC ↔ EURC or USDC ↔ cirBTC instantly. Prices are determined by the liquidity pool, not an order book.</p>
       </InfoBox>
-      <InfoBox title="Provide Liquidity" color="#00F5FF">
+      <InfoBox title="Provide Liquidity" color="#A998FF">
         <p>Add tokens to a trading pool and earn 0.3% of every swap that goes through it. The more volume, the more you earn.</p>
       </InfoBox>
-      <InfoBox title="Bridge" color="#8B00FF">
+      <InfoBox title="Bridge" color="#7968E8">
         <p>Move USDC between Arc Testnet and other chains (Ethereum, Avalanche, etc.) using Circle&apos;s official bridge. No wrapped tokens — always native USDC.</p>
       </InfoBox>
 
       <H3>Supported assets</H3>
       <div className="flex flex-wrap gap-3 mb-2">
         {[
-          { sym: "USDC",   color: "#00F5FF" },
-          { sym: "EURC",   color: "#8B00FF" },
+          { sym: "USDC",   color: "#A998FF" },
+          { sym: "EURC",   color: "#7968E8" },
           { sym: "cirBTC", color: "#FF9900" },
         ].map(a => (
           <div key={a.sym} className="flex items-center gap-2 glass-panel rounded-xl px-4 py-2.5">
@@ -122,7 +129,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
         When you withdraw, you get back your original deposit <Highlight>plus all the interest earned</Highlight> since you deposited.
       </P>
 
-      <InfoBox title="Example" color="#00F5FF">
+      <InfoBox title="Example" color="#A998FF">
         <p>You deposit 1,000 USDC. The pool earns 5% APY from borrowers. After one year, you can withdraw ~1,050 USDC.</p>
         <p className="mt-1">The exchange rate between your shares and USDC increases gradually every second — not just once a day.</p>
       </InfoBox>
@@ -171,7 +178,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
         <Row label="EURC collateral"   value="Borrow up to 85% of value" />
         <Row label="cirBTC collateral" value="Borrow up to 70% of value" />
       </div>
-      <InfoBox title="Example" color="#FF00C8">
+      <InfoBox title="Example" color="#7EE2B7">
         <p>You deposit 1,000 EURC (~$1,080). With 85% LTV, you can borrow up to $918 worth of USDC.</p>
         <p className="mt-1">It&apos;s wise to borrow less than the maximum to give yourself a safety buffer.</p>
       </InfoBox>
@@ -215,7 +222,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
         <Row label="80% utilization"  value="Borrow ~6% APY · Supply ~4.3% APY" />
         <Row label="100% utilization" value="Borrow ~81% APY · Supply ~73% APY" />
       </div>
-      <InfoBox title="Why does supply APY differ from borrow APY?" color="#00F5FF">
+      <InfoBox title="Why does supply APY differ from borrow APY?" color="#A998FF">
         <p>10% of all interest paid by borrowers goes to a protocol reserve fund. The remaining 90% is distributed to lenders. So if borrowers pay 6%, lenders receive ~4.3% (at 80% utilization).</p>
       </InfoBox>
 
@@ -239,7 +246,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       <P>
         Health Factor = (value of your collateral × liquidation threshold) ÷ (value of your debt)
       </P>
-      <InfoBox title="Example" color="#00F5FF">
+      <InfoBox title="Example" color="#A998FF">
         <p>You have 1,000 EURC collateral ($1,080) with an 88% liquidation threshold.</p>
         <p className="mt-1">Threshold value = $1,080 × 88% = $950.40</p>
         <p className="mt-1">You borrowed $500 USDC.</p>
@@ -290,7 +297,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
         A liquidator repays up to 50% of the borrower&apos;s debt. In return, they receive the equivalent value of collateral
         <Highlight> plus a bonus</Highlight> (5–10% depending on the asset). This bonus is the liquidator&apos;s profit.
       </P>
-      <InfoBox title="Example" color="#FF00C8">
+      <InfoBox title="Example" color="#7EE2B7">
         <p>Bob borrowed $900 USDC against 1,000 EURC. EURC price drops — his health factor falls below 1.0.</p>
         <p className="mt-1">A liquidator repays $200 of Bob&apos;s debt.</p>
         <p className="mt-1">The liquidator receives $200 × 1.05 = $210 worth of EURC from Bob&apos;s collateral.</p>
@@ -369,10 +376,10 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
         you may end up with less value than if you had just held the tokens. This is called impermanent loss.
         It is &quot;impermanent&quot; because if the price returns to the original ratio, the loss disappears.
       </P>
-      <InfoBox title="Low risk pairs" color="#00F5FF">
+      <InfoBox title="Low risk pairs" color="#A998FF">
         <p>USDC/EURC is a stablecoin pair — both tokens are pegged to fiat currencies, so the price ratio is very stable. Impermanent loss is minimal.</p>
       </InfoBox>
-      <InfoBox title="Higher risk pairs" color="#FF00C8">
+      <InfoBox title="Higher risk pairs" color="#7EE2B7">
         <p>USDC/cirBTC has more impermanent loss risk because BTC price is volatile. Fee income may or may not offset the loss depending on trading volume.</p>
       </InfoBox>
 
@@ -438,7 +445,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
 
       <H3>Where do I get testnet tokens?</H3>
       <P>
-        From the <a href="https://faucet.circle.com" target="_blank" className="text-[#00F5FF] hover:underline inline-flex items-center gap-1">Circle Faucet <ExternalLink className="w-3 h-3" /></a>.
+        From the <a href="https://faucet.circle.com" target="_blank" className="text-[#A998FF] hover:underline inline-flex items-center gap-1">Circle Faucet <ExternalLink className="w-3 h-3" /></a>.
         You can claim USDC and EURC for free on Arc Testnet. cirBTC is available from the same faucet.
       </P>
 
@@ -492,14 +499,14 @@ function MobileSectionPicker({
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between glass-panel border-white/10 hover:border-[#00F5FF]/40 text-white rounded-2xl px-5 py-4 text-sm font-semibold transition shadow-lg"
+        className="docs-mobile-picker flex w-full items-center justify-between rounded-xl border border-white/10 px-4 py-3.5 text-sm font-semibold text-white transition"
       >
         <span className="flex items-center gap-2.5">
-          <ChevronRight className="w-4 h-4 text-[#00F5FF]" />
+          <ChevronRight className="w-4 h-4 text-[#A998FF]" />
           {current.label}
         </span>
         <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronRight className="w-4 h-4 text-[#8E9FB8] rotate-90" />
+          <ChevronRight className="w-4 h-4 text-[#8991AF] rotate-90" />
         </motion.span>
       </button>
 
@@ -510,7 +517,7 @@ function MobileSectionPicker({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute top-full mt-2 left-0 right-0 z-50 glass-panel rounded-2xl overflow-hidden shadow-2xl border border-white/10"
+            className="docs-mobile-menu absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-white/10"
           >
             {SECTIONS.map(s => (
               <button
@@ -518,8 +525,8 @@ function MobileSectionPicker({
                 onClick={() => { setActive(s.id); setOpen(false); }}
                 className={`w-full text-left px-5 py-3.5 text-sm transition flex items-center gap-2.5 ${
                   s.id === active
-                    ? "bg-[#00F5FF]/10 text-[#00F5FF] font-semibold"
-                    : "text-[#8E9FB8] hover:bg-white/5 hover:text-white"
+                    ? "bg-[#A998FF]/10 text-[#A998FF] font-semibold"
+                    : "text-[#8991AF] hover:bg-white/5 hover:text-white"
                 }`}
               >
                 {s.id === active && <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
@@ -538,109 +545,100 @@ function MobileSectionPicker({
 export default function DocsPage() {
   const [active, setActive] = useState<SectionId>("what");
   const activeIdx = SECTIONS.findIndex(s => s.id === active);
+  const currentSection = SECTIONS[activeIdx];
 
   return (
-    <PageLayout variant="app">
-      <div className="relative z-10 max-w-7xl mx-auto px-6 py-12">
-        {/* Title */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="mb-10"
-        >
-          <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-2 block">
-            Vitael Protocol
-          </span>
-          <h1 className="text-4xl font-extrabold text-white" style={{ fontFamily: "var(--font-raleway)" }}>
-            How Vitael Works
-          </h1>
-          <p className="text-[#8E9FB8] mt-2 text-sm max-w-xl">
-            Everything you need to know about lending, borrowing, swapping, and earning on Arc Testnet.
-          </p>
-        </motion.div>
-
-        <div className="flex gap-8 items-start">
-          {/* ── Sidebar ── */}
-          <aside className="hidden lg:block w-52 flex-shrink-0 sticky top-24">
-            <nav className="space-y-1">
-              {SECTIONS.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => setActive(s.id)}
-                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm transition flex items-center gap-2.5 ${
-                    active === s.id
-                      ? "bg-[#00F5FF]/10 text-[#00F5FF] font-semibold border border-[#00F5FF]/20"
-                      : "text-[#8E9FB8] hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  {active === s.id
-                    ? <span className="w-1.5 h-1.5 rounded-full bg-[#00F5FF] flex-shrink-0" />
-                    : <span className="w-1.5" />
-                  }
-                  {s.label}
-                </button>
-              ))}
-            </nav>
-
-            <div className="mt-8 pt-6 border-t border-white/5 space-y-2.5">
-              <a
-                href="https://faucet.circle.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-[#8E9FB8] hover:text-[#00F5FF] transition"
-              >
-                <ExternalLink className="w-3 h-3" /> Circle Faucet
-              </a>
-              <a
-                href="https://testnet.arcscan.app"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs text-[#8E9FB8] hover:text-[#00F5FF] transition"
-              >
-                <ExternalLink className="w-3 h-3" /> ArcScan Explorer
-              </a>
-            </div>
-          </aside>
-
-          {/* ── Content ── */}
-          <main className="flex-1 min-w-0">
-            {/* Mobile picker — custom dropdown */}
-            <div className="lg:hidden mb-6 relative">
-              <MobileSectionPicker active={active} setActive={setActive} />
-            </div>
-
-            <motion.div
-              key={active}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.18 }}
-              className="glass-panel rounded-3xl p-8 min-h-[560px]"
-            >
-              {CONTENT[active]}
-            </motion.div>
-
-            {/* Prev / Next */}
-            <div className="flex justify-between mt-4">
-              {activeIdx > 0 ? (
-                <button
-                  onClick={() => setActive(SECTIONS[activeIdx - 1].id)}
-                  className="text-xs text-[#8E9FB8] hover:text-white transition flex items-center gap-1"
-                >
-                  ← {SECTIONS[activeIdx - 1].label}
-                </button>
-              ) : <span />}
-
-              {activeIdx < SECTIONS.length - 1 ? (
-                <button
-                  onClick={() => setActive(SECTIONS[activeIdx + 1].id)}
-                  className="text-xs text-[#8E9FB8] hover:text-white transition flex items-center gap-1 ml-auto"
-                >
-                  {SECTIONS[activeIdx + 1].label} →
-                </button>
-              ) : <span />}
-            </div>
-          </main>
+    <div id="top" className="docs-site marketing-site min-h-screen">
+      <MarketingHeader />
+      <div className="docs-subnav">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between px-5 sm:px-8">
+          <div className="flex min-w-0 items-center gap-2 text-xs"><span className="font-semibold text-[#d7d9e5]">Documentation</span><ChevronRight className="size-3 text-[#4f5771]" /><span className="truncate text-[#777f99]">{currentSection.label}</span></div>
+          <div className="hidden items-center gap-5 text-[11px] text-[#727a94] sm:flex"><a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer" className="hover:text-white">ArcScan</a><a href="https://faucet.circle.com" target="_blank" rel="noreferrer" className="hover:text-white">Testnet faucet</a></div>
         </div>
       </div>
-    </PageLayout>
+      <div className="docs-layout relative z-10 mx-auto grid max-w-[1440px] px-5 sm:px-8 lg:grid-cols-[240px_minmax(0,760px)] xl:grid-cols-[240px_minmax(0,760px)_200px]">
+        <aside className="docs-sidebar sticky top-[130px] hidden h-[calc(100dvh-130px)] overflow-y-auto py-10 pr-7 lg:block">
+          {SECTION_GROUPS.map(group => (
+            <div key={group.label} className="mb-7">
+              <p className="docs-group-label">{group.label}</p>
+              <nav>
+                {group.items.map(id => {
+                  const section = SECTIONS.find(item => item.id === id)!;
+                  return (
+                    <button
+                      key={section.id}
+                      onClick={() => setActive(section.id)}
+                      className={`docs-nav-item ${active === section.id ? "docs-nav-active" : ""}`}
+                    >
+                      {section.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
+        </aside>
+
+        <main className="min-w-0 py-8 lg:px-10 lg:py-10 xl:px-12">
+          <div className="relative mb-8 lg:hidden">
+            <MobileSectionPicker active={active} setActive={setActive} />
+          </div>
+
+          <div className="mb-5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#656d87]">
+            <span>Vitael protocol</span>
+            <span className="size-1 rounded-full bg-[#8f7cff]" />
+            <span>{String(activeIdx + 1).padStart(2, "0")}</span>
+          </div>
+
+          <motion.article
+            key={active}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="docs-article min-h-[560px]"
+          >
+            {CONTENT[active]}
+          </motion.article>
+
+          <div className="mt-14 grid grid-cols-2 border-t border-white/[0.07]">
+            {activeIdx > 0 ? (
+              <button onClick={() => setActive(SECTIONS[activeIdx - 1].id)} className="docs-page-link items-start text-left">
+                <span><ArrowLeft className="size-3.5" /> Previous</span>
+                <strong>{SECTIONS[activeIdx - 1].label}</strong>
+              </button>
+            ) : <span />}
+
+            {activeIdx < SECTIONS.length - 1 ? (
+              <button onClick={() => setActive(SECTIONS[activeIdx + 1].id)} className="docs-page-link items-end border-l border-white/[0.07] text-right">
+                <span>Next <ArrowRight className="size-3.5" /></span>
+                <strong>{SECTIONS[activeIdx + 1].label}</strong>
+              </button>
+            ) : <span />}
+          </div>
+
+          <p className="mt-8 text-[11px] leading-5 text-[#59617a]">Vitael documentation · Arc Testnet · Last updated July 2026</p>
+        </main>
+
+        <aside className="docs-right-rail sticky top-[130px] hidden h-[calc(100dvh-130px)] py-10 pl-7 xl:block">
+          <p className="docs-group-label">Network</p>
+          <div className="mb-5 flex items-center gap-2 text-xs font-medium text-[#c4c8d8]"><span className="docs-network-dot" /> Arc Testnet</div>
+          <dl className="space-y-3 text-[11px]">
+            <div><dt>Chain ID</dt><dd>5042002</dd></div>
+            <div><dt>Price oracle</dt><dd>Stork</dd></div>
+          </dl>
+
+          <div className="mt-8 border-t border-white/[0.07] pt-7">
+            <p className="docs-group-label">Resources</p>
+            <div className="space-y-3">
+              <a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer">ArcScan <ExternalLink /></a>
+              <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">Circle Faucet <ExternalLink /></a>
+              <a href="/lend">Open Vitael App <ArrowRight /></a>
+            </div>
+          </div>
+
+          <div className="docs-testnet-note"><span>Testnet</span>Assets have no real-world value. Verify contract addresses before every interaction.</div>
+        </aside>
+      </div>
+    </div>
   );
 }

@@ -10,16 +10,16 @@ import SecuritySection from "../components/marketing/SecuritySection";
 import TrustStats from "../components/marketing/TrustStats";
 
 export const metadata: Metadata = {
-  title: "Vitael — Intelligent DeFi on Arc",
+  title: "Vitael",
   description: "A non-custodial AI command center for lending, borrowing, swaps, liquidity and bridging on Arc Network.",
   openGraph: {
-    title: "Vitael — Intelligent DeFi on Arc",
+    title: "Vitael",
     description: "Move through DeFi with a clear, intelligent and wallet-controlled experience.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Vitael — Intelligent DeFi on Arc",
+    title: "Vitael",
     description: "Move through DeFi with a clear, intelligent and wallet-controlled experience.",
   },
 };

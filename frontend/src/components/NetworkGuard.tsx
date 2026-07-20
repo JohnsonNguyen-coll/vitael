@@ -24,19 +24,19 @@ export default function NetworkGuard({ children }: { children: React.ReactNode }
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white mb-2">Wrong Network</h2>
-            <p className="text-[#8E9FB8] mb-6">
-              This feature is only available on <span className="text-[#00F5FF] font-semibold">Arc Testnet</span>.
+            <p className="text-[#8991AF] mb-6">
+              This feature is only available on <span className="text-[#A998FF] font-semibold">Arc Testnet</span>.
               <br />
               Please switch your network to continue.
             </p>
           </div>
           <button
             onClick={() => switchChain({ chainId: arcTestnet.id })}
-            className="bg-[#00F5FF] text-[#0A1428] font-bold px-8 py-3 rounded-xl hover:bg-white transition"
+            className="app-button app-button-primary px-8 py-3"
           >
             Switch to Arc Testnet
           </button>
-          <p className="text-xs text-[#8E9FB8] mt-2">
+          <p className="text-xs text-[#8991AF] mt-2">
             Current network: <span className="text-white">{chainId}</span>
           </p>
         </div>

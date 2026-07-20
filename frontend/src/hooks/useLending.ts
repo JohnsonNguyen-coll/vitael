@@ -4,10 +4,11 @@ import { useState, useCallback } from "react";
 import { useWalletClient, useSwitchChain } from "wagmi";
 import {
   parseUnits, formatUnits, encodeFunctionData,
-  createPublicClient, http, type Address, type Hash,
+  createPublicClient, type Address, type Hash,
 } from "viem";
 import { arcTestnet } from "../app/providers";
-import { LENDING_CONTRACTS, ARC_RPC } from "../lib/contracts";
+import { LENDING_CONTRACTS } from "../lib/contracts";
+import { arcTransport } from "../lib/arcTransport";
 import { parseWalletError } from "../lib/walletErrors";
 import { parseLendingPoolError } from "../lib/lendingErrors";
 
@@ -55,7 +56,7 @@ export type CollateralSymbol = TokenSymbol;
 // ─── Arc public client ────────────────────────────────────────────────────────
 const arcClient = createPublicClient({
   chain: arcTestnet,
-  transport: http(ARC_RPC),
+  transport: arcTransport(),
 });
 
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
@@ -209,12 +210,19 @@ export function useLending() {
     }) as bigint;
     if (allowance < amount) {
       setStep("approving");
+      const data = encodeFunctionData({
+        abi: ERC20_ABI, functionName: "approve",
+        args: [POOL, amount * 10n],
+      });
+      const estimatedGas = await arcClient.estimateGas({
+        account,
+        to: tokenAddr,
+        data,
+      });
       const hash = await walletClient.sendTransaction({
         account, to: tokenAddr,
-        data: encodeFunctionData({
-          abi: ERC20_ABI, functionName: "approve",
-          args: [POOL, amount * 10n],
-        }),
+        data,
+        gas: estimatedGas * 125n / 100n,
       });
       const receipt = await arcClient.waitForTransactionReceipt({ hash });
       if (receipt.status === "reverted") {
@@ -231,9 +239,19 @@ export function useLending() {
     if (!walletClient || !POOL) throw new Error("Not configured");
     const account = walletClient.account.address;
     setStep(step);
+    const data = encodeFunctionData({ abi: POOL_ABI, functionName: fnName as never, args: args as never });
+    // Estimate through the read RPC fallback. Wallet providers often use only
+    // their configured primary RPC, which can return an internal error while
+    // rate-limited even though the transaction simulation itself succeeds.
+    const estimatedGas = await arcClient.estimateGas({
+      account,
+      to: POOL,
+      data,
+    });
     const hash = await walletClient.sendTransaction({
       account, to: POOL,
-      data: encodeFunctionData({ abi: POOL_ABI, functionName: fnName as never, args: args as never }),
+      data,
+      gas: estimatedGas * 125n / 100n,
     });
     setStep("confirming", { txHash: hash });
     const receipt = await arcClient.waitForTransactionReceipt({ hash });
@@ -399,7 +417,10 @@ export function useLending() {
           };
         })
       );
-    } catch { return []; }
+    } catch (error) {
+      console.warn("[Lending] Unable to load market data", error);
+      return [];
+    }
   }, [POOL]);
 
   // ── Read: user position ─────────────────────────────────────────────────────
@@ -447,7 +468,10 @@ export function useLending() {
         totalBorrowUSD:     formatUnits(borrowUSD, 8),
         healthFactor:       hfStr,
       };
-    } catch { return null; }
+    } catch (error) {
+      console.warn("[Lending] Unable to load user position", error);
+      return null;
+    }
   }, [POOL]);
 
   // ── Legacy compat: getUserInfo (used by borrow page) ────────────────────────

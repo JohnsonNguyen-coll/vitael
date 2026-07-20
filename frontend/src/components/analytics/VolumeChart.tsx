@@ -28,24 +28,24 @@ interface VolumeChartProps {
 
 export function VolumeChart({ data, keys, type = "bar", title }: VolumeChartProps) {
   return (
-    <div className="bg-[#1C1F26]/50 backdrop-blur-xl border border-white/5 rounded-2xl p-6 shadow-xl h-full flex flex-col">
-      <h3 className="text-[#A0AEC0] font-medium text-sm tracking-wide mb-6">
+    <div className="glass-panel flex h-full flex-col rounded-2xl p-5 sm:p-6">
+      <h3 className="mb-6 text-sm font-medium text-[#a4abc1]">
         {title}
       </h3>
       <div className="flex-1 w-full min-h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           {type === "bar" ? (
             <BarChart data={data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2D3748" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#25283B" vertical={false} />
               <XAxis
                 dataKey="name"
-                stroke="#718096"
+                stroke="#747C98"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                stroke="#718096"
+                stroke="#747C98"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
@@ -55,9 +55,9 @@ export function VolumeChart({ data, keys, type = "bar", title }: VolumeChartProp
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#2D3748",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
+                  backgroundColor: "#111323",
+                  borderColor: "rgba(169,152,255,0.16)",
+                  borderRadius: "12px",
                   color: "#fff",
                 }}
                 itemStyle={{ color: "#fff" }}
@@ -91,16 +91,16 @@ export function VolumeChart({ data, keys, type = "bar", title }: VolumeChartProp
                   </linearGradient>
                 ))}
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2D3748" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#25283B" vertical={false} />
               <XAxis
                 dataKey="name"
-                stroke="#718096"
+                stroke="#747C98"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
               />
               <YAxis
-                stroke="#718096"
+                stroke="#747C98"
                 fontSize={12}
                 tickLine={false}
                 axisLine={false}
@@ -110,9 +110,9 @@ export function VolumeChart({ data, keys, type = "bar", title }: VolumeChartProp
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#2D3748",
-                  borderColor: "rgba(255,255,255,0.1)",
-                  borderRadius: "8px",
+                  backgroundColor: "#111323",
+                  borderColor: "rgba(169,152,255,0.16)",
+                  borderRadius: "12px",
                   color: "#fff",
                 }}
                 itemStyle={{ color: "#fff" }}

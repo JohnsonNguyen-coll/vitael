@@ -18,7 +18,7 @@ export default function OracleStatusBanner({ status, loading }: OracleStatusBann
 
   if (rpcUnavailable) {
     return (
-      <div className="flex items-start gap-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-yellow-200 text-sm mb-4">
+      <div className="app-notice app-notice-warning mb-4 flex items-start gap-3 border px-4 py-3 text-sm">
         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
         <p>
           <span className="font-semibold text-yellow-100">Oracle connection is temporarily unavailable</span>
@@ -29,16 +29,16 @@ export default function OracleStatusBanner({ status, loading }: OracleStatusBann
   }
 
   return (
-    <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-300 text-sm mb-4">
+    <div className="app-notice app-notice-error mb-4 flex items-start gap-3 border px-4 py-3 text-sm">
       <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
       <p>
         <span className="font-semibold text-red-200">Oracle prices unavailable</span>
         {" — "}
         Stork has no on-chain price for {missing.join(", ")}. Borrow and health factor checks will fail
         until Stork prices are updated on Arc Testnet (see Stork docs:{" "}
-        <code className="text-xs text-[#8E9FB8]">updateTemporalNumericValuesV1</code>
+        <code className="text-xs text-[#8991AF]">updateTemporalNumericValuesV1</code>
         ). Testnet-only fallback:{" "}
-        <code className="text-xs text-[#8E9FB8]">PatchMissingStorkFeeds.s.sol</code>.
+        <code className="text-xs text-[#8991AF]">PatchMissingStorkFeeds.s.sol</code>.
       </p>
     </div>
   );

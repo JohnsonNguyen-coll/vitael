@@ -63,10 +63,10 @@ function StatCard({ label, value, sub, accent = false, loading = false, valueCla
 }) {
   return (
     <div className="glass-panel rounded-2xl p-5">
-      <p className="text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-wider text-[#8991AF] mb-2">{label}</p>
       {loading
         ? <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
-        : <p suppressHydrationWarning className={`text-2xl font-extrabold ${valueClass ?? (accent ? "text-[#FF00C8]" : "text-white")}`}>{value}</p>
+        : <p suppressHydrationWarning className={`text-2xl font-extrabold ${valueClass ?? (accent ? "text-[#7EE2B7]" : "text-white")}`}>{value}</p>
       }
       {sub && !loading && <p className="text-xs text-emerald-400 mt-1">{sub}</p>}
     </div>
@@ -115,12 +115,24 @@ export default function BorrowPage() {
   const [collAmount, setCollAmount]       = useState("");
 
   // Fetch wallet balance for selected collateral token
-  const { data: collBalanceData, refetch: refetchCollBalance } = useReadContract({
+  const {
+    data: collBalanceData,
+    isLoading: collBalanceLoading,
+    isError: collBalanceError,
+    refetch: refetchCollBalance,
+  } = useReadContract({
     address: COLLATERAL_TOKENS[collSymbol].address as `0x${string}`,
     abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }],
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    chainId: 5042002,
+    query: {
+      enabled: !!address,
+      retry: 4,
+      retryDelay: attempt => Math.min(750 * 2 ** attempt, 6_000),
+      staleTime: 10_000,
+      refetchOnWindowFocus: false,
+    },
   });
 
   const collWalletBalance = collBalanceData
@@ -244,13 +256,13 @@ export default function BorrowPage() {
 
   return (
     <PageLayout variant="app">
-      <main className="relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-8">
+      <main className="app-page relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-8">
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-2 block">Arc Testnet · Vitael Protocol</span>
-          <h1 className="text-4xl font-extrabold text-white">Borrow</h1>
-          <p className="text-[#8E9FB8] mt-2 text-sm">Get Arc tokens → deposit collateral → borrow USDC (Stork oracle).</p>
+          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">Arc Testnet · Vitael Protocol</span>
+          <h1 className="app-page-title text-5xl text-white">Borrow</h1>
+          <p className="text-[#8991AF] mt-2 text-sm">Get Arc tokens → deposit collateral → borrow USDC (Stork oracle).</p>
         </motion.div>
 
         <OracleStatusBanner status={oracleStatus} loading={oracleLoading} />
@@ -296,17 +308,17 @@ export default function BorrowPage() {
               <div className="px-6 py-5 border-b border-white/5 space-y-4">
                 <div>
                   <h2 className="font-bold text-white">Borrow from pool</h2>
-                  <p className="text-xs text-[#8E9FB8] mt-0.5">Borrowable asset — USDC only</p>
+                  <p className="text-xs text-[#8991AF] mt-0.5">Borrowable asset — USDC only</p>
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-[#FF00C8]/25 bg-[#FF00C8]/5 px-4 py-3">
+                <div className="flex items-center justify-between rounded-xl border border-[#7EE2B7]/25 bg-[#7EE2B7]/5 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <TokenIcon symbol="USDC" size={40} />
                     <div>
                       <p className="font-bold text-white">USDC</p>
-                      <p className="text-xs text-[#8E9FB8]">Borrow APY {usdcAsset.borrowAPY > 0 ? `${usdcAsset.borrowAPY.toFixed(2)}%` : "—"} · Pool {usdcAsset.liquidity}</p>
+                      <p className="text-xs text-[#8991AF]">Borrow APY {usdcAsset.borrowAPY > 0 ? `${usdcAsset.borrowAPY.toFixed(2)}%` : "—"} · Pool {usdcAsset.liquidity}</p>
                     </div>
                   </div>
-                  <span className="text-xs font-bold text-[#FF00C8] border border-[#FF00C8]/40 px-2 py-1 rounded-full">
+                  <span className="text-xs font-bold text-[#7EE2B7] border border-[#7EE2B7]/40 px-2 py-1 rounded-full">
                     Borrow asset
                   </span>
                 </div>
@@ -314,10 +326,10 @@ export default function BorrowPage() {
 
               <div className="px-6 py-4 border-b border-white/5">
                 <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-1">Accepted collateral</h3>
-                <p className="text-xs text-[#8E9FB8] mb-3">Deposit these tokens in the right panel, then borrow USDC</p>
+                <p className="text-xs text-[#8991AF] mb-3">Deposit these tokens in the right panel, then borrow USDC</p>
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="text-[10px] uppercase tracking-wider text-[#8E9FB8] border-b border-white/5">
+                    <tr className="text-[10px] uppercase tracking-wider text-[#8991AF] border-b border-white/5">
                       <th className="py-2 pr-4">Token</th>
                       <th className="py-2 pr-4">Role</th>
                       <th className="py-2 pr-4">Max LTV</th>
@@ -333,12 +345,12 @@ export default function BorrowPage() {
                             <span className="font-semibold text-white">{c.symbol}</span>
                           </div>
                         </td>
-                        <td className="py-3 pr-4 text-[#8E9FB8]">Collateral</td>
+                        <td className="py-3 pr-4 text-[#8991AF]">Collateral</td>
                         <td className="py-3 pr-4 text-white">{c.ltv}%</td>
                         <td className="py-3 text-right">
-                          <a href="#collateral" className="text-xs font-semibold text-white hover:underline">
+                          <button type="button" onClick={() => document.getElementById("collateral")?.scrollIntoView({ behavior: "smooth" })} className="text-xs font-semibold text-white hover:underline">
                             Deposit ↓
-                          </a>
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -351,7 +363,7 @@ export default function BorrowPage() {
                 <div className="px-6 py-5">
                   <p className="text-xs uppercase tracking-wider text-white font-bold mb-4">Your Collateral</p>
                   {!isConnected ? (
-                    <p className="text-xs text-[#8E9FB8]">Connect wallet to see collateral.</p>
+                    <p className="text-xs text-[#8991AF]">Connect wallet to see collateral.</p>
                   ) : infoLoading ? (
                     <div className="h-10 bg-white/5 rounded-lg animate-pulse" />
                   ) : collaterals.filter(c => parseFloat(c.amount) > 0).length > 0 ? (
@@ -361,7 +373,7 @@ export default function BorrowPage() {
                           <TokenIcon symbol={c.symbol} size={28} />
                           <div>
                             <p className="text-sm font-bold text-white">{c.symbol}</p>
-                            <p className="text-xs text-[#8E9FB8]">
+                            <p className="text-xs text-[#8991AF]">
                               {formatTokenAmount(c.amount, { min: 2, max: 3 })}
                             </p>
                           </div>
@@ -370,13 +382,13 @@ export default function BorrowPage() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-[#8E9FB8]">No collateral deposited.</p>
+                    <p className="text-xs text-[#8991AF]">No collateral deposited.</p>
                   )}
                 </div>
                 <div className="px-6 py-5">
-                  <p className="text-xs uppercase tracking-wider text-[#FF00C8] font-bold mb-4">Your Borrowed</p>
+                  <p className="text-xs uppercase tracking-wider text-[#7EE2B7] font-bold mb-4">Your Borrowed</p>
                   {!isConnected ? (
-                    <p className="text-xs text-[#8E9FB8]">Connect wallet to see borrows.</p>
+                    <p className="text-xs text-[#8991AF]">Connect wallet to see borrows.</p>
                   ) : infoLoading ? (
                     <div className="h-10 bg-white/5 rounded-lg animate-pulse" />
                   ) : parseFloat(borrowedUsdc) > 0 ? (
@@ -385,34 +397,34 @@ export default function BorrowPage() {
                         <TokenIcon symbol="USDC" size={28} />
                         <div>
                           <p className="text-sm font-bold text-white">USDC</p>
-                          <p className="text-xs text-[#8E9FB8]">
+                          <p className="text-xs text-[#8991AF]">
                             {formatTokenAmount(borrowedUsdc)}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-[#FF00C8] font-semibold">
+                        <p className="text-xs text-[#7EE2B7] font-semibold">
                           {protocolStats ? `${protocolStats.borrowApyPct.toFixed(2)}% APY` : "—"}
                         </p>
                         <p className={`text-xs font-bold ${hfColor(healthFactor)}`}>HF: {healthFactor}</p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-[#8E9FB8]">No active borrows.</p>
+                    <p className="text-xs text-[#8991AF]">No active borrows.</p>
                   )}
                 </div>
               </div>
             </div>
 
             {/* Borrow / Repay panel */}
-            <div className="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-[720px]">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#FF00C8]/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="app-action-panel glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-[720px]">
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#7EE2B7]/5 rounded-full blur-3xl pointer-events-none" />
 
               <div className="flex items-center gap-3 mb-5">
                 <TokenIcon symbol="USDC" size={44} />
                 <div>
                   <p className="font-extrabold text-white text-lg">USDC</p>
-                  <p className="text-xs text-[#8E9FB8]">Borrow against collateral</p>
+                  <p className="text-xs text-[#8991AF]">Borrow against collateral</p>
                 </div>
               </div>
 
@@ -427,7 +439,7 @@ export default function BorrowPage() {
                 {(["borrow", "repay"] as const).map(t => (
                   <button key={t} onClick={() => { setSubTab(t); reset(); setAmount(""); }}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
-                      subTab === t ? "bg-white/8 text-white" : "text-[#8E9FB8] hover:text-white"
+                      subTab === t ? "bg-white/8 text-white" : "text-[#8991AF] hover:text-white"
                     }`}>
                     {t === "borrow" ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
                     {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -453,7 +465,7 @@ export default function BorrowPage() {
                     )}
 
                     <div className="mb-4">
-                      <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">Amount</label>
+                      <label className="block text-xs uppercase tracking-wider text-[#8991AF] mb-2">Amount</label>
                       <div className="relative">
                         <input
                           type="number" placeholder="0.00" value={amount}
@@ -470,17 +482,17 @@ export default function BorrowPage() {
                             if (val > maxBal) setAmount(maxBal.toString());
                           }}
                           disabled={busy || state.step === "done"}
-                          className="w-full bg-black/30 border border-white/5 focus:border-[#FF00C8] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
+                          className="w-full bg-black/30 border border-white/5 focus:border-[#7EE2B7] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#FF00C8] font-bold text-sm">USDC</span>
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#7EE2B7] font-bold text-sm">USDC</span>
                       </div>
-                      <div className="flex justify-between mt-1.5 text-xs text-[#8E9FB8]">
+                      <div className="flex justify-between mt-1.5 text-xs text-[#8991AF]">
                         {subTab === "borrow" ? (
                           <span>Available to borrow: {formatUsd(maxBorrowUSD)}</span>
                         ) : (
                           <>
                             <span>Borrowed: {formatTokenAmount(borrowedUsdc)} USDC</span>
-                            <button className="text-[#FF00C8] hover:underline" onClick={() => setAmount(borrowedUsdc)}>MAX</button>
+                            <button className="text-[#7EE2B7] hover:underline" onClick={() => setAmount(borrowedUsdc)}>MAX</button>
                           </>
                         )}
                       </div>
@@ -493,19 +505,19 @@ export default function BorrowPage() {
 
                     <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Borrow APY</span>
-                        <span className="text-[#FF00C8] font-bold">
+                        <span className="text-[#8991AF]">Borrow APY</span>
+                        <span className="text-[#7EE2B7] font-bold">
                           {active.borrowAPY > 0 ? `${active.borrowAPY.toFixed(2)}%` : "—"}
                         </span>
                       </div>
                       {num > 0 && active.borrowAPY > 0 && (
                         <div className="flex justify-between">
-                          <span className="text-[#8E9FB8]">Est. monthly interest</span>
-                          <span className="text-[#FF00C8] font-semibold">${monthly.toFixed(2)}</span>
+                          <span className="text-[#8991AF]">Est. monthly interest</span>
+                          <span className="text-[#7EE2B7] font-semibold">${monthly.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Health Factor</span>
+                        <span className="text-[#8991AF]">Health Factor</span>
                         <span className={`font-bold ${hfColor(healthFactor)}`}>{healthFactor}</span>
                       </div>
                     </div>
@@ -522,7 +534,7 @@ export default function BorrowPage() {
                         <p>
                           No USDC in the lending pool yet — borrows will fail in your wallet.
                           {" "}
-                          <a href="/lend" className="text-[#00F5FF] font-semibold hover:underline">
+                          <a href="/lend" className="text-[#A998FF] font-semibold hover:underline">
                             Supply USDC on Lend
                           </a>{" "}
                           first (yours or another user&apos;s deposit).
@@ -547,7 +559,7 @@ export default function BorrowPage() {
                           || insufficientBorrowBalance
                           || (subTab === "borrow" && !oracleOk)
                         }
-                        className="w-full bg-[#FF00C8] text-white font-bold py-3.5 rounded-xl hover:bg-white hover:text-[#0A1428] transition disabled:opacity-40 flex items-center justify-center gap-2 mb-6"
+                        className="app-button app-button-primary w-full bg-[#7EE2B7] text-white font-bold py-3.5 rounded-xl hover:bg-white hover:text-[#0D0E1E] transition disabled:opacity-40 flex items-center justify-center gap-2 mb-6"
                       >
                         {busy
                           ? <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Processing...</>
@@ -562,12 +574,12 @@ export default function BorrowPage() {
 
               {/* Collateral */}
               <p id="collateral" className="text-xs uppercase tracking-wider text-white font-bold mb-1">Collateral</p>
-              <p className="text-[10px] text-[#8E9FB8] mb-3">Deposit Arc collateral before borrowing USDC.</p>
+              <p className="text-[10px] text-[#8991AF] mb-3">Deposit Arc collateral before borrowing USDC.</p>
               <div className="flex bg-white/3 p-1 rounded-xl mb-3 gap-1">
                 {(["deposit", "withdraw"] as const).map(t => (
                   <button key={t} onClick={() => { setCollateralTab(t); reset(); setCollAmount(""); }}
                     className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition ${
-                      collateralTab === t ? "bg-white/8 text-white" : "text-[#8E9FB8]"
+                      collateralTab === t ? "bg-white/8 text-white" : "text-[#8991AF]"
                     }`}>
                     {t.charAt(0).toUpperCase() + t.slice(1)}
                   </button>
@@ -577,7 +589,7 @@ export default function BorrowPage() {
                 {COLLATERAL_SYMBOLS.map(s => (
                   <button key={s} onClick={() => setCollSymbol(s)}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition ${
-                      collSymbol === s ? "border-white bg-white/10 text-white" : "border-white/10 text-[#8E9FB8]"
+                      collSymbol === s ? "border-white bg-white/10 text-white" : "border-white/10 text-[#8991AF]"
                     }`}>
                     {s}
                   </button>
@@ -602,10 +614,16 @@ export default function BorrowPage() {
                 disabled={busy || !isConnected}
                 className="w-full bg-black/30 border border-white/5 rounded-xl py-2.5 px-3 text-sm text-white outline-none mb-1 disabled:opacity-50"
               />
-              <div className="flex justify-between mb-3 text-xs text-[#8E9FB8]">
+              <div className="flex justify-between mb-3 text-xs text-[#8991AF]">
                 {collateralTab === "deposit" ? (
                   <>
-                    <span>Wallet: {formatTokenAmount(collWalletBalance, { min: 2, max: 3 })} {collSymbol}</span>
+                    <span>
+                      Wallet: {collBalanceLoading
+                        ? "Loading…"
+                        : collBalanceError && collBalanceData === undefined
+                          ? "Unavailable"
+                          : formatTokenAmount(collWalletBalance, { min: 2, max: 3 })} {collSymbol}
+                    </span>
                     <button
                       className="text-white hover:underline"
                       onClick={() => setCollAmount(collWalletBalance)}
@@ -633,20 +651,20 @@ export default function BorrowPage() {
               <button
                 onClick={executeCollateral}
                 disabled={busy || !isConnected || !collAmount || parseFloat(collAmount) <= 0 || insufficientCollBalance}
-                className="w-full border border-white/30 text-white font-semibold py-2.5 rounded-xl hover:bg-white/10 transition disabled:opacity-40 text-sm mb-5"
+                className="app-button app-button-secondary w-full border border-white/30 text-white font-semibold py-2.5 rounded-xl hover:bg-white/10 transition disabled:opacity-40 text-sm mb-5"
               >
                 {collateralTab === "deposit" ? "Deposit" : "Withdraw"} {collSymbol}
               </button>
 
               <div id="faucet" className="border-t border-white/5 pt-4">
-                <p className="text-xs text-[#8E9FB8] flex items-center gap-1 mb-2">
+                <p className="text-xs text-[#8991AF] flex items-center gap-1 mb-2">
                   <Droplets className="w-3.5 h-3.5" /> Need tokens? Circle Faucet (Arc Testnet)
                 </p>
                 <a
                   href={CIRCLE_FAUCET_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#00F5FF] hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#A998FF] hover:underline"
                 >
                   faucet.circle.com <ExternalLink className="w-3 h-3" />
                 </a>

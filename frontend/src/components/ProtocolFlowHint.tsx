@@ -1,38 +1,21 @@
 "use client";
 
-type Variant = "lend" | "borrow";
+import { ArrowRight, Landmark, ShieldCheck } from "lucide-react";
 
-const COPY: Record<Variant, { title: string; lines: string[] }> = {
-  lend: {
-    title: "Supply any asset to earn yield",
-    lines: [
-      "Deposit USDC, EURC, or cirBTC — your balance earns interest automatically.",
-      "Supplied assets also count as collateral when you borrow on the Borrow page.",
-    ],
-  },
-  borrow: {
-    title: "Borrow USDC against your collateral",
-    lines: [
-      "Deposit EURC, cirBTC, or USDC as collateral in the panel below.",
-      "Borrow USDC — prices are sourced from Stork oracle in real time.",
-    ],
-  },
-};
+type Variant = "lend" | "borrow";
+const COPY = {
+  lend: { title: "Supply any asset to earn yield", lines: ["Deposit USDC, EURC, or cirBTC", "Earn interest automatically", "Use supplied assets as collateral"] },
+  borrow: { title: "Borrow with a visible safety margin", lines: ["Deposit collateral", "Review live Stork prices", "Borrow USDC from the pool"] },
+} satisfies Record<Variant, { title: string; lines: string[] }>;
 
 export default function ProtocolFlowHint({ variant }: { variant: Variant }) {
   const { title, lines } = COPY[variant];
-  const accent = variant === "lend"
-    ? "text-[#00F5FF] border-[#00F5FF]/20 bg-[#00F5FF]/5"
-    : "text-[#FF00C8] border-[#FF00C8]/20 bg-[#FF00C8]/5";
-
+  const Icon = variant === "lend" ? Landmark : ShieldCheck;
   return (
-    <div className={`rounded-xl border px-4 py-3 text-xs ${accent}`}>
-      <p className="font-bold text-white mb-1.5">{title}</p>
-      <ul className="space-y-1 text-[#8E9FB8] list-disc list-inside">
-        {lines.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
+    <div className="protocol-flow-card">
+      <span className="protocol-flow-icon"><Icon className="size-4" /></span>
+      <div className="min-w-0 flex-1"><p className="text-xs font-semibold text-[#d9dbe8]">{title}</p><div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-[#747d9a]">{lines.map((line, index) => <span key={line} className="flex items-center gap-2"><b className="font-medium">{line}</b>{index < lines.length - 1 && <ArrowRight className="size-3 text-[#5d6380]" />}</span>)}</div></div>
+      <span className="hidden rounded-full border border-[#A998FF]/15 bg-[#A998FF]/[0.06] px-3 py-1 text-[9px] uppercase tracking-wider text-[#9f90e6] sm:block">Wallet controlled</span>
     </div>
   );
 }

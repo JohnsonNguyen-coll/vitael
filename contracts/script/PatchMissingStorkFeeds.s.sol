@@ -14,7 +14,7 @@ contract PatchMissingStorkFeeds is Script {
         address oracleAddr = vm.envAddress("ORACLE");
         VitaelOracle oracle = VitaelOracle(oracleAddr);
 
-        vm.startBroadcast();
+        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
 
         MockV3Aggregator usdcMock = new MockV3Aggregator(8, 1e8); // $1.00
         MockV3Aggregator eurcMock = new MockV3Aggregator(8, 108_000_000); // ~$1.08

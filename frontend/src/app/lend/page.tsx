@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { useAccount } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
+import { formatUnits } from "viem";
 import WalletActionGate, { WalletConnectPrompt } from "../../components/WalletActionGate";
 import { formatUsd, formatTokenAmount } from "../../lib/format";
 import ProtocolFlowHint from "../../components/ProtocolFlowHint";
@@ -16,6 +17,14 @@ import {
   useLending, SUPPORTED_TOKENS, TOKEN_SYMBOLS,
   type TokenSymbol, type AssetMarketInfo, type UserPosition,
 } from "../../hooks/useLending";
+
+const ERC20_BALANCE_ABI = [{
+  type: "function",
+  name: "balanceOf",
+  stateMutability: "view",
+  inputs: [{ name: "account", type: "address" }],
+  outputs: [{ type: "uint256" }],
+}] as const;
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEP_LABELS: Record<string, string> = {
@@ -41,8 +50,8 @@ function fmtLiquidity(val: string, symbol: string): string {
 
 function apyColor(apy: number) {
   if (apy > 5) return "text-emerald-400";
-  if (apy > 2) return "text-[#00F5FF]";
-  return "text-[#8E9FB8]";
+  if (apy > 2) return "text-[#A998FF]";
+  return "text-[#8991AF]";
 }
 
 function StatCard({ label, value, sub, accent = false, loading = false }: {
@@ -50,10 +59,10 @@ function StatCard({ label, value, sub, accent = false, loading = false }: {
 }) {
   return (
     <div className="glass-panel rounded-2xl p-5">
-      <p className="text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-wider text-[#8991AF] mb-2">{label}</p>
       {loading
         ? <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
-        : <p suppressHydrationWarning className={`text-2xl font-extrabold ${accent ? "text-[#00F5FF]" : "text-white"}`}>{value}</p>
+        : <p suppressHydrationWarning className={`text-2xl font-extrabold ${accent ? "text-[#A998FF]" : "text-white"}`}>{value}</p>
       }
       {sub && !loading && <p className="text-xs text-emerald-400 mt-1">{sub}</p>}
     </div>
@@ -73,6 +82,28 @@ export default function LendPage() {
   const [selectedSymbol, setSelectedSymbol] = useState<TokenSymbol>("USDC");
   const [subTab, setSubTab]   = useState<"supply" | "withdraw">("supply");
   const [amount, setAmount]   = useState("");
+  const selectedToken = SUPPORTED_TOKENS[selectedSymbol];
+
+  // Wallet balance must remain independent from pool/oracle position reads.
+  const {
+    data: walletBalanceRaw,
+    isLoading: walletBalanceLoading,
+    isError: walletBalanceError,
+    refetch: refetchWalletBalance,
+  } = useReadContract({
+    address: selectedToken.address,
+    abi: ERC20_BALANCE_ABI,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    chainId: 5042002,
+    query: {
+      enabled: isConnected && !!address,
+      retry: 4,
+      retryDelay: attempt => Math.min(750 * 2 ** attempt, 6_000),
+      staleTime: 10_000,
+      refetchOnWindowFocus: false,
+    },
+  });
 
   // Load markets on mount
   useEffect(() => {
@@ -122,16 +153,23 @@ export default function LendPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.step]);
 
+  useEffect(() => {
+    if (state.step === "done") void refetchWalletBalance();
+  }, [state.step, refetchWalletBalance]);
+
   const selectedMarket = markets.find(m => m.symbol === selectedSymbol);
-  const selectedToken  = SUPPORTED_TOKENS[selectedSymbol];
   const userAsset      = position?.assets.find(a => a.symbol === selectedSymbol);
+  const directWalletBalance = walletBalanceRaw === undefined
+    ? undefined
+    : formatUnits(walletBalanceRaw, selectedToken.decimals);
+  const walletBalance = directWalletBalance ?? userAsset?.walletBalance ?? "0";
 
   const num     = parseFloat(amount) || 0;
   const monthly = selectedMarket ? (num * (selectedMarket.supplyApyPct / 100)) / 12 : 0;
   const busy    = state.busy;
 
   // Balance validation
-  const walletBal = parseFloat(userAsset?.walletBalance ?? "0");
+  const walletBal = parseFloat(walletBalance);
   const supplyBal = parseFloat(userAsset?.supplyBalance ?? "0");
   const maxBal = subTab === "supply" ? walletBal : supplyBal;
   const insufficientBalance = num > maxBal;
@@ -168,15 +206,15 @@ export default function LendPage() {
 
   return (
     <PageLayout variant="app">
-      <main className="relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-8">
+      <main className="app-page relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-8">
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <span className="text-xs uppercase tracking-widest text-[#00F5FF] font-bold mb-2 block">
+          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">
             Arc Testnet · Vitael Protocol
           </span>
-          <h1 className="text-4xl font-extrabold text-white">Lend</h1>
-          <p className="text-[#8E9FB8] mt-2 text-sm">
+          <h1 className="app-page-title text-5xl text-white">Lend</h1>
+          <p className="text-[#8991AF] mt-2 text-sm">
             Supply USDC, EURC, or cirBTC to earn yield. Use any asset as collateral to borrow others.
           </p>
         </motion.div>
@@ -227,7 +265,7 @@ export default function LendPage() {
             <div className="lg:col-span-2 glass-panel rounded-3xl overflow-hidden flex flex-col">
               <div className="px-6 py-5 border-b border-white/5">
                 <h2 className="font-bold text-white">Supply markets</h2>
-                <p className="text-xs text-[#8E9FB8] mt-0.5">
+                <p className="text-xs text-[#8991AF] mt-0.5">
                   All 3 assets can be supplied to earn yield and used as collateral
                 </p>
               </div>
@@ -235,9 +273,9 @@ export default function LendPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="border-b border-white/5 text-xs uppercase tracking-wider text-[#8E9FB8]">
+                    <tr className="border-b border-white/5 text-xs uppercase tracking-wider text-[#8991AF]">
                       <th className="py-3 px-5">Asset</th>
-                      <th className="py-3 px-5 text-[#00F5FF]">Supply APY</th>
+                      <th className="py-3 px-5 text-[#A998FF]">Supply APY</th>
                       <th className="py-3 px-5">Borrow APY</th>
                       <th className="py-3 px-5">Utilization</th>
                       <th className="py-3 px-5">Liquidity</th>
@@ -255,7 +293,7 @@ export default function LendPage() {
                           onClick={() => setSelectedSymbol(sym)}
                           whileHover={{ backgroundColor: "rgba(255,255,255,0.03)" }}
                           className={`border-b border-white/5 cursor-pointer transition ${
-                            isSelected ? "bg-[#00F5FF]/5" : ""
+                            isSelected ? "bg-[#A998FF]/5" : ""
                           }`}
                         >
                           <td className="py-4 px-5">
@@ -263,7 +301,7 @@ export default function LendPage() {
                               <TokenIcon symbol={sym} size={34} />
                               <div>
                                 <p className="font-bold text-white text-sm">{sym}</p>
-                                <p className="text-xs text-[#8E9FB8]">{tok.name}</p>
+                                <p className="text-xs text-[#8991AF]">{tok.name}</p>
                               </div>
                             </div>
                           </td>
@@ -275,7 +313,7 @@ export default function LendPage() {
                                 </span>
                             }
                           </td>
-                          <td className="py-4 px-5 text-[#FF00C8] font-semibold text-sm">
+                          <td className="py-4 px-5 text-[#7EE2B7] font-semibold text-sm">
                             {marketsLoading
                               ? <div className="h-4 w-12 bg-white/5 rounded animate-pulse" />
                               : m ? `${m.borrowApyPct.toFixed(2)}%` : "—"
@@ -288,18 +326,18 @@ export default function LendPage() {
                                 <div className="flex items-center gap-2">
                                   <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
                                     <div
-                                      className="h-full bg-[#00F5FF] rounded-full"
+                                      className="h-full bg-[#A998FF] rounded-full"
                                       style={{ width: `${Math.min(m?.utilizationPct ?? 0, 100)}%` }}
                                     />
                                   </div>
-                                  <span className="text-[#8E9FB8] text-xs">
+                                  <span className="text-[#8991AF] text-xs">
                                     {m ? `${m.utilizationPct.toFixed(1)}%` : "—"}
                                   </span>
                                 </div>
                               )
                             }
                           </td>
-                          <td className="py-4 px-5 text-[#8E9FB8] text-sm">
+                          <td className="py-4 px-5 text-[#8991AF] text-sm">
                             {marketsLoading
                               ? <div className="h-4 w-16 bg-white/5 rounded animate-pulse" />
                               : fmtLiquidity(m?.liquidity ?? "0", sym)
@@ -317,11 +355,11 @@ export default function LendPage() {
 
               {/* My supplied positions */}
               <div className="px-6 py-5 border-t border-white/5">
-                <p className="text-xs uppercase tracking-wider text-[#00F5FF] font-bold mb-4">
+                <p className="text-xs uppercase tracking-wider text-[#A998FF] font-bold mb-4">
                   Your Supplied Positions
                 </p>
                 {!isConnected ? (
-                  <p className="text-xs text-[#8E9FB8]">Connect wallet to see your positions.</p>
+                  <p className="text-xs text-[#8991AF]">Connect wallet to see your positions.</p>
                 ) : posLoading ? (
                   <div className="space-y-2">
                     {[0, 1, 2].map(i => (
@@ -340,7 +378,7 @@ export default function LendPage() {
                               <TokenIcon symbol={a.symbol} size={28} />
                               <div>
                                 <p className="text-sm font-bold text-white">{a.symbol}</p>
-                                <p className="text-xs text-[#8E9FB8]">
+                                <p className="text-xs text-[#8991AF]">
                                   {formatTokenAmount(a.supplyBalance, { min: 2, max: 3 })} {a.symbol}
                                 </p>
                               </div>
@@ -349,7 +387,7 @@ export default function LendPage() {
                               <p className={`text-xs font-semibold ${apyColor(m?.supplyApyPct ?? 0)}`}>
                                 {m ? `${m.supplyApyPct.toFixed(2)}% APY` : "—"}
                               </p>
-                              <p className="text-xs text-[#8E9FB8]">
+                              <p className="text-xs text-[#8991AF]">
                                 Rate: {m?.exchangeRate ?? "—"}
                               </p>
                             </div>
@@ -359,18 +397,18 @@ export default function LendPage() {
                     }
                   </div>
                 ) : (
-                  <p className="text-xs text-[#8E9FB8]">No supplied positions yet.</p>
+                  <p className="text-xs text-[#8991AF]">No supplied positions yet.</p>
                 )}
               </div>
 
               {/* Collateral hint */}
               <div className="px-6 py-4 border-t border-white/5 bg-white/[0.02]">
-                <p className="text-xs font-bold text-[#8E9FB8] uppercase tracking-wider mb-2">
+                <p className="text-xs font-bold text-[#8991AF] uppercase tracking-wider mb-2">
                   Want to borrow? Deposit collateral on the Borrow page
                 </p>
                 <Link
                   href="/borrow"
-                  className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#FF00C8] border border-[#FF00C8]/30 rounded-lg hover:bg-[#FF00C8]/10 transition"
+                  className="inline-flex items-center px-3 py-2 text-xs font-semibold text-[#7EE2B7] border border-[#7EE2B7]/30 rounded-lg hover:bg-[#7EE2B7]/10 transition"
                 >
                   Go to Borrow →
                 </Link>
@@ -379,8 +417,8 @@ export default function LendPage() {
 
 
             {/* ── Action panel ── */}
-            <div className="glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-[520px]">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#00F5FF]/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="app-action-panel glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col min-h-[520px]">
+              <div className="absolute -top-10 -right-10 w-40 h-40 bg-[#A998FF]/5 rounded-full blur-3xl pointer-events-none" />
 
               {/* Asset selector */}
               <div className="flex gap-2 mb-5">
@@ -390,8 +428,8 @@ export default function LendPage() {
                     onClick={() => { setSelectedSymbol(sym); reset(); setAmount(""); }}
                     className={`flex-1 flex flex-col items-center py-2 rounded-xl border text-xs font-bold transition ${
                       selectedSymbol === sym
-                        ? "border-[#00F5FF] bg-[#00F5FF]/10 text-white"
-                        : "border-white/10 text-[#8E9FB8] hover:border-white/30"
+                        ? "border-[#A998FF] bg-[#A998FF]/10 text-white"
+                        : "border-white/10 text-[#8991AF] hover:border-white/30"
                     }`}
                   >
                     <TokenIcon symbol={sym} size={22} />
@@ -407,7 +445,7 @@ export default function LendPage() {
                     key={t}
                     onClick={() => { setSubTab(t); reset(); setAmount(""); }}
                     className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition ${
-                      subTab === t ? "bg-white/8 text-white" : "text-[#8E9FB8] hover:text-white"
+                      subTab === t ? "bg-white/8 text-white" : "text-[#8991AF] hover:text-white"
                     }`}
                   >
                     {t === "supply"
@@ -443,7 +481,7 @@ export default function LendPage() {
 
                     {/* Amount input — always visible */}
                     <div className="mb-4">
-                      <label className="block text-xs uppercase tracking-wider text-[#8E9FB8] mb-2">
+                      <label className="block text-xs uppercase tracking-wider text-[#8991AF] mb-2">
                         Amount
                       </label>
                       <div className="relative">
@@ -464,25 +502,31 @@ export default function LendPage() {
                             const val = parseFloat(amount);
                             const maxBal = parseFloat(
                               subTab === "supply"
-                                ? userAsset?.walletBalance ?? "0"
+                                ? walletBalance
                                 : userAsset?.supplyBalance ?? "0"
                             );
                             if (val > maxBal) setAmount(maxBal.toString());
                           }}
                           disabled={busy || state.step === "done"}
-                          className="w-full bg-black/30 border border-white/5 focus:border-[#00F5FF] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
+                          className="w-full bg-black/30 border border-white/5 focus:border-[#A998FF] outline-none rounded-xl py-3 px-4 text-lg font-semibold text-white transition disabled:opacity-50"
                         />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#00F5FF] font-bold text-sm">
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#A998FF] font-bold text-sm">
                           {selectedSymbol}
                         </span>
                       </div>
-                      <div className="flex justify-between mt-1.5 text-xs text-[#8E9FB8]">
+                      <div className="flex justify-between mt-1.5 text-xs text-[#8991AF]">
                         {subTab === "supply" ? (
                           <>
-                            <span>Wallet: {formatTokenAmount(userAsset?.walletBalance ?? "0", { min: 2, max: 3 })} {selectedSymbol}</span>
+                            <span>
+                              Wallet: {walletBalanceLoading
+                                ? "Loading…"
+                                : walletBalanceError && directWalletBalance === undefined && !userAsset
+                                  ? "Unavailable"
+                                  : formatTokenAmount(walletBalance, { min: 2, max: 3 })} {selectedSymbol}
+                            </span>
                             <button
-                              className="text-[#00F5FF] hover:underline"
-                              onClick={() => setAmount(userAsset?.walletBalance ?? "0")}
+                              className="text-[#A998FF] hover:underline"
+                              onClick={() => setAmount(walletBalance)}
                             >
                               MAX
                             </button>
@@ -491,7 +535,7 @@ export default function LendPage() {
                           <>
                             <span>Supplied: {formatTokenAmount(userAsset?.supplyBalance ?? "0", { min: 2, max: 3 })} {selectedSymbol}</span>
                             <button
-                              className="text-[#00F5FF] hover:underline"
+                              className="text-[#A998FF] hover:underline"
                               onClick={() => setAmount(userAsset?.supplyBalance ?? "0")}
                             >
                               MAX
@@ -509,14 +553,14 @@ export default function LendPage() {
                     {/* Info box — always visible */}
                     <div className="bg-white/2 rounded-xl p-4 space-y-2.5 mb-5 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Supply APY</span>
+                        <span className="text-[#8991AF]">Supply APY</span>
                         <span className={`font-bold ${apyColor(selectedMarket?.supplyApyPct ?? 0)}`}>
                           {selectedMarket ? `${selectedMarket.supplyApyPct.toFixed(2)}%` : "—"}
                         </span>
                       </div>
                       {num > 0 && selectedMarket && (
                         <div className="flex justify-between">
-                          <span className="text-[#8E9FB8]">Est. monthly yield</span>
+                          <span className="text-[#8991AF]">Est. monthly yield</span>
                           <span className="text-emerald-400 font-semibold">
                             +{selectedSymbol === "cirBTC"
                               ? `${(monthly * 1e8).toFixed(0)} sat`
@@ -526,7 +570,7 @@ export default function LendPage() {
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Exchange rate</span>
+                        <span className="text-[#8991AF]">Exchange rate</span>
                         <span className="text-white">
                           {selectedMarket?.exchangeRate
                             ? `${selectedMarket.exchangeRate} ${selectedSymbol}/share`
@@ -535,11 +579,11 @@ export default function LendPage() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Max LTV</span>
+                        <span className="text-[#8991AF]">Max LTV</span>
                         <span className="text-white">{selectedToken.ltv}%</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-[#8E9FB8]">Liq. threshold</span>
+                        <span className="text-[#8991AF]">Liq. threshold</span>
                         <span className="text-white">{selectedToken.liquidationThreshold}%</span>
                       </div>
                       {selectedMarket && (selectedMarket.supplyApyPct ?? 0) < 0.5 && (
@@ -555,11 +599,11 @@ export default function LendPage() {
                       <button
                         onClick={execute}
                         disabled={busy || !amount || num <= 0 || insufficientBalance}
-                        className="w-full bg-[#00F5FF] text-[#0A1428] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2"
+                        className="app-button app-button-primary w-full bg-[#A998FF] text-[#0D0E1E] font-bold py-3.5 rounded-xl hover:bg-white transition disabled:opacity-40 flex items-center justify-center gap-2"
                       >
                         {busy ? (
                           <>
-                            <div className="w-5 h-5 border-2 border-[#0A1428]/30 border-t-[#0A1428] rounded-full animate-spin" />
+                            <div className="w-5 h-5 border-2 border-[#0D0E1E]/30 border-t-[#0D0E1E] rounded-full animate-spin" />
                             Processing...
                           </>
                         ) : (

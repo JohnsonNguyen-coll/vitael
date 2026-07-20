@@ -229,14 +229,14 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
     if (!toastStatus) return null;
 
     return (
-      <div className="fixed top-6 right-6 z-[100] min-w-[340px] max-w-[400px] bg-[#0A1428] border border-white/10 rounded-2xl p-5 shadow-2xl animate-in slide-in-from-right fade-in duration-300">
+      <div className="fixed top-6 right-6 z-[100] min-w-[340px] max-w-[400px] bg-[#0D0E1E] border border-white/10 rounded-2xl p-5 shadow-2xl animate-in slide-in-from-right fade-in duration-300">
         <button onClick={() => setIsToastClosed(true)} className="absolute top-4 right-4 text-white/50 hover:text-white">
           <X className="w-4 h-4" />
         </button>
 
         {toastStatus === 'signing' && (
           <div className="flex items-start gap-3">
-            <Loader2 className="w-5 h-5 text-[#00F5FF] animate-spin mt-0.5" />
+            <Loader2 className="w-5 h-5 text-[#A998FF] animate-spin mt-0.5" />
             <div>
               <h4 className="font-bold text-white mb-1">Signing Transaction</h4>
               <p className="text-sm text-white/60">Requesting wallet signature...</p>
@@ -246,7 +246,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
 
         {toastStatus === 'confirming' && (
           <div className="flex items-start gap-3">
-            <Loader2 className="w-5 h-5 text-[#00F5FF] animate-spin mt-0.5" />
+            <Loader2 className="w-5 h-5 text-[#A998FF] animate-spin mt-0.5" />
             <div className="w-full pr-4">
               <h4 className="font-bold text-white mb-1">Confirming on Blockchain</h4>
               <p className="text-sm text-white/60 mb-3">Waiting for blockchain confirmation...</p>
@@ -270,7 +270,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
   if (isSuccess) {
     return (
       <div className="flex w-full justify-start mt-2 mb-4">
-        <div className="bg-[#0A1428] border border-white/10 rounded-2xl p-5 shadow-xl w-full max-w-md">
+        <div className="bg-[#0D0E1E] border border-white/10 rounded-2xl p-5 shadow-xl w-full max-w-md">
           <div className="flex items-start gap-3">
             <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
               <CheckCircle className="w-4 h-4 text-green-500" />

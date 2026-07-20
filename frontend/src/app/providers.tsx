@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, http } from "wagmi";
 import { RainbowKitProvider, darkTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { type Chain, sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from "viem/chains";
+import { arcTransport } from "../lib/arcTransport";
 import "@rainbow-me/rainbowkit/styles.css";
 
 // Arc Testnet chain definition
@@ -33,7 +34,7 @@ const config = getDefaultConfig({
     optimismSepolia,
   ],
   transports: {
-    [arcTestnet.id]:         http("https://rpc.testnet.arc.network"),
+    [arcTestnet.id]:         arcTransport(),
     [sepolia.id]:            http("https://rpc2.sepolia.org"),
     [arbitrumSepolia.id]:    http("https://sepolia-rollup.arbitrum.io/rpc"),
     [baseSepolia.id]:        http("https://sepolia.base.org"),
@@ -53,8 +54,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <RainbowKitProvider
           locale="en-US"
           theme={darkTheme({
-            accentColor: "#00F5FF",
-            accentColorForeground: "#0A1428",
+            accentColor: "#A998FF",
+            accentColorForeground: "#0D0E1E",
             borderRadius: "large",
             overlayBlur: "small",
           })}

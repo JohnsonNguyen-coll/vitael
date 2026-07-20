@@ -40,7 +40,7 @@ const LENDING_POOL_ABI = parseAbi([
 ]);
 
 const COLORS = ["#2775CA", "#1C3A66", "#F7931A"]; // USDC, EURC, cirBTC
-const BORROW_COLORS = ["#FF00C8", "#9D00FF", "#FF5500"]; // USDC, EURC, cirBTC
+const BORROW_COLORS = ["#7EE2B7", "#9D00FF", "#FF5500"]; // USDC, EURC, cirBTC
 
 type HistoryEvent = {
   id: string;
@@ -240,16 +240,16 @@ export default function ProfilePage() {
 
         let allEvents: HistoryEvent[] = [
           ...suppliedLogs.map((l) =>
-            processLog(l, "Supply", ArrowUpFromLine, "text-[#00F5FF]"),
+            processLog(l, "Supply", ArrowUpFromLine, "text-[#A998FF]"),
           ),
           ...withdrawnLogs.map((l) =>
-            processLog(l, "Withdraw", ArrowDownToLine, "text-[#FF00C8]"),
+            processLog(l, "Withdraw", ArrowDownToLine, "text-[#7EE2B7]"),
           ),
           ...borrowedLogs.map((l) =>
             processLog(l, "Borrow", ArrowDownToLine, "text-[#F7931A]"),
           ),
           ...repaidLogs.map((l) =>
-            processLog(l, "Repay", ArrowUpFromLine, "text-[#00F5FF]"),
+            processLog(l, "Repay", ArrowUpFromLine, "text-[#A998FF]"),
           ),
         ];
 
@@ -272,11 +272,11 @@ export default function ProfilePage() {
     return (
       <PageLayout>
         <div className="flex flex-col items-center justify-center min-h-[70vh]">
-          <Wallet className="w-16 h-16 text-[#8E9FB8] mb-4 opacity-50" />
+          <Wallet className="w-16 h-16 text-[#8991AF] mb-4 opacity-50" />
           <h2 className="text-2xl font-bold text-white mb-2">
             Wallet Not Connected
           </h2>
-          <p className="text-[#8E9FB8]">
+          <p className="text-[#8991AF]">
             Please connect your wallet to view your profile.
           </p>
         </div>
@@ -347,7 +347,7 @@ export default function ProfilePage() {
 
   return (
     <PageLayout>
-      <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+      <main className="app-page max-w-7xl mx-auto px-4 py-10 space-y-8">
         {/* Header Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -356,23 +356,23 @@ export default function ProfilePage() {
           className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
         >
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-              <div className="p-2 bg-[#00F5FF]/10 rounded-xl">
-                <Wallet className="w-6 h-6 text-[#00F5FF]" />
+            <h1 className="app-page-title text-4xl text-white flex items-center gap-3">
+              <div className="p-2 bg-[#A998FF]/10 rounded-xl">
+                <Wallet className="w-6 h-6 text-[#A998FF]" />
               </div>
               Your Profile
             </h1>
-            <p className="text-[#8E9FB8] mt-2 font-mono text-sm bg-white/5 px-3 py-1.5 rounded-lg inline-block border border-white/5">
+            <p className="text-[#8991AF] mt-2 font-mono text-sm bg-white/5 px-3 py-1.5 rounded-lg inline-block border border-white/5">
               {address}
             </p>
           </div>
-          <div className="bg-[#1a222c] border border-white/5 rounded-2xl p-4 min-w-[200px] flex items-center justify-between gap-4">
+          <div className="glass-panel rounded-2xl p-4 min-w-[200px] flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-[#00F5FF]/10 rounded-full">
-                <ShieldCheck className="w-6 h-6 text-[#00F5FF]" />
+              <div className="p-3 bg-[#A998FF]/10 rounded-full">
+                <ShieldCheck className="w-6 h-6 text-[#A998FF]" />
               </div>
               <div>
-                <div className="text-xs text-[#8E9FB8] font-medium uppercase tracking-wider">
+                <div className="text-xs text-[#8991AF] font-medium uppercase tracking-wider">
                   Health Factor
                 </div>
                 <div className="text-2xl font-bold text-white">Safe</div>
@@ -390,15 +390,15 @@ export default function ProfilePage() {
             className="lg:col-span-4 space-y-6"
           >
             <h2 className="text-xl font-medium text-white flex items-center gap-3">
-              <Layers className="w-5 h-5 text-[#00F5FF]" />
+              <Layers className="w-5 h-5 text-[#A998FF]" />
               Your Assets
             </h2>
 
             <div className="flex flex-col gap-4">
               {/* USDC */}
               <div className="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-transparent p-[1px]">
-                <div className="absolute inset-0 bg-gradient-to-r from-[#00F5FF]/0 via-[#00F5FF]/10 to-[#00F5FF]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="bg-[#0f1419]/90 backdrop-blur-xl rounded-2xl p-5 flex items-center justify-between transition-colors">
+                <div className="absolute inset-0 bg-gradient-to-r from-[#A998FF]/0 via-[#A998FF]/10 to-[#A998FF]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="bg-[#070812]/90 backdrop-blur-xl rounded-2xl p-5 flex items-center justify-between transition-colors">
                   <div className="flex items-center gap-4 relative z-10">
                     <div className="w-12 h-12 rounded-full bg-[#2775CA]/10 border border-[#2775CA]/20 flex items-center justify-center p-2 shadow-[0_0_15px_rgba(39,117,202,0.2)]">
                       <img
@@ -412,7 +412,7 @@ export default function ProfilePage() {
                       <div className="font-bold text-white text-lg tracking-wide">
                         USDC
                       </div>
-                      <div className="text-sm text-[#8E9FB8]">
+                      <div className="text-sm text-[#8991AF]">
                         USD Coin / Gas
                       </div>
                     </div>
@@ -423,7 +423,7 @@ export default function ProfilePage() {
                         maximumFractionDigits: 2,
                       })}
                     </div>
-                    <div className="text-xs text-[#00F5FF] mt-1 tracking-wider">
+                    <div className="text-xs text-[#A998FF] mt-1 tracking-wider">
                       NATIVE
                     </div>
                   </div>
@@ -432,7 +432,7 @@ export default function ProfilePage() {
 
               {/* EURC */}
               <div className="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-transparent p-[1px]">
-                <div className="bg-[#0f1419]/90 backdrop-blur-xl rounded-2xl p-5 flex items-center justify-between transition-colors">
+                <div className="bg-[#070812]/90 backdrop-blur-xl rounded-2xl p-5 flex items-center justify-between transition-colors">
                   <div className="flex items-center gap-4 relative z-10">
                     <div className="w-12 h-12 rounded-full bg-[#1C3A66]/10 border border-[#1C3A66]/20 flex items-center justify-center p-2 shadow-[0_0_15px_rgba(28,58,102,0.2)]">
                       <img
@@ -446,7 +446,7 @@ export default function ProfilePage() {
                       <div className="font-bold text-white text-lg tracking-wide">
                         EURC
                       </div>
-                      <div className="text-sm text-[#8E9FB8]">Euro Coin</div>
+                      <div className="text-sm text-[#8991AF]">Euro Coin</div>
                     </div>
                   </div>
                   <div className="text-right relative z-10">
@@ -461,7 +461,7 @@ export default function ProfilePage() {
 
               {/* cirBTC */}
               <div className="relative group overflow-hidden rounded-2xl bg-gradient-to-b from-white/5 to-transparent p-[1px]">
-                <div className="bg-[#0f1419]/90 backdrop-blur-xl rounded-2xl p-5 flex items-center justify-between transition-colors">
+                <div className="bg-[#070812]/90 backdrop-blur-xl rounded-2xl p-5 flex items-center justify-between transition-colors">
                   <div className="flex items-center gap-4 relative z-10">
                     <div className="w-12 h-12 rounded-full bg-[#F7931A]/10 border border-[#F7931A]/20 flex items-center justify-center p-2 shadow-[0_0_15px_rgba(247,147,26,0.2)]">
                       <img
@@ -475,7 +475,7 @@ export default function ProfilePage() {
                       <div className="font-bold text-white text-lg tracking-wide">
                         cirBTC
                       </div>
-                      <div className="text-sm text-[#8E9FB8]">Circle BTC</div>
+                      <div className="text-sm text-[#8991AF]">Circle BTC</div>
                     </div>
                   </div>
                   <div className="text-right relative z-10">
@@ -498,17 +498,17 @@ export default function ProfilePage() {
             className="lg:col-span-8 space-y-8"
           >
             <h2 className="text-xl font-medium text-white flex items-center gap-3">
-              <PieChartIcon className="w-5 h-5 text-[#00F5FF]" />
+              <PieChartIcon className="w-5 h-5 text-[#A998FF]" />
               Lending Portfolio
             </h2>
 
             <div className="relative group overflow-hidden rounded-3xl bg-gradient-to-b from-white/5 to-transparent p-[1px]">
-              <div className="bg-[#0f1419]/90 backdrop-blur-xl rounded-3xl p-8 relative">
+              <div className="bg-[#070812]/90 backdrop-blur-xl rounded-3xl p-8 relative">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10 divide-y md:divide-y-0 md:divide-x divide-white/10">
                   {/* Supply Side */}
                   <div className="pt-4 md:pt-0">
                     <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-xs font-bold text-[#8E9FB8] uppercase tracking-wider">
+                      <h3 className="text-xs font-bold text-[#8991AF] uppercase tracking-wider">
                         Total Supplied
                       </h3>
                     </div>
@@ -544,7 +544,7 @@ export default function ProfilePage() {
                                 fontSize: "13px",
                               }}
                               itemStyle={{
-                                color: "#00F5FF",
+                                color: "#A998FF",
                                 fontWeight: "bold",
                               }}
                               formatter={(value: any) => [
@@ -564,7 +564,7 @@ export default function ProfilePage() {
                           </PieChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-[#8E9FB8]">
+                        <div className="h-full flex flex-col items-center justify-center text-[#8991AF]">
                           <PieChartIcon className="w-10 h-10 mb-3 opacity-20" />
                           <p className="text-sm">No Supplied Assets</p>
                         </div>
@@ -575,7 +575,7 @@ export default function ProfilePage() {
                   {/* Borrow Side */}
                   <div className="pt-8 md:pt-0 md:pl-8">
                     <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-xs font-bold text-[#8E9FB8] uppercase tracking-wider">
+                      <h3 className="text-xs font-bold text-[#8991AF] uppercase tracking-wider">
                         Total Borrowed
                       </h3>
                     </div>
@@ -613,7 +613,7 @@ export default function ProfilePage() {
                                 fontSize: "13px",
                               }}
                               itemStyle={{
-                                color: "#FF00C8",
+                                color: "#7EE2B7",
                                 fontWeight: "bold",
                               }}
                               formatter={(value: any) => [
@@ -633,7 +633,7 @@ export default function ProfilePage() {
                           </PieChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-[#8E9FB8]">
+                        <div className="h-full flex flex-col items-center justify-center text-[#8991AF]">
                           <PieChartIcon className="w-10 h-10 mb-3 opacity-20" />
                           <p className="text-sm">No Borrowed Assets</p>
                         </div>
@@ -654,20 +654,20 @@ export default function ProfilePage() {
           className="space-y-4"
         >
           <h2 className="text-xl font-medium text-white flex items-center gap-3 pt-4">
-            <Activity className="w-5 h-5 text-[#00F5FF]" />
+            <Activity className="w-5 h-5 text-[#A998FF]" />
             Recent Activity
           </h2>
           <div className="relative group overflow-hidden rounded-3xl bg-gradient-to-b from-white/5 to-transparent p-[1px]">
-            <div className="bg-[#0f1419]/90 backdrop-blur-xl rounded-3xl min-h-[200px] overflow-hidden">
+            <div className="bg-[#070812]/90 backdrop-blur-xl rounded-3xl min-h-[200px] overflow-hidden">
               {isLoadingHistory ? (
-                <div className="flex flex-col items-center justify-center p-16 text-[#8E9FB8]">
-                  <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#00F5FF]" />
+                <div className="flex flex-col items-center justify-center p-16 text-[#8991AF]">
+                  <Loader2 className="w-10 h-10 animate-spin mb-4 text-[#A998FF]" />
                   <p className="text-sm tracking-wide">
                     Scanning blockchain records...
                   </p>
                 </div>
               ) : history.length === 0 ? (
-                <div className="flex flex-col items-center justify-center p-16 text-[#8E9FB8] group-hover:text-white/70 transition-colors">
+                <div className="flex flex-col items-center justify-center p-16 text-[#8991AF] group-hover:text-white/70 transition-colors">
                   <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
                     <Activity className="w-8 h-8 opacity-40" />
                   </div>
@@ -692,7 +692,7 @@ export default function ProfilePage() {
                           <div className="font-bold text-white tracking-wide">
                             {tx.type} {tx.asset}
                           </div>
-                          <div className="text-xs text-[#8E9FB8] mt-1">
+                          <div className="text-xs text-[#8991AF] mt-1">
                             {tx.time}
                           </div>
                         </div>
@@ -705,7 +705,7 @@ export default function ProfilePage() {
                           href={`https://testnet.arcscan.app/tx/${tx.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs text-[#00F5FF] mt-1 font-medium hover:underline flex items-center justify-end gap-1"
+                          className="text-xs text-[#A998FF] mt-1 font-medium hover:underline flex items-center justify-end gap-1"
                         >
                           {tx.status} ↗
                         </a>
@@ -717,7 +717,7 @@ export default function ProfilePage() {
             </div>
           </div>
         </motion.div>
-      </div>
+      </main>
     </PageLayout>
   );
 }

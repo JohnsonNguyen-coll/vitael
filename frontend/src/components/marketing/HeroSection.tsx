@@ -1,5 +1,8 @@
+"use client";
+
 import { ArrowRight, Bot, Check, ChevronDown, Coins, Sparkles, TrendingUp } from "lucide-react";
 import { appHref } from "../../lib/marketing";
+import TokenIcon from "../TokenIcon";
 
 const StarField = () => (
   <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -32,14 +35,14 @@ export default function HeroSection() {
           </p>
           <div className="hero-reveal mt-8 flex flex-wrap items-center justify-center gap-3" style={{ animationDelay: "220ms" }}>
             <a href={appHref("/agent")} className="primary-cta">Start with Vitael <ArrowRight className="size-4" /></a>
-            <a href="#product" className="secondary-cta">Explore the protocol <ChevronDown className="size-4" /></a>
+            <button type="button" onClick={() => document.getElementById("product")?.scrollIntoView({ behavior: "smooth" })} className="secondary-cta">Explore the protocol <ChevronDown className="size-4" /></button>
           </div>
         </div>
 
         <div className="cockpit-wrap hero-reveal mx-auto mt-20 max-w-6xl" style={{ animationDelay: "300ms" }}>
           <div className="cockpit-glow" />
           <div className="float-card rate-card">
-            <div className="flex items-center justify-between"><span className="mini-label">USDC market</span><span className="token-dot">$</span></div>
+            <div className="flex items-center justify-between"><span className="mini-label">USDC market</span><TokenIcon symbol="USDC" size={28} className="shadow-[0_0_18px_rgba(39,117,202,.35)]" /></div>
             <p className="mt-5 text-[11px] text-[#8f96b3]">Supply APY</p>
             <p className="marketing-display mt-1 text-4xl font-semibold tracking-[-0.04em]">6.84<span className="text-lg text-[#bca8ff]">%</span></p>
             <div className="mt-5 flex items-center gap-2 text-[11px] text-[#7ee7bd]"><TrendingUp className="size-3.5" /> +0.32% this week</div>
@@ -79,8 +82,8 @@ export default function HeroSection() {
               <div className="cockpit-cell hidden md:block">
                 <p className="mini-label">Live markets</p>
                 <div className="mt-6 space-y-2">
-                  {[["USDC", "6.84%", "#6878ff"], ["EURC", "4.20%", "#52d7b1"], ["cirBTC", "2.76%", "#ffaf62"]].map(([token, apy, color]) => (
-                    <div key={token} className="market-row"><span className="market-token" style={{ background: color }}>{token.slice(0, 1)}</span><span>{token}</span><b>{apy}</b></div>
+                  {[["USDC", "6.84%"], ["EURC", "4.20%"], ["cirBTC", "2.76%"]].map(([token, apy]) => (
+                    <div key={token} className="market-row"><TokenIcon symbol={token} size={26} /><span>{token}</span><b>{apy}</b></div>
                   ))}
                 </div>
                 <a href={appHref("/lend")} className="mt-8 flex items-center justify-center gap-2 rounded-xl border border-white/[0.08] py-3 text-xs font-semibold text-[#c4b5ff] transition hover:bg-white/[0.05]">View all markets <ArrowRight className="size-3" /></a>
