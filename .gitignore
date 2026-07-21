@@ -65,3 +65,6 @@ coverage/
 
 # Misc
 .turbo/
+
+# Local Supabase schema/configuration (intentionally private)
+supabase/
