@@ -16,7 +16,7 @@ export async function getMCPClient() {
   if (connecting) return connecting;
 
   connecting = (async () => {
-    const serverUrl = process.env.MCP_SERVER_URL;
+    const serverUrl = process.env.MCP_SERVER_URL?.trim();
     if (!serverUrl) {
       throw new Error("MCP_SERVER_URL is not defined in environment variables");
     }
@@ -27,7 +27,7 @@ export async function getMCPClient() {
     );
 
     if (serverUrl.startsWith("http")) {
-      const apiKey = process.env.MCP_API_KEY;
+      const apiKey = process.env.MCP_API_KEY?.trim();
       transport = new StreamableHTTPClientTransport(new URL(serverUrl), {
         requestInit: apiKey
           ? { headers: { Authorization: `Bearer ${apiKey}` } }
