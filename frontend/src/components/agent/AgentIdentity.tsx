@@ -5,7 +5,7 @@ type AgentMarkProps = {
   active?: boolean;
 };
 
-export function AgentMark({ compact = false, active = true }: AgentMarkProps) {
+export function AgentMark({ compact = false, active = false }: AgentMarkProps) {
   return (
     <span
       aria-hidden="true"

@@ -225,16 +225,13 @@ export function ChatWindow() {
             {messages.length === 0 ? (
               <div className="relative z-10 flex flex-1 flex-col items-center justify-center py-8 text-center sm:py-10">
                 <div className="mb-6 flex flex-col items-center gap-3">
-                  <AgentMark />
-                  <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.02em] text-[#9ba1b2]">
-                    <span className="size-1.5 rounded-full bg-[#72d7ad]" />
-                    Vitael Intelligence
-                  </div>
+                  <AgentMark active />
+                  <div className="text-[11px] font-semibold tracking-[0.02em] text-[#9ba1b2]">Vitael Intelligence</div>
                 </div>
                 <h1 className="mb-3 text-3xl font-semibold tracking-[-0.04em] text-[#f0f1f4] sm:text-4xl">How can I help?</h1>
                 <p className="mb-8 max-w-md text-sm leading-6 text-[#7f8699]">Review positions, compare markets or prepare an onchain action.</p>
                 <div className="grid w-full max-w-3xl grid-cols-1 gap-2.5 sm:grid-cols-2">
-                  {SUGGESTED_PROMPTS.map((prompt) => <button key={prompt} onClick={() => setLocalInput(prompt)} className="agent-prompt-card rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3.5 text-left text-sm font-medium text-white/80 hover:text-white">{prompt}</button>)}
+                  {SUGGESTED_PROMPTS.map((prompt) => <button key={prompt} onClick={() => setLocalInput(prompt)} className="agent-prompt-card flex items-center justify-center rounded-xl border border-white/[0.06] bg-black/20 px-4 py-3.5 text-center text-sm font-medium text-white/80 hover:text-white">{prompt}</button>)}
                 </div>
               </div>
             ) : (
