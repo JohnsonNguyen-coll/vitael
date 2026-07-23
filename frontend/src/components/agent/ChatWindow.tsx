@@ -48,6 +48,7 @@ export function ChatWindow() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -58,6 +59,7 @@ export function ChatWindow() {
     const timer = window.setTimeout(() => {
       setMessages([]);
       setActiveConversationId(null);
+      setHistoryError(null);
       if (!address) {
         setConversations([]);
         return;
@@ -65,7 +67,7 @@ export function ChatWindow() {
       setIsLoadingHistory(true);
       backendApi.conversations(address)
         .then(({ items }) => { if (active) setConversations(items); })
-        .catch((loadError) => console.error("Unable to load chat history", loadError))
+        .catch(() => { if (active) setHistoryError("History unavailable"); })
         .finally(() => { if (active) setIsLoadingHistory(false); });
     }, 0);
     return () => {
@@ -138,7 +140,7 @@ export function ChatWindow() {
         }
         await backendApi.appendMessage(conversationId, address, { role: "user", content: message.content });
       } catch (saveError) {
-        console.error("Unable to persist user message", saveError);
+        console.warn("Unable to persist user message", saveError);
       }
     }
 
@@ -166,7 +168,7 @@ export function ChatWindow() {
           role: "assistant",
           content: assistantMessage.content,
           parts: [{ type: "vitael_agent", toolInvocations: assistantMessage.toolInvocations, strategyExecution: assistantMessage.strategyExecution }],
-        }).catch((saveError) => console.error("Unable to persist assistant message", saveError));
+        }).catch((saveError) => console.warn("Unable to persist assistant message", saveError));
       }
     } catch (sendError) {
       if ((sendError as Error).name !== "AbortError") setError(sendError instanceof Error ? sendError : new Error("Unable to reach the Vitael agent."));
@@ -186,7 +188,7 @@ export function ChatWindow() {
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 bg-transparent">
-      <LeftSidebar conversations={conversations} activeId={activeConversationId} isLoading={isLoadingHistory} canPersist={Boolean(address)} onNew={newChat} onSelect={(conversation) => void selectConversation(conversation)} onDelete={(conversation) => void deleteConversation(conversation)} />
+      <LeftSidebar conversations={conversations} activeId={activeConversationId} isLoading={isLoadingHistory} historyError={historyError} canPersist={Boolean(address)} onNew={newChat} onSelect={(conversation) => void selectConversation(conversation)} onDelete={(conversation) => void deleteConversation(conversation)} />
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-8 bg-gradient-to-b from-[#0b0c12] to-transparent" />
         <div ref={scrollContainerRef} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10">

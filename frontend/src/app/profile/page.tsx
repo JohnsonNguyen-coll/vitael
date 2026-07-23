@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useSyncExternalStore } from "react";
 import {
   useAccount,
-  useBalance,
   useReadContracts,
 } from "wagmi";
 import { erc20Abi, formatUnits, parseAbi } from "viem";
@@ -18,13 +17,13 @@ import {
 import { motion } from "framer-motion";
 import {
   Wallet,
-  ShieldCheck,
   Layers,
   PieChart as PieChartIcon,
   Activity,
   ArrowUpFromLine,
   ArrowDownToLine,
   Loader2,
+  type LucideIcon,
 } from "lucide-react";
 import PageLayout from "@/components/PageLayout";
 import { backendApi, BackendApiError, type Profile } from "@/lib/backendApi";
@@ -49,7 +48,7 @@ type HistoryEvent = {
   amount: string;
   status: string;
   time: string;
-  icon: any;
+  icon: LucideIcon;
   color: string;
   blockNumber: number;
   transactionHash: string;
@@ -57,17 +56,17 @@ type HistoryEvent = {
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [profile, setProfile] = useState<Profile | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // Fetch Native Token Balance (USDC for Arc Testnet)
-  const { data: ethBalance } = useBalance({ address, chainId: 5042002 });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch ERC20 Balances & Lending Positions
   const { data: contractData } = useReadContracts({
@@ -152,10 +151,54 @@ export default function ProfilePage() {
         }
         throw error;
       })
-      .then(({ profile: nextProfile }) => { if (active) setProfile(nextProfile); })
-      .catch((error) => console.error("Failed to load profile:", error));
+      .then(({ profile: nextProfile }) => {
+        if (!active) return;
+        setProfile(nextProfile);
+        setDisplayName(nextProfile.display_name ?? "");
+        setBio(nextProfile.bio ?? "");
+      })
+      .catch((error) => console.warn("Failed to load profile:", error));
     return () => { active = false; };
   }, [address]);
+
+  const saveProfile = async () => {
+    if (!address || isSavingProfile) return;
+    setIsSavingProfile(true);
+    setProfileMessage(null);
+    try {
+      const { profile: updated } = await backendApi.updateProfile(address, {
+        displayName: displayName.trim() || null,
+        bio: bio.trim() || null,
+      });
+      setProfile((current) => ({ ...updated, avatar_url: current?.avatar_url ?? null }));
+      setIsEditingProfile(false);
+      setProfileMessage("Profile saved");
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : "Unable to save profile");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const uploadAvatar = async (file?: File) => {
+    if (!address || !file || isUploadingAvatar) return;
+    setProfileMessage(null);
+    if (!file.type.match(/^image\/(jpeg|png|webp)$/) || file.size > 2 * 1024 * 1024) {
+      setProfileMessage("Use a JPG, PNG or WebP image under 2 MB");
+      return;
+    }
+    setIsUploadingAvatar(true);
+    try {
+      const uploaded = await backendApi.uploadAvatar(address, file);
+      setProfile((current) => current ? { ...current, avatar_path: uploaded.avatarPath, avatar_url: uploaded.avatarUrl } : current);
+      setProfileMessage("Photo updated");
+    } catch (error) {
+      setProfileMessage(error instanceof Error ? error.message : "Unable to upload photo");
+    } finally {
+      setIsUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
 
   // Indexed history comes from the Railway API instead of scanning millions of RPC blocks.
   useEffect(() => {
@@ -210,7 +253,7 @@ export default function ProfilePage() {
           };
         }));
       } catch (error) {
-        console.error("Failed to fetch history:", error);
+        console.warn("Failed to fetch history:", error);
       } finally {
         setIsLoadingHistory(false);
       }
@@ -250,12 +293,6 @@ export default function ProfilePage() {
     contractData?.[2]?.result !== undefined
       ? Number(formatUnits(contractData[2].result as bigint, 8))
       : 0;
-  const nativeBal = ethBalance
-    ? Number(ethBalance.formatted).toLocaleString(undefined, {
-        maximumFractionDigits: 4,
-      })
-    : "0.0000";
-
   // Lending Positions (Calculate Approx USD Value: USDC=1, EURC=1.08, cirBTC=65000)
   const usdcSupply =
     contractData?.[3]?.result !== undefined
@@ -297,6 +334,16 @@ export default function ProfilePage() {
 
   const totalSupplyUSD = supplyData.reduce((acc, curr) => acc + curr.value, 0);
   const totalBorrowUSD = borrowData.reduce((acc, curr) => acc + curr.value, 0);
+  const profileInitials = (profile?.display_name || address || "V")
+    .replace(/^0x/, "")
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const memberSince = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })
+    : "Not synced";
 
   return (
     <PageLayout>
@@ -306,33 +353,74 @@ export default function ProfilePage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+          className="flex flex-col gap-2"
         >
-          <div>
-            <h1 className="app-page-title text-4xl text-white flex items-center gap-3">
-              <div className="p-2 bg-[#A998FF]/10 rounded-xl">
-                <Wallet className="w-6 h-6 text-[#A998FF]" />
-              </div>
-              {profile?.display_name || "Your Profile"}
-            </h1>
-            <p className="text-[#8991AF] mt-2 font-mono text-sm bg-white/5 px-3 py-1.5 rounded-lg inline-block border border-white/5">
-              {address}
-            </p>
-          </div>
-          <div className="glass-panel rounded-2xl p-4 min-w-[200px] flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-[#A998FF]/10 rounded-full">
-                <ShieldCheck className="w-6 h-6 text-[#A998FF]" />
-              </div>
-              <div>
-                <div className="text-xs text-[#8991AF] font-medium uppercase tracking-wider">
-                  Health Factor
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#777f98]">Account overview</span>
+          <h1 className="app-page-title text-4xl text-white">Profile</h1>
+        </motion.div>
+
+        <motion.section
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16 }}
+          className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0b0c15]/90"
+        >
+          <div className="grid gap-0 lg:grid-cols-[1.35fr_1fr]">
+            <div className="flex flex-col gap-6 border-b border-white/[0.07] p-6 sm:flex-row sm:items-start lg:border-b-0 lg:border-r lg:p-8">
+              <div className="relative shrink-0">
+                <div className="flex size-24 items-center justify-center overflow-hidden rounded-2xl border border-white/[0.1] bg-white/[0.05] text-2xl font-semibold text-[#d8d2ff]">
+                  {profile?.avatar_url ? <img src={profile.avatar_url} alt="Profile photo" className="size-full object-cover" /> : profileInitials}
                 </div>
-                <div className="text-2xl font-bold text-white">Safe</div>
+                <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => void uploadAvatar(event.target.files?.[0])} />
+                <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={isUploadingAvatar} className="mt-2 w-full text-center text-[11px] font-medium text-[#8991AF] transition hover:text-white disabled:opacity-50">
+                  {isUploadingAvatar ? "Uploading..." : "Change photo"}
+                </button>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                {isEditingProfile ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label htmlFor="profile-name" className="mb-1.5 block text-[11px] font-medium text-[#7f869d]">Display name</label>
+                      <input id="profile-name" value={displayName} maxLength={48} onChange={(event) => setDisplayName(event.target.value)} placeholder="How should Vitael address you?" className="w-full rounded-xl border border-white/[0.09] bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-[#4f566c] focus:border-white/[0.18]" />
+                    </div>
+                    <div>
+                      <div className="mb-1.5 flex items-center justify-between"><label htmlFor="profile-bio" className="text-[11px] font-medium text-[#7f869d]">Bio</label><span className="text-[10px] text-[#555d73]">{bio.length}/280</span></div>
+                      <textarea id="profile-bio" value={bio} maxLength={280} rows={3} onChange={(event) => setBio(event.target.value)} placeholder="Your DeFi focus, risk preference or investment goals." className="w-full resize-none rounded-xl border border-white/[0.09] bg-black/20 px-4 py-3 text-sm leading-6 text-white outline-none placeholder:text-[#4f566c] focus:border-white/[0.18]" />
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => void saveProfile()} disabled={isSavingProfile} className="rounded-lg bg-[#d8d2ff] px-4 py-2 text-xs font-semibold text-[#111219] hover:bg-white disabled:opacity-50">{isSavingProfile ? "Saving..." : "Save profile"}</button>
+                      <button type="button" onClick={() => { setDisplayName(profile?.display_name ?? ""); setBio(profile?.bio ?? ""); setIsEditingProfile(false); }} className="rounded-lg border border-white/[0.09] px-4 py-2 text-xs font-medium text-[#8991AF] hover:text-white">Cancel</button>
+                    </div>
+                    {profileMessage && <p className="text-xs text-[#a8afc0]">{profileMessage}</p>}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0"><h2 className="truncate text-2xl font-semibold tracking-[-0.03em] text-white">{profile?.display_name || "Unnamed wallet"}</h2><p className="mt-2 break-all font-mono text-xs text-[#707890]">{address}</p></div>
+                      <button type="button" onClick={() => setIsEditingProfile(true)} className="rounded-lg border border-white/[0.09] px-3 py-2 text-xs font-medium text-[#a2a8b8] transition hover:bg-white/[0.04] hover:text-white">Edit profile</button>
+                    </div>
+                    <p className="mt-5 max-w-xl text-sm leading-6 text-[#8b92a8]">{profile?.bio || "Add a short bio so your Vitael workspace reflects your DeFi goals and preferences."}</p>
+                    {profileMessage && <p className="mt-4 text-xs text-[#8bd7b7]">{profileMessage}</p>}
+                  </div>
+                )}
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-px bg-white/[0.06]">
+              {[
+                ["Network", "Arc Testnet"],
+                ["Member since", memberSince],
+                ["Total supplied", `$${totalSupplyUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}`],
+                ["Total borrowed", `$${totalBorrowUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}`],
+                ["Indexed activity", history.length.toString()],
+                ["Position", totalBorrowUSD > 0 ? "Active debt" : "No debt"],
+              ].map(([label, value]) => (
+                <div key={label} className="bg-[#0b0c15] p-5 sm:p-6"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#646c83]">{label}</p><p className="mt-2 text-sm font-semibold text-[#e1e3e9]">{value}</p></div>
+              ))}
+            </div>
           </div>
-        </motion.div>
+        </motion.section>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column: Balances */}
@@ -500,7 +588,7 @@ export default function ProfilePage() {
                                 color: "#A998FF",
                                 fontWeight: "bold",
                               }}
-                              formatter={(value: any) => [
+                              formatter={(value) => [
                                 `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
                                 "Value",
                               ]}
@@ -569,7 +657,7 @@ export default function ProfilePage() {
                                 color: "#7EE2B7",
                                 fontWeight: "bold",
                               }}
-                              formatter={(value: any) => [
+                              formatter={(value) => [
                                 `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
                                 "Value",
                               ]}

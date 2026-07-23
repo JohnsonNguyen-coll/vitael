@@ -8,6 +8,7 @@ type Props = {
   conversations: Conversation[];
   activeId: string | null;
   isLoading: boolean;
+  historyError: string | null;
   canPersist: boolean;
   onNew: () => void;
   onSelect: (conversation: Conversation) => void;
@@ -24,7 +25,7 @@ function groupLabel(date: string) {
   return "Earlier";
 }
 
-export function LeftSidebar({ conversations, activeId, isLoading, canPersist, onNew, onSelect, onDelete }: Props) {
+export function LeftSidebar({ conversations, activeId, isLoading, historyError, canPersist, onNew, onSelect, onDelete }: Props) {
   const [search, setSearch] = useState("");
   const groups = useMemo(() => {
     const filtered = conversations.filter((item) => item.title.toLowerCase().includes(search.toLowerCase()));
@@ -47,7 +48,7 @@ export function LeftSidebar({ conversations, activeId, isLoading, canPersist, on
         </div>
       </div>
       <div className="flex-1 overflow-y-auto px-2 pb-4">
-        {isLoading ? <div className="flex justify-center py-10"><Loader2 className="size-4 animate-spin text-[#A998FF]" /></div> : !canPersist ? <p className="px-3 py-5 text-xs leading-5 text-[#717995]">Connect your wallet to keep conversation history.</p> : groups.length === 0 ? <p className="px-3 py-5 text-xs text-[#717995]">No saved conversations yet.</p> : groups.map((group) => (
+        {isLoading ? <div className="flex justify-center py-10"><Loader2 className="size-4 animate-spin text-[#A998FF]" /></div> : historyError ? <p className="px-3 py-5 text-xs leading-5 text-[#717995]">History is temporarily offline. You can still use the agent.</p> : !canPersist ? <p className="px-3 py-5 text-xs leading-5 text-[#717995]">Connect your wallet to keep conversation history.</p> : groups.length === 0 ? <p className="px-3 py-5 text-xs text-[#717995]">No saved conversations yet.</p> : groups.map((group) => (
           <div key={group.label} className="mb-5">
             <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#5f6782]">{group.label}</p>
             {group.items.map((conversation) => (
