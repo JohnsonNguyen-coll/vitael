@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, CheckCircle2, Cog } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface ToolCallCardProps {
   toolName: string;
@@ -32,12 +32,8 @@ export function ToolCallCard({ toolName, state }: ToolCallCardProps) {
 
   return (
     <div className="flex w-full justify-start mb-4">
-      <div className="flex items-center space-x-3 bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-2 text-sm text-gray-400">
-        {state === 'call' ? (
-          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-        ) : (
-          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-        )}
+      <div className="flex items-center space-x-3 border-l border-white/15 px-3 py-1.5 text-xs text-[#7f8699]">
+        {state === 'call' && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9da3b4]" />}
         <span>{getActionText(toolName)}</span>
       </div>
     </div>

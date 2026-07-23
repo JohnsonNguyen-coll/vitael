@@ -67,8 +67,7 @@ body {
 .app-shell input[type=number]::-webkit-inner-spin-button,.app-shell input[type=number]::-webkit-outer-spin-button{appearance:none;margin:0}
 .app-shell table tbody tr { transition:background .22s ease,transform .22s ease; }
 .app-shell table tbody tr:hover { background:rgba(151,132,255,.045)!important; }
-.agent-mini-logo{display:grid;width:36px;height:36px;place-items:center;border:1px solid rgba(169,152,255,.18);border-radius:12px;color:#b5a6ff;background:rgba(138,119,255,.09);box-shadow:inset 0 1px rgba(255,255,255,.04),0 0 24px rgba(120,96,234,.12)}
-.agent-orb{position:relative;animation:agent-float 5s ease-in-out infinite}.agent-orb:before,.agent-orb:after{content:"";position:absolute;border:1px solid rgba(169,152,255,.12);border-radius:50%;inset:-10px;animation:agent-ring 8s linear infinite}.agent-orb:after{inset:-20px;opacity:.45;animation-direction:reverse;animation-duration:12s}.agent-prompt-card{position:relative;overflow:hidden;transition:transform .25s ease,border-color .25s ease,background .25s ease}.agent-prompt-card:after{content:"→";position:absolute;right:15px;color:#686f8b;transition:.25s}.agent-prompt-card:hover{transform:translateY(-3px);border-color:rgba(169,152,255,.2);background:rgba(139,120,255,.06)}.agent-prompt-card:hover:after{right:12px;color:#ac9aff}.agent-composer{box-shadow:0 16px 45px rgba(0,0,0,.3),inset 0 1px rgba(255,255,255,.03)}
+.agent-prompt-card{transition:border-color .2s ease,background .2s ease}.agent-prompt-card:hover{border-color:rgba(255,255,255,.13);background:rgba(255,255,255,.035)}.agent-composer{box-shadow:inset 0 1px rgba(255,255,255,.025)}
 .app-shell button:not(:disabled),.app-shell a { transition-duration:.22s; }
 .app-shell button:focus-visible,.app-shell a:focus-visible,.app-shell input:focus-visible,.app-shell textarea:focus-visible{outline:2px solid rgba(169,152,255,.65);outline-offset:2px}
 

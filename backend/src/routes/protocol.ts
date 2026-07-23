@@ -10,6 +10,14 @@ const historyQuerySchema = z.object({
 });
 
 export async function protocolRoutes(app: FastifyInstance) {
+  app.get("/protocol/indexer-status", async (_request, reply) => {
+    const { data, error } = await supabase.from("indexer_state")
+      .select("worker_key,chain_id,last_processed_block,last_processed_block_hash,status,error_message,updated_at")
+      .order("updated_at", { ascending: false });
+    if (error) return reply.code(503).send({ error: "Unable to load indexer status" });
+    return { workers: data };
+  });
+
   app.get("/protocol/stats", async (request, reply) => {
     const query = z.object({ chainId: z.coerce.number().int().positive().default(5042002) }).safeParse(request.query);
     if (!query.success) return reply.code(400).send({ error: "Invalid chain ID" });

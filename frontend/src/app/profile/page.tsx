@@ -5,9 +5,8 @@ import {
   useAccount,
   useBalance,
   useReadContracts,
-  usePublicClient,
 } from "wagmi";
-import { erc20Abi, formatUnits, parseAbi, parseAbiItem } from "viem";
+import { erc20Abi, formatUnits, parseAbi } from "viem";
 import {
   PieChart,
   Pie,
@@ -28,6 +27,7 @@ import {
   Loader2,
 } from "lucide-react";
 import PageLayout from "@/components/PageLayout";
+import { backendApi, BackendApiError, type Profile } from "@/lib/backendApi";
 
 const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC as `0x${string}`;
 const EURC_ADDRESS = process.env.NEXT_PUBLIC_EURC as `0x${string}`;
@@ -52,15 +52,15 @@ type HistoryEvent = {
   icon: any;
   color: string;
   blockNumber: number;
+  transactionHash: string;
 };
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
-  const publicClient = usePublicClient({ chainId: 5042002 });
-
   const [history, setHistory] = useState<HistoryEvent[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -142,70 +142,28 @@ export default function ProfilePage() {
     query: { enabled: !!address },
   });
 
-  // Fetch Real History via RPC Logs
   useEffect(() => {
-    if (!address || !publicClient) return;
+    if (!address) return;
+    let active = true;
+    backendApi.profile(address)
+      .catch(async (error) => {
+        if (error instanceof BackendApiError && error.status === 404) {
+          return backendApi.updateProfile(address, {});
+        }
+        throw error;
+      })
+      .then(({ profile: nextProfile }) => { if (active) setProfile(nextProfile); })
+      .catch((error) => console.error("Failed to load profile:", error));
+    return () => { active = false; };
+  }, [address]);
 
-    const fetchLogs = async () => {
+  // Indexed history comes from the Railway API instead of scanning millions of RPC blocks.
+  useEffect(() => {
+    if (!address) return;
+
+    const fetchHistory = async () => {
       setIsLoadingHistory(true);
       try {
-        const suppliedEvent = parseAbiItem(
-          "event Supplied(address indexed user, address indexed asset, uint256 amount, uint256 shares)",
-        );
-        const withdrawnEvent = parseAbiItem(
-          "event Withdrawn(address indexed user, address indexed asset, uint256 amount, uint256 shares)",
-        );
-        const borrowedEvent = parseAbiItem(
-          "event Borrowed(address indexed user, address indexed asset, uint256 amount)",
-        );
-        const repaidEvent = parseAbiItem(
-          "event Repaid(address indexed user, address indexed asset, uint256 amount)",
-        );
-
-        // We fetch from the deployment block of Vitael on Arc Testnet
-        const fromBlock = 44988028n;
-
-        // Note: Some RPCs might fail with block range too large. If this fails, we will catch it.
-        const [suppliedLogs, withdrawnLogs, borrowedLogs, repaidLogs] =
-          await Promise.all([
-            publicClient
-              .getLogs({
-                address: POOL_ADDRESS,
-                event: suppliedEvent,
-                args: { user: address },
-                fromBlock,
-                toBlock: "latest",
-              })
-              .catch(() => []),
-            publicClient
-              .getLogs({
-                address: POOL_ADDRESS,
-                event: withdrawnEvent,
-                args: { user: address },
-                fromBlock,
-                toBlock: "latest",
-              })
-              .catch(() => []),
-            publicClient
-              .getLogs({
-                address: POOL_ADDRESS,
-                event: borrowedEvent,
-                args: { user: address },
-                fromBlock,
-                toBlock: "latest",
-              })
-              .catch(() => []),
-            publicClient
-              .getLogs({
-                address: POOL_ADDRESS,
-                event: repaidEvent,
-                args: { user: address },
-                fromBlock,
-                toBlock: "latest",
-              })
-              .catch(() => []),
-          ]);
-
         const formatAsset = (addr: string) => {
           if (addr.toLowerCase() === USDC_ADDRESS.toLowerCase())
             return { name: "USDC", dec: 6 };
@@ -216,46 +174,41 @@ export default function ProfilePage() {
           return { name: "Unknown", dec: 18 };
         };
 
-        const processLog = (
-          log: any,
-          type: string,
-          icon: any,
-          color: string,
-        ) => {
-          const assetInfo = formatAsset(log.args.asset);
-          return {
-            id: log.transactionHash,
-            type,
-            asset: assetInfo.name,
-            amount: Number(
-              formatUnits(log.args.amount, assetInfo.dec),
-            ).toLocaleString(undefined, { maximumFractionDigits: 4 }),
-            status: "Completed",
-            time: `Block ${log.blockNumber}`,
-            icon,
-            color,
-            blockNumber: Number(log.blockNumber),
-          };
+        const actionMeta: Record<string, { label: string; icon: typeof ArrowUpFromLine; color: string }> = {
+          supply: { label: "Supply", icon: ArrowUpFromLine, color: "text-[#A998FF]" },
+          withdraw: { label: "Withdraw", icon: ArrowDownToLine, color: "text-[#7EE2B7]" },
+          deposit_collateral: { label: "Deposit collateral", icon: ArrowUpFromLine, color: "text-[#A998FF]" },
+          withdraw_collateral: { label: "Withdraw collateral", icon: ArrowDownToLine, color: "text-[#7EE2B7]" },
+          borrow: { label: "Borrow", icon: ArrowDownToLine, color: "text-[#F7931A]" },
+          repay: { label: "Repay", icon: ArrowUpFromLine, color: "text-[#7EE2B7]" },
+          liquidate: { label: "Liquidation", icon: ArrowDownToLine, color: "text-red-400" },
+          swap: { label: "Swap", icon: ArrowDownToLine, color: "text-[#A998FF]" },
+          add_liquidity: { label: "Add liquidity", icon: ArrowUpFromLine, color: "text-[#7EE2B7]" },
+          remove_liquidity: { label: "Remove liquidity", icon: ArrowDownToLine, color: "text-[#F7931A]" },
+          bridge: { label: "Bridge", icon: ArrowUpFromLine, color: "text-[#A998FF]" },
         };
-
-        let allEvents: HistoryEvent[] = [
-          ...suppliedLogs.map((l) =>
-            processLog(l, "Supply", ArrowUpFromLine, "text-[#A998FF]"),
-          ),
-          ...withdrawnLogs.map((l) =>
-            processLog(l, "Withdraw", ArrowDownToLine, "text-[#7EE2B7]"),
-          ),
-          ...borrowedLogs.map((l) =>
-            processLog(l, "Borrow", ArrowDownToLine, "text-[#F7931A]"),
-          ),
-          ...repaidLogs.map((l) =>
-            processLog(l, "Repay", ArrowUpFromLine, "text-[#A998FF]"),
-          ),
-        ];
-
-        // Sort by block number descending
-        allEvents.sort((a, b) => b.blockNumber - a.blockNumber);
-        setHistory(allEvents);
+        const { items } = await backendApi.transactions(address, 50);
+        setHistory(items.map((transaction) => {
+          const tokenAddress = transaction.token_in || transaction.token_out || "";
+          const assetInfo = formatAsset(tokenAddress);
+          const rawAmount = transaction.amount_in || transaction.amount_out || "0";
+          const decimals = transaction.amount_in !== null
+            ? transaction.amount_in_decimals ?? assetInfo.dec
+            : transaction.amount_out_decimals ?? assetInfo.dec;
+          const meta = actionMeta[transaction.action] ?? { label: transaction.action, icon: Activity, color: "text-[#8991AF]" };
+          return {
+            id: `${transaction.transaction_hash}-${transaction.log_index}`,
+            transactionHash: transaction.transaction_hash,
+            type: meta.label,
+            asset: assetInfo.name,
+            amount: Number(formatUnits(BigInt(rawAmount), decimals)).toLocaleString(undefined, { maximumFractionDigits: 4 }),
+            status: transaction.status === "confirmed" ? "Completed" : transaction.status,
+            time: new Date(transaction.block_timestamp).toLocaleString(),
+            icon: meta.icon,
+            color: meta.color,
+            blockNumber: Number(transaction.block_number),
+          };
+        }));
       } catch (error) {
         console.error("Failed to fetch history:", error);
       } finally {
@@ -263,8 +216,8 @@ export default function ProfilePage() {
       }
     };
 
-    fetchLogs();
-  }, [address, publicClient]);
+    void fetchHistory();
+  }, [address]);
 
   if (!mounted) return null;
 
@@ -360,7 +313,7 @@ export default function ProfilePage() {
               <div className="p-2 bg-[#A998FF]/10 rounded-xl">
                 <Wallet className="w-6 h-6 text-[#A998FF]" />
               </div>
-              Your Profile
+              {profile?.display_name || "Your Profile"}
             </h1>
             <p className="text-[#8991AF] mt-2 font-mono text-sm bg-white/5 px-3 py-1.5 rounded-lg inline-block border border-white/5">
               {address}
@@ -702,7 +655,7 @@ export default function ProfilePage() {
                           {tx.amount}
                         </div>
                         <a
-                          href={`https://testnet.arcscan.app/tx/${tx.id}`}
+                          href={`https://testnet.arcscan.app/tx/${tx.transactionHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-[#A998FF] mt-1 font-medium hover:underline flex items-center justify-end gap-1"

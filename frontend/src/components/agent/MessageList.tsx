@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { type ChatMessage } from './ChatWindow';
 import { MessageBubble } from './MessageBubble';
 import { ToolCallCard } from './ToolCallCard';
@@ -49,7 +49,7 @@ export function MessageList({ messages, onStrategyStepSuccess }: MessageListProp
               // Ensure we received a valid tx payload before rendering
               if (unsignedTx && unsignedTx.to) {
                 return (
-                  <div key={toolCallId} className="pl-12">
+                  <div key={toolCallId}>
                     <TransactionPreviewCard 
                       toolName={toolName} 
                       args={toolInvocation.args} 

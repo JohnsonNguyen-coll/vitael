@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSendTransaction, useWaitForTransactionReceipt, useAccount, useReadContract, useWriteContract, usePublicClient, useSwitchChain, useConfig } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
 import { erc20Abi, maxUint256 } from 'viem';
-import { Loader2, ArrowRight, ShieldCheck, CheckCircle, Unlock, Copy, ExternalLink, X } from 'lucide-react';
+import { Loader2, Copy, ExternalLink, X } from 'lucide-react';
 
 interface TransactionPreviewCardProps {
   toolName: string;
@@ -236,7 +236,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
 
         {toastStatus === 'signing' && (
           <div className="flex items-start gap-3">
-            <Loader2 className="w-5 h-5 text-[#A998FF] animate-spin mt-0.5" />
+             <Loader2 className="w-5 h-5 text-[#9da3b4] animate-spin mt-0.5" />
             <div>
               <h4 className="font-bold text-white mb-1">Signing Transaction</h4>
               <p className="text-sm text-white/60">Requesting wallet signature...</p>
@@ -246,7 +246,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
 
         {toastStatus === 'confirming' && (
           <div className="flex items-start gap-3">
-            <Loader2 className="w-5 h-5 text-[#A998FF] animate-spin mt-0.5" />
+             <Loader2 className="w-5 h-5 text-[#9da3b4] animate-spin mt-0.5" />
             <div className="w-full pr-4">
               <h4 className="font-bold text-white mb-1">Confirming on Blockchain</h4>
               <p className="text-sm text-white/60 mb-3">Waiting for blockchain confirmation...</p>
@@ -271,11 +271,8 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
     return (
       <div className="flex w-full justify-start mt-2 mb-4">
         <div className="bg-[#0D0E1E] border border-white/10 rounded-2xl p-5 shadow-xl w-full max-w-md">
-          <div className="flex items-start gap-3">
-            <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-            </div>
-            <div className="w-full">
+           <div className="flex items-start gap-3">
+             <div className="w-full">
               <h4 className="font-bold text-white mb-1">{title} Confirmed</h4>
               <p className="text-sm text-white/60 mb-3">{title} completed successfully!</p>
               
@@ -305,12 +302,9 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
   return (
     <div className="flex w-full justify-start mb-4 relative">
       {renderToast()}
-      <div className="w-full max-w-sm bg-zinc-900 border border-zinc-700/60 rounded-2xl p-5 shadow-xl">
+       <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#111219] p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-gray-100 flex items-center">
-            <ShieldCheck className="w-4 h-4 text-blue-500 mr-2" />
-            Sign {title}
-          </h3>
+           <h3 className="font-semibold text-gray-100">Review {title}</h3>
           <span className="text-xs font-mono bg-zinc-800 text-zinc-400 px-2 py-1 rounded">
             {args.chain || 'Unknown Network'}
           </span>
@@ -340,7 +334,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
           <button
             onClick={handleApprove}
             disabled={isApproving || isApproveMining}
-            className="w-full py-2.5 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-xl transition-colors flex items-center justify-center"
+             className="flex w-full items-center justify-center rounded-lg bg-[#d8d2ff] py-2.5 font-medium text-[#111219] transition-colors hover:bg-white disabled:bg-zinc-700 disabled:text-zinc-500"
           >
             {isApproving ? (
               <>
@@ -351,16 +345,14 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
                 <Loader2 className="w-4 h-4 animate-spin mr-2" /> Approving...
               </>
             ) : (
-              <>
-                Approve Token {approvalsNeeded.length > 1 ? `(${approvalIndex + 1}/${approvalsNeeded.length})` : ''} <Unlock className="w-4 h-4 ml-2" />
-              </>
+               <>Approve token {approvalsNeeded.length > 1 ? `(${approvalIndex + 1}/${approvalsNeeded.length})` : ''}</>
             )}
           </button>
         ) : (
           <button
             onClick={handleConfirm}
             disabled={isConfirming || isMining}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-medium rounded-xl transition-colors flex items-center justify-center"
+             className="flex w-full items-center justify-center rounded-lg bg-[#d8d2ff] py-2.5 font-medium text-[#111219] transition-colors hover:bg-white disabled:bg-zinc-700 disabled:text-zinc-500"
           >
             {isConfirming ? (
               <>
@@ -373,9 +365,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
                 Mining...
               </>
             ) : (
-              <>
-                Confirm {title} <ArrowRight className="w-4 h-4 ml-2" />
-              </>
+               <>Confirm {title}</>
             )}
           </button>
         )}

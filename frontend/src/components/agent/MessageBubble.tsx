@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Bot, Copy, CheckCircle2, RotateCw } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -23,18 +23,13 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
   return (
     <div className={`group flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
       
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-[#A998FF]/10 flex items-center justify-center border border-[#A998FF]/20 mr-4 shrink-0 mt-1 shadow-[0_0_15px_rgba(169,152,255,0.1)]">
-          <Bot className="w-4 h-4 text-[#A998FF]" />
-        </div>
-      )}
-
-      <div className={`flex flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[72%]' : 'max-w-[88%] items-start'}`}>
+      <div className={`flex flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[72%]' : 'max-w-[92%] items-start'}`}>
+        {!isUser && <span className="mb-2 text-[11px] font-medium text-[#737a8e]">Vitael</span>}
         <div
           className={`px-5 py-4 rounded-3xl ${
             isUser
-              ? 'bg-[#A998FF]/10 border border-[#A998FF]/20 text-white rounded-br-sm'
-              : 'bg-black/20 border border-white/5 text-gray-200'
+              ? 'bg-[#20212a] border border-white/[0.08] text-white rounded-br-md'
+              : 'bg-transparent border border-transparent text-[#d7d9e0] px-0'
           }`}
         >
           <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
@@ -54,7 +49,7 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
                       </SyntaxHighlighter>
                     </div>
                   ) : (
-                    <code className="bg-white/10 px-1.5 py-0.5 rounded-md text-[#A998FF] font-mono text-sm">
+                    <code className="bg-white/[0.07] px-1.5 py-0.5 rounded text-[#c9c3ed] font-mono text-sm">
                       {children}
                     </code>
                   )
@@ -67,7 +62,7 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
                   )
                 },
                 th(props) {
-                  return <th className="border-b border-white/10 bg-white/5 px-4 py-3 font-semibold text-[#A998FF]" {...props} />
+                  return <th className="border-b border-white/10 bg-white/5 px-4 py-3 font-semibold text-[#d5d7df]" {...props} />
                 },
                 td(props) {
                   return <td className="border-b border-white/5 px-4 py-3 text-gray-300 last:border-b-0" {...props} />
@@ -84,16 +79,10 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
           <div className="flex items-center space-x-2 mt-2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <button 
               onClick={handleCopy}
-              className="text-[#8991AF] hover:text-[#A998FF] transition-colors p-1"
+              className="p-1 text-[#71788c] transition-colors hover:text-white"
               title="Copy message"
             >
-              {copied ? <CheckCircle2 className="w-4 h-4 text-[#A998FF]" /> : <Copy className="w-4 h-4" />}
-            </button>
-            <button 
-              className="text-[#8991AF] hover:text-[#A998FF] transition-colors p-1"
-              title="Regenerate"
-            >
-              <RotateCw className="w-4 h-4" />
+              {copied ? <Check className="w-3.5 h-3.5 text-[#8bd7b7]" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
           </div>
         )}

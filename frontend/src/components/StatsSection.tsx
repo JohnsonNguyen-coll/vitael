@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { useLending } from "../hooks/useLending";
 
 import { formatUsd } from "../lib/format";
+import { backendApi } from "../lib/backendApi";
 
 function fmtUsd(value: string): string {
   return formatUsd(parseFloat(value));
@@ -17,11 +18,15 @@ export default function StatsSection() {
   const [supplyApy, setSupplyApy] = useState<number | null>(null);
 
   const load = useCallback(async () => {
-    const stats = await getProtocolStats();
-    if (!stats) return;
-    setTvl(stats.totalSuppliedUsdc);
-    setBorrowed(stats.totalBorrowedUsdc);
-    setSupplyApy(stats.supplyApyPct);
+    const [indexed, live] = await Promise.all([
+      backendApi.protocolStats().catch(() => ({ stats: null })),
+      getProtocolStats(),
+    ]);
+    if (indexed.stats) {
+      setTvl(indexed.stats.tvl_usd);
+      setBorrowed(indexed.stats.total_borrowed_usd);
+    }
+    if (live) setSupplyApy(live.supplyApyPct);
   }, [getProtocolStats]);
 
   useEffect(() => {
