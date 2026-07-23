@@ -119,7 +119,107 @@ export const LENDING_POOL_ABI = [
     ],
     stateMutability: "view",
     type: "function",
+  },
+  {
+    inputs: [],
+    name: "getSupportedAssets",
+    outputs: [{ name: "", type: "address[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "asset", type: "address" }],
+    name: "getSupplyRate",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "asset", type: "address" }],
+    name: "getBorrowRate",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "asset", type: "address" }],
+    name: "getUtilization",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "asset", type: "address" }],
+    name: "exchangeRate",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "", type: "address" }],
+    name: "assetStates",
+    outputs: [
+      { name: "totalBorrowed", type: "uint256" },
+      { name: "totalReserves", type: "uint256" },
+      { name: "borrowIndex", type: "uint256" },
+      { name: "lastAccruedTime", type: "uint256" },
+      { name: "totalShares", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
   }
+] as const;
+
+export const FACTORY_ABI = [
+  {
+    inputs: [],
+    name: "allPairsLength",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "", type: "uint256" }],
+    name: "allPairs",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "", type: "address" }, { name: "", type: "address" }],
+    name: "getPair",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const PAIR_ABI = [
+  {
+    inputs: [],
+    name: "token0",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "token1",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getReserves",
+    outputs: [
+      { name: "reserve0", type: "uint112" },
+      { name: "reserve1", type: "uint112" },
+      { name: "blockTimestampLast", type: "uint32" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export const ROUTER_ABI = [
@@ -192,10 +292,14 @@ export const BRIDGE_ABI = [
       { name: "amount", type: "uint256" },
       { name: "destinationDomain", type: "uint32" },
       { name: "mintRecipient", type: "bytes32" },
-      { name: "burnToken", type: "address" }
+      { name: "burnToken", type: "address" },
+      { name: "destinationCaller", type: "bytes32" },
+      { name: "maxFee", type: "uint256" },
+      { name: "minFinalityThreshold", type: "uint32" },
+      { name: "hookData", type: "bytes" },
     ],
-    name: "depositForBurn",
-    outputs: [{ name: "nonce", type: "uint64" }],
+    name: "depositForBurnWithHook",
+    outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   }

@@ -18,6 +18,16 @@ export const BorrowSchema = z.object({ chain: chainEnum, asset: z.string(), amou
 export const RepaySchema = z.object({ chain: chainEnum, asset: z.string(), amount: z.string(), onBehalfOf: z.string() });
 
 export const SwapSchema = z.object({ chain: chainEnum, amountIn: z.string(), amountOutMin: z.string(), path: z.array(z.string()), to: z.string(), deadline: z.string() });
-export const BridgeSchema = z.object({ chain: chainEnum, amount: z.string(), destinationDomain: z.number(), mintRecipient: z.string(), burnToken: z.string() });
+export const BridgeSchema = z.object({
+  chain: chainEnum,
+  amount: z.string(),
+  destinationDomain: z.number().int().nonnegative(),
+  mintRecipient: z.string(),
+  burnToken: z.string(),
+  destinationCaller: z.string().optional(),
+  maxFee: z.string().default("0"),
+  minFinalityThreshold: z.number().int().default(2000),
+  hookData: z.string().default("0x"),
+});
 export const AddLiquiditySchema = z.object({ chain: chainEnum, tokenA: z.string(), tokenB: z.string(), amountA: z.string(), amountB: z.string(), to: z.string(), deadline: z.string() });
 export const RemoveLiquiditySchema = z.object({ chain: chainEnum, tokenA: z.string(), tokenB: z.string(), liquidity: z.string(), to: z.string(), deadline: z.string() });

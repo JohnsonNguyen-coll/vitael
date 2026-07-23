@@ -1,4 +1,4 @@
-import { createPublicClient, http, defineChain } from 'viem';
+import { createPublicClient, fallback, http, defineChain } from 'viem';
 import { sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from 'viem/chains';
 
 // Define Arc Testnet as it might not be in viem/chains natively
@@ -29,7 +29,16 @@ const chains = {
 
 export type SupportedChain = keyof typeof chains;
 
-// Map chain names to their alchemy network names
+const rpcEnvKeys: Record<SupportedChain, string> = {
+  sepolia: 'RPC_SEPOLIA',
+  arbitrumSepolia: 'RPC_ARBITRUM_SEPOLIA',
+  baseSepolia: 'RPC_BASE_SEPOLIA',
+  polygonAmoy: 'RPC_POLYGON_AMOY',
+  avalancheFuji: 'RPC_AVALANCHE_FUJI',
+  optimismSepolia: 'RPC_OPTIMISM_SEPOLIA',
+  arcTestnet: 'RPC_ARC_TESTNET',
+};
+
 const alchemyNetworkNames: Partial<Record<SupportedChain, string>> = {
   sepolia: 'eth-sepolia',
   arbitrumSepolia: 'arb-sepolia',
@@ -44,18 +53,29 @@ export const getClient = (chainName: SupportedChain) => {
     throw new Error(`Unsupported chain: ${chainName}`);
   }
 
-  // Allow custom RPCs via env variables
-  const envKey = `RPC_${chainName.toUpperCase().replace(/([A-Z])/g, '_$1')}`;
-  let customRpc = process.env[envKey];
+  let customRpc = process.env[rpcEnvKeys[chainName]];
 
-  // Fallback to Alchemy if available for standard networks
-  if (!customRpc && process.env.NEXT_PUBLIC_ALCHEMY_API_KEY && alchemyNetworkNames[chainName]) {
-    customRpc = `https://${alchemyNetworkNames[chainName]}.g.alchemy.com/v2/${process.env.NEXT_PUBLIC_ALCHEMY_API_KEY}`;
+  if (!customRpc && process.env.ALCHEMY_API_KEY && alchemyNetworkNames[chainName]) {
+    customRpc = `https://${alchemyNetworkNames[chainName]}.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
   }
+
+  const urls =
+    chainName === 'arcTestnet'
+      ? [
+          customRpc ?? 'https://rpc.testnet.arc.network',
+          ...(process.env.RPC_ARC_FALLBACK_URLS ?? '')
+            .split(',')
+            .map((url) => url.trim())
+            .filter(Boolean),
+        ]
+      : [customRpc].filter((url): url is string => Boolean(url));
 
   return createPublicClient({
     chain,
-    transport: http(customRpc || undefined),
+    transport:
+      urls.length > 1
+        ? fallback(urls.map((url) => http(url, { timeout: 10_000 })))
+        : http(urls[0], { timeout: 10_000 }),
   });
 };
 

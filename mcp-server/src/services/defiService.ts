@@ -1,101 +1,182 @@
 import { getClient, SupportedChain } from './viemClient.js';
-import { encodeFunctionData, pad } from 'viem';
-import { ERC20_ABI, LENDING_POOL_ABI, ROUTER_ABI, BRIDGE_ABI } from '../contracts/abi.js';
+import { encodeFunctionData, formatUnits, isAddress, pad, zeroAddress } from 'viem';
+import {
+  BRIDGE_ABI,
+  ERC20_ABI,
+  FACTORY_ABI,
+  LENDING_POOL_ABI,
+  PAIR_ABI,
+  ROUTER_ABI,
+} from '../contracts/abi.js';
 
-// Mock contract addresses for testnets (replace with real addresses in production)
-const getAddresses = (chain: SupportedChain): { pool: string, router: string, bridge: string, factory?: string, quoter?: string } => {
-  const addresses: Record<SupportedChain, { pool: string, router: string, bridge: string, factory?: string, quoter?: string }> = {
-    sepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-    arbitrumSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-    baseSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-    polygonAmoy: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-    avalancheFuji: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-    optimismSepolia: { pool: '0x0000000000000000000000000000000000000001', router: '0x0000000000000000000000000000000000000002', bridge: '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA', factory: '0x0000000000000000000000000000000000000004', quoter: '0x0000000000000000000000000000000000000005' },
-    arcTestnet: { 
-      pool: process.env.LENDING_POOL || process.env.NEXT_PUBLIC_LENDING_POOL || '0x0000000000000000000000000000000000000001', 
-      router: process.env.DEX_ROUTER || process.env.NEXT_PUBLIC_DEX_ROUTER || '0x0000000000000000000000000000000000000002', 
-      bridge: process.env.BRIDGE || '0x0000000000000000000000000000000000000003',
-      factory: process.env.DEX_FACTORY || process.env.NEXT_PUBLIC_DEX_FACTORY || '0x0000000000000000000000000000000000000004',
-      quoter: process.env.DEX_QUOTER || process.env.NEXT_PUBLIC_DEX_QUOTER || '0x0000000000000000000000000000000000000005'
-    }
-  };
-  return addresses[chain];
+const ARC_ADDRESSES = {
+  pool: process.env.LENDING_POOL ?? '0xEa282eea5bC90905C15Df05Ca43eeA967BcDe49f',
+  router: process.env.DEX_ROUTER ?? '0x4d306D129C52E88a7766dc3d70ce28d423E3b1Ef',
+  factory: process.env.DEX_FACTORY ?? '0xdE6b2AEf32FE1e675060dBC47BC2dF049052494E',
+  quoter: process.env.DEX_QUOTER ?? '0x0078B36f4E91D1AEbBAf4049F7468ea4B9183810',
+} as const;
+
+const CCTP_TOKEN_MESSENGER =
+  process.env.BRIDGE ?? '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA';
+
+const TOKENS: Partial<Record<SupportedChain, Record<string, string>>> = {
+  arcTestnet: {
+    USDC: '0x3600000000000000000000000000000000000000',
+    EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
+    CIRBTC: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
+  },
+  sepolia: { USDC: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' },
+  arbitrumSepolia: { USDC: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d' },
+  baseSepolia: { USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' },
+  polygonAmoy: { USDC: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582' },
+  avalancheFuji: { USDC: '0x5425890298aed601595a70AB815c96711a31Bc65' },
+  optimismSepolia: { USDC: '0x5fd84259d66Cd46123540766Be93DFE6D43130D7' },
 };
+
+function getArcAddresses(chain: SupportedChain) {
+  if (chain !== 'arcTestnet') {
+    throw new Error(`Vitael lending and DEX are only deployed on arcTestnet, not ${chain}`);
+  }
+  return ARC_ADDRESSES;
+}
+
+function normalizeDeadline(deadline: string) {
+  const parsed = BigInt(deadline);
+  return parsed < 1_000_000_000n
+    ? BigInt(Math.floor(Date.now() / 1000)) + parsed
+    : parsed;
+}
+
+function requireAddress(value: string, label: string): `0x${string}` {
+  if (!isAddress(value)) throw new Error(`${label} is not a valid EVM address`);
+  return value;
+}
 
 export class DefiService {
   
   static resolveTokenAddress(chain: SupportedChain, asset: string): string {
-    if (asset.startsWith('0x')) return asset;
-    
-    let tokenAddress = asset;
-    const assetUpper = asset.toUpperCase();
-    
-    if (assetUpper === 'USDC') {
-      if (chain === 'arcTestnet') tokenAddress = '0x3600000000000000000000000000000000000000';
-      else if (chain === 'sepolia') tokenAddress = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
-      else tokenAddress = '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Default fallback for USDC on testnets
-    } else if (chain === 'arcTestnet') {
-      if (assetUpper === 'EURC') tokenAddress = '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a';
-      else if (assetUpper === 'CIRBTC') tokenAddress = '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF';
-    }
+    if (isAddress(asset)) return asset;
+    const tokenAddress = TOKENS[chain]?.[asset.toUpperCase()];
+    if (!tokenAddress) throw new Error(`Unsupported asset ${asset} on ${chain}`);
     return tokenAddress;
   }
   
   // -- READ OPERATIONS --
   
   static async getMarkets(chain: SupportedChain) {
-    if (chain === 'arcTestnet') {
-      return [
-        { asset: "USDC", address: "0x3600000000000000000000000000000000000000", totalSupplied: "0", totalBorrowed: "0" },
-        { asset: "EURC", address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a", totalSupplied: "0", totalBorrowed: "0" },
-        { asset: "cirBTC", address: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF", totalSupplied: "0", totalBorrowed: "0" }
-      ];
+    const client = getClient(chain);
+    const pool = getArcAddresses(chain).pool as `0x${string}`;
+    const assets = await client.readContract({
+      address: pool,
+      abi: LENDING_POOL_ABI,
+      functionName: 'getSupportedAssets',
+    });
+    const markets = [];
+
+    // Keep these calls sequential to avoid bursting the public Arc RPC.
+    for (const address of assets) {
+      const symbol = await client.readContract({ address, abi: ERC20_ABI, functionName: 'symbol' });
+      const decimals = await client.readContract({ address, abi: ERC20_ABI, functionName: 'decimals' });
+      const supplyRate = await client.readContract({
+        address: pool, abi: LENDING_POOL_ABI, functionName: 'getSupplyRate', args: [address],
+      });
+      const borrowRate = await client.readContract({
+        address: pool, abi: LENDING_POOL_ABI, functionName: 'getBorrowRate', args: [address],
+      });
+      const utilization = await client.readContract({
+        address: pool, abi: LENDING_POOL_ABI, functionName: 'getUtilization', args: [address],
+      });
+      const state = await client.readContract({
+        address: pool, abi: LENDING_POOL_ABI, functionName: 'assetStates', args: [address],
+      });
+      const exchangeRate = await client.readContract({
+        address: pool, abi: LENDING_POOL_ABI, functionName: 'exchangeRate', args: [address],
+      });
+
+      markets.push({
+        asset: symbol,
+        address,
+        decimals,
+        totalBorrowed: state[0].toString(),
+        totalReserves: state[1].toString(),
+        totalShares: state[4].toString(),
+        totalSupplied: ((state[4] * exchangeRate) / 1_000_000_000_000_000_000n).toString(),
+        supplyApy: formatUnits(supplyRate, 16),
+        borrowApy: formatUnits(borrowRate, 16),
+        utilization: formatUnits(utilization, 16),
+        exchangeRate: exchangeRate.toString(),
+      });
     }
-    // In a real implementation, you might fetch this from a factory or subgraph
-    return [
-      { asset: "USDC", address: "0x0000000000000000000000000000000000000001", totalSupplied: "1000000", totalBorrowed: "500000" },
-      { asset: "WETH", address: "0x0000000000000000000000000000000000000002", totalSupplied: "5000", totalBorrowed: "1000" }
-    ];
+
+    return markets;
   }
 
   static async getPools(chain: SupportedChain) {
-    return [
-      { pair: "USDC/WETH", address: "0x...", reserve0: "1000000", reserve1: "300" }
-    ];
+    const client = getClient(chain);
+    const factory = getArcAddresses(chain).factory as `0x${string}`;
+    const count = await client.readContract({
+      address: factory, abi: FACTORY_ABI, functionName: 'allPairsLength',
+    });
+    const pools = [];
+
+    for (let index = 0n; index < count; index += 1n) {
+      const pair = await client.readContract({
+        address: factory, abi: FACTORY_ABI, functionName: 'allPairs', args: [index],
+      });
+      const token0 = await client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'token0' });
+      const token1 = await client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'token1' });
+      const reserves = await client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'getReserves' });
+      const symbol0 = await client.readContract({ address: token0, abi: ERC20_ABI, functionName: 'symbol' });
+      const symbol1 = await client.readContract({ address: token1, abi: ERC20_ABI, functionName: 'symbol' });
+      const decimals0 = await client.readContract({ address: token0, abi: ERC20_ABI, functionName: 'decimals' });
+      const decimals1 = await client.readContract({ address: token1, abi: ERC20_ABI, functionName: 'decimals' });
+
+      pools.push({
+        pair: `${symbol0}/${symbol1}`,
+        address: pair,
+        token0: { address: token0, symbol: symbol0, decimals: decimals0 },
+        token1: { address: token1, symbol: symbol1, decimals: decimals1 },
+        reserve0: reserves[0].toString(),
+        reserve1: reserves[1].toString(),
+      });
+    }
+
+    return pools;
   }
 
   static async getAPR(chain: SupportedChain, asset: string) {
-    // Mock APR fetching
+    const client = getClient(chain);
+    const pool = getArcAddresses(chain).pool as `0x${string}`;
+    const token = requireAddress(this.resolveTokenAddress(chain, asset), 'asset');
+    const supplyRate = await client.readContract({
+      address: pool, abi: LENDING_POOL_ABI, functionName: 'getSupplyRate', args: [token],
+    });
+    const borrowRate = await client.readContract({
+      address: pool, abi: LENDING_POOL_ABI, functionName: 'getBorrowRate', args: [token],
+    });
     return {
-      supplyAPR: "4.5%",
-      borrowAPR: "6.2%"
+      asset,
+      address: token,
+      supplyApy: formatUnits(supplyRate, 16),
+      borrowApy: formatUnits(borrowRate, 16),
     };
   }
 
   static async getPosition(chain: SupportedChain, userAddress: string) {
     const client = getClient(chain);
-    const poolAddress = getAddresses(chain).pool as `0x${string}`;
-    
-    try {
-      const data = await client.readContract({
-        address: poolAddress,
-        abi: LENDING_POOL_ABI,
-        functionName: 'getPosition',
-        args: [userAddress as `0x${string}`]
-      });
-      // VitaelLendingPool.getPosition returns: (totalCollateralUSD, totalBorrowUSD, healthFactor)
-      // totalCollateralUSD is data[0], totalBorrowUSD is data[1], healthFactor is data[2]
-      return {
-        totalCollateralBase: data[0].toString(),
-        totalDebtBase: data[1].toString(),
-        // Mock availableBorrowsBase as difference (simplified)
-        availableBorrowsBase: (data[0] > data[1] ? (data[0] - data[1]).toString() : "0"),
-        healthFactor: data[2].toString()
-      };
-    } catch (e: any) {
-      console.warn("Mocking getPosition due to no real contract. Error:", e.message);
-      return { totalCollateralBase: "1000", totalDebtBase: "500", availableBorrowsBase: "500", healthFactor: "2000000000000000000" };
-    }
+    const poolAddress = getArcAddresses(chain).pool as `0x${string}`;
+    const user = requireAddress(userAddress, 'userAddress');
+    const data = await client.readContract({
+      address: poolAddress,
+      abi: LENDING_POOL_ABI,
+      functionName: 'getPosition',
+      args: [user]
+    });
+    return {
+      totalCollateralUsd8: data[0].toString(),
+      totalBorrowUsd8: data[1].toString(),
+      healthFactor: data[2].toString()
+    };
   }
 
   static async getHealthFactor(chain: SupportedChain, userAddress: string) {
@@ -105,141 +186,194 @@ export class DefiService {
 
   static async getBalance(chain: SupportedChain, userAddress: string, asset: string) {
     const client = getClient(chain);
-    try {
-      // For native token (often requested as 'native' or 'ETH' or 'ARC')
-      if (asset.toLowerCase() === 'native' || asset.toLowerCase() === 'eth' || asset.toLowerCase() === 'arc' || asset === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
-        const balance = await client.getBalance({ address: userAddress as `0x${string}` });
-        return { asset, balance: balance.toString() };
-      }
-      
-      const tokenAddress = this.resolveTokenAddress(chain, asset);
-
-      // For ERC20 tokens
-      const balance = await client.readContract({
-        address: tokenAddress as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'balanceOf',
-        args: [userAddress as `0x${string}`]
-      });
-      return { asset, balance: balance.toString() };
-    } catch (e: any) {
-      console.warn("Error fetching balance:", e.message);
-      return { asset, balance: "0", error: e.message };
+    const user = requireAddress(userAddress, 'userAddress');
+    if (['native', 'eth', 'arc'].includes(asset.toLowerCase()) || asset === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+      const balance = await client.getBalance({ address: user });
+      return { asset, balance: balance.toString(), decimals: 18 };
     }
+
+    const tokenAddress = requireAddress(this.resolveTokenAddress(chain, asset), 'asset');
+    const balance = await client.readContract({
+      address: tokenAddress,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [user]
+    });
+    const decimals = await client.readContract({ address: tokenAddress, abi: ERC20_ABI, functionName: 'decimals' });
+    return { asset, address: tokenAddress, balance: balance.toString(), decimals };
   }
 
   static async quoteSwap(chain: SupportedChain, amountIn: string, path: string[]) {
-    try {
-      const client = getClient(chain);
-      const routerAddress = getAddresses(chain).router as `0x${string}`;
-      const resolvedPath = path.map(p => this.resolveTokenAddress(chain, p));
-      
-      const amountsOut = await client.readContract({
-        address: routerAddress,
-        abi: ROUTER_ABI,
-        functionName: 'getAmountsOut',
-        args: [BigInt(amountIn), resolvedPath as `0x${string}`[]]
-      }) as bigint[];
-      
-      return { expectedOut: amountsOut[amountsOut.length - 1].toString() };
-    } catch (e: any) {
-      console.warn("Error quoting swap:", e.message);
-      return { expectedOut: "0", error: e.message };
-    }
+    if (path.length < 2) throw new Error('Swap path must contain at least two assets');
+    const client = getClient(chain);
+    const routerAddress = getArcAddresses(chain).router as `0x${string}`;
+    const resolvedPath = path.map((asset) =>
+      requireAddress(this.resolveTokenAddress(chain, asset), 'path asset')
+    );
+    const amountsOut = await client.readContract({
+      address: routerAddress,
+      abi: ROUTER_ABI,
+      functionName: 'getAmountsOut',
+      args: [BigInt(amountIn), resolvedPath]
+    });
+    return {
+      amountIn,
+      expectedOut: amountsOut[amountsOut.length - 1].toString(),
+      amounts: amountsOut.map(String),
+      path: resolvedPath,
+    };
   }
 
   static async quoteBridge(fromChain: SupportedChain, toChain: SupportedChain, amount: string) {
-    return { estimatedFee: "0.02 USDC", estimatedTime: "15 seconds" };
+    const domains: Partial<Record<SupportedChain, number>> = {
+      sepolia: 0,
+      avalancheFuji: 1,
+      optimismSepolia: 2,
+      arbitrumSepolia: 3,
+      baseSepolia: 6,
+      polygonAmoy: 7,
+      arcTestnet: 26,
+    };
+    const sourceDomain = domains[fromChain];
+    const destinationDomain = domains[toChain];
+    if (sourceDomain === undefined || destinationDomain === undefined) {
+      throw new Error('Unsupported CCTP domain');
+    }
+    if (sourceDomain === destinationDomain) throw new Error('Source and destination chains must differ');
+
+    const response = await fetch(
+      `https://iris-api-sandbox.circle.com/v2/burn/USDC/fees/${sourceDomain}/${destinationDomain}?forward=true`,
+    );
+    if (!response.ok) throw new Error(`Circle fee API returned HTTP ${response.status}`);
+    const feeOptions = await response.json() as Array<{
+      finalityThreshold: number;
+      minimumFee: number;
+      forwardFee?: { med?: number };
+    }>;
+
+    return {
+      fromChain,
+      toChain,
+      sourceDomain,
+      destinationDomain,
+      amount,
+      amountUnit: 'USDC atomic units (6 decimals)',
+      feeOptions,
+    };
   }
 
   static async quoteAddLiquidity(chain: SupportedChain, tokenA: string, tokenB: string, amountA: string) {
-    return { requiredAmountB: "Mock required amount B", expectedLpTokens: "Mock LP Tokens" };
+    const client = getClient(chain);
+    const factory = getArcAddresses(chain).factory as `0x${string}`;
+    const addressA = requireAddress(this.resolveTokenAddress(chain, tokenA), 'tokenA');
+    const addressB = requireAddress(this.resolveTokenAddress(chain, tokenB), 'tokenB');
+    const pair = await client.readContract({
+      address: factory,
+      abi: FACTORY_ABI,
+      functionName: 'getPair',
+      args: [addressA, addressB],
+    });
+    if (pair === zeroAddress) {
+      return { pair, amountA, requiredAmountB: null, note: 'New pool: choose the initial price with amountB' };
+    }
+    const token0 = await client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'token0' });
+    const reserves = await client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'getReserves' });
+    const [reserveA, reserveB] =
+      token0.toLowerCase() === addressA.toLowerCase()
+        ? [reserves[0], reserves[1]]
+        : [reserves[1], reserves[0]];
+    if (reserveA === 0n) throw new Error('Pool reserve is zero');
+    const requiredAmountB = (BigInt(amountA) * reserveB) / reserveA;
+    return { pair, amountA, requiredAmountB: requiredAmountB.toString() };
   }
 
   // -- WRITE PAYLOAD GENERATORS (UNSIGNED TRANSACTIONS) --
 
   static generateDepositPayload(chain: SupportedChain, asset: string, amount: string, onBehalfOf: string) {
-    const poolAddress = getAddresses(chain).pool as `0x${string}`;
-    const tokenAddress = this.resolveTokenAddress(chain, asset);
+    const poolAddress = getArcAddresses(chain).pool as `0x${string}`;
+    const tokenAddress = requireAddress(this.resolveTokenAddress(chain, asset), 'asset');
+    const sender = requireAddress(onBehalfOf, 'onBehalfOf');
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'supply',
-      args: [tokenAddress as `0x${string}`, BigInt(amount)]
+      args: [tokenAddress, BigInt(amount)]
     });
 
     return {
       to: poolAddress,
       data,
-      value: "0"
+      value: "0",
+      requiredSender: sender,
     };
   }
 
   static generateWithdrawPayload(chain: SupportedChain, asset: string, amount: string, to: string) {
-    const poolAddress = getAddresses(chain).pool as `0x${string}`;
-    const tokenAddress = this.resolveTokenAddress(chain, asset);
+    const poolAddress = getArcAddresses(chain).pool as `0x${string}`;
+    const tokenAddress = requireAddress(this.resolveTokenAddress(chain, asset), 'asset');
+    const sender = requireAddress(to, 'to');
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'withdraw',
-      args: [tokenAddress as `0x${string}`, BigInt(amount)]
+      args: [tokenAddress, BigInt(amount)]
     });
 
     return {
       to: poolAddress,
       data,
-      value: "0"
+      value: "0",
+      requiredSender: sender,
     };
   }
 
   static generateBorrowPayload(chain: SupportedChain, asset: string, amount: string, onBehalfOf: string) {
-    const poolAddress = getAddresses(chain).pool as `0x${string}`;
-    const tokenAddress = this.resolveTokenAddress(chain, asset);
+    const poolAddress = getArcAddresses(chain).pool as `0x${string}`;
+    const tokenAddress = requireAddress(this.resolveTokenAddress(chain, asset), 'asset');
+    const sender = requireAddress(onBehalfOf, 'onBehalfOf');
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'borrow',
-      args: [tokenAddress as `0x${string}`, BigInt(amount)]
+      args: [tokenAddress, BigInt(amount)]
     });
 
     return {
       to: poolAddress,
       data,
-      value: "0"
+      value: "0",
+      requiredSender: sender,
     };
   }
 
   static generateRepayPayload(chain: SupportedChain, asset: string, amount: string, onBehalfOf: string) {
-    const poolAddress = getAddresses(chain).pool as `0x${string}`;
-    const tokenAddress = this.resolveTokenAddress(chain, asset);
+    const poolAddress = getArcAddresses(chain).pool as `0x${string}`;
+    const tokenAddress = requireAddress(this.resolveTokenAddress(chain, asset), 'asset');
+    const sender = requireAddress(onBehalfOf, 'onBehalfOf');
     const data = encodeFunctionData({
       abi: LENDING_POOL_ABI,
       functionName: 'repay',
-      args: [tokenAddress as `0x${string}`, BigInt(amount)]
+      args: [tokenAddress, BigInt(amount)]
     });
 
     return {
       to: poolAddress,
       data,
-      value: "0"
+      value: "0",
+      requiredSender: sender,
     };
   }
 
   static generateSwapPayload(chain: SupportedChain, amountIn: string, amountOutMin: string, path: string[], to: string, deadline: string) {
-    const routerAddress = getAddresses(chain).router as `0x${string}`;
-    const resolvedPath = path.map(p => this.resolveTokenAddress(chain, p));
-    
-    // Agent might pass a small number like "1800" (30 mins) instead of a full timestamp.
-    let validDeadline = BigInt(deadline);
-    if (validDeadline < 1000000000n) {
-      validDeadline = BigInt(Math.floor(Date.now() / 1000)) + validDeadline;
-    }
-
-    // Apply a 5% slippage to amountOutMin to avoid reverts due to exactness
-    let safeAmountOutMin = BigInt(amountOutMin);
-    safeAmountOutMin = (safeAmountOutMin * 95n) / 100n;
+    if (path.length < 2) throw new Error('Swap path must contain at least two assets');
+    const routerAddress = getArcAddresses(chain).router as `0x${string}`;
+    const resolvedPath = path.map((asset) =>
+      requireAddress(this.resolveTokenAddress(chain, asset), 'path asset')
+    );
+    const recipient = requireAddress(to, 'to');
+    const validDeadline = normalizeDeadline(deadline);
 
     const data = encodeFunctionData({
       abi: ROUTER_ABI,
       functionName: 'swapExactTokensForTokens',
-      args: [BigInt(amountIn), safeAmountOutMin, resolvedPath as `0x${string}`[], to as `0x${string}`, validDeadline]
+      args: [BigInt(amountIn), BigInt(amountOutMin), resolvedPath, recipient, validDeadline]
     });
 
     return {
@@ -249,13 +383,37 @@ export class DefiService {
     };
   }
 
-  static generateBridgePayload(chain: SupportedChain, amount: string, destinationDomain: number, mintRecipient: string, burnToken: string) {
-    const bridgeAddress = getAddresses(chain).bridge as `0x${string}`;
-    const tokenAddress = this.resolveTokenAddress(chain, burnToken);
+  static generateBridgePayload(
+    chain: SupportedChain,
+    amount: string,
+    destinationDomain: number,
+    mintRecipient: string,
+    burnToken: string,
+    destinationCaller: string = zeroAddress,
+    maxFee: string = "0",
+    minFinalityThreshold: number = 2000,
+    hookData: string = "0x",
+  ) {
+    const bridgeAddress = requireAddress(CCTP_TOKEN_MESSENGER, 'CCTP TokenMessenger');
+    const tokenAddress = requireAddress(this.resolveTokenAddress(chain, burnToken), 'burnToken');
+    const recipient = requireAddress(mintRecipient, 'mintRecipient');
+    const caller = requireAddress(destinationCaller, 'destinationCaller');
+    if (!/^0x(?:[0-9a-fA-F]{2})*$/.test(hookData)) {
+      throw new Error('hookData must be a hex byte string');
+    }
     const data = encodeFunctionData({
       abi: BRIDGE_ABI,
-      functionName: 'depositForBurn',
-      args: [BigInt(amount), destinationDomain, pad(mintRecipient as `0x${string}`, { size: 32 }), tokenAddress as `0x${string}`]
+      functionName: 'depositForBurnWithHook',
+      args: [
+        BigInt(amount),
+        destinationDomain,
+        pad(recipient, { size: 32 }),
+        tokenAddress,
+        pad(caller, { size: 32 }),
+        BigInt(maxFee),
+        minFinalityThreshold,
+        hookData as `0x${string}`,
+      ]
     });
 
     return {
@@ -266,13 +424,14 @@ export class DefiService {
   }
 
   static generateAddLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, amountA: string, amountB: string, to: string, deadline: string) {
-    const routerAddress = getAddresses(chain).router as `0x${string}`;
-    const tA = this.resolveTokenAddress(chain, tokenA);
-    const tB = this.resolveTokenAddress(chain, tokenB);
+    const routerAddress = getArcAddresses(chain).router as `0x${string}`;
+    const tA = requireAddress(this.resolveTokenAddress(chain, tokenA), 'tokenA');
+    const tB = requireAddress(this.resolveTokenAddress(chain, tokenB), 'tokenB');
+    const recipient = requireAddress(to, 'to');
     const data = encodeFunctionData({
       abi: ROUTER_ABI,
       functionName: 'addLiquidity',
-      args: [tA as `0x${string}`, tB as `0x${string}`, BigInt(amountA), BigInt(amountB), 0n, 0n, to as `0x${string}`, BigInt(deadline)]
+      args: [tA, tB, BigInt(amountA), BigInt(amountB), 0n, 0n, recipient, normalizeDeadline(deadline)]
     });
 
     return {
@@ -283,13 +442,14 @@ export class DefiService {
   }
 
   static generateRemoveLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, liquidity: string, to: string, deadline: string) {
-    const routerAddress = getAddresses(chain).router as `0x${string}`;
-    const tA = this.resolveTokenAddress(chain, tokenA);
-    const tB = this.resolveTokenAddress(chain, tokenB);
+    const routerAddress = getArcAddresses(chain).router as `0x${string}`;
+    const tA = requireAddress(this.resolveTokenAddress(chain, tokenA), 'tokenA');
+    const tB = requireAddress(this.resolveTokenAddress(chain, tokenB), 'tokenB');
+    const recipient = requireAddress(to, 'to');
     const data = encodeFunctionData({
       abi: ROUTER_ABI,
       functionName: 'removeLiquidity',
-      args: [tA as `0x${string}`, tB as `0x${string}`, BigInt(liquidity), 0n, 0n, to as `0x${string}`, BigInt(deadline)]
+      args: [tA, tB, BigInt(liquidity), 0n, 0n, recipient, normalizeDeadline(deadline)]
     });
 
     return {
