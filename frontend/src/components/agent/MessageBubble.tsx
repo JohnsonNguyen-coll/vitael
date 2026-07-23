@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import { Copy, Check } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { AgentMark } from './AgentIdentity';
 
 interface MessageBubbleProps {
   role: 'user' | 'assistant';
@@ -24,7 +25,12 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
     <div className={`group flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
       
       <div className={`flex flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[72%]' : 'max-w-[92%] items-start'}`}>
-        {!isUser && <span className="mb-2 text-[11px] font-medium text-[#737a8e]">Vitael</span>}
+        {!isUser && (
+          <div className="mb-2 flex items-center gap-2">
+            <AgentMark compact />
+            <div><p className="text-[11px] font-semibold text-[#c8cad3]">Vitael Agent</p><p className="text-[9px] text-[#656c80]">Onchain intelligence</p></div>
+          </div>
+        )}
         <div
           className={`px-5 py-4 rounded-3xl ${
             isUser

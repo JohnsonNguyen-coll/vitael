@@ -68,6 +68,9 @@ body {
 .app-shell table tbody tr { transition:background .22s ease,transform .22s ease; }
 .app-shell table tbody tr:hover { background:rgba(151,132,255,.045)!important; }
 .agent-prompt-card{transition:border-color .2s ease,background .2s ease}.agent-prompt-card:hover{border-color:rgba(255,255,255,.13);background:rgba(255,255,255,.035)}.agent-composer{box-shadow:inset 0 1px rgba(255,255,255,.025)}
+.agent-mark{box-shadow:inset 0 1px rgba(255,255,255,.05),0 8px 22px rgba(0,0,0,.2)}
+.agent-thinking-dot{animation:agent-thinking 1.2s ease-in-out infinite}
+.agent-thinking-dot:nth-child(2){animation-delay:.16s}.agent-thinking-dot:nth-child(3){animation-delay:.32s}
 .app-shell button:not(:disabled),.app-shell a { transition-duration:.22s; }
 .app-shell button:focus-visible,.app-shell a:focus-visible,.app-shell input:focus-visible,.app-shell textarea:focus-visible{outline:2px solid rgba(169,152,255,.65);outline-offset:2px}
 
@@ -95,6 +98,6 @@ body {
 .app-shell button[class~="bg-[#7EE2B7]"]:not(.app-button),.app-shell button[class~="bg-emerald-400"]:not(.app-button){border:1px solid rgba(126,226,183,.15)!important;color:#9be8c5!important;background:rgba(74,180,137,.1)!important}
 .app-shell [class*="bg-yellow-500/10"],.app-shell [class*="bg-amber-500/10"]{border-color:rgba(239,184,83,.16)!important;color:#d9c59d!important;background:rgba(171,119,31,.05)!important}.app-shell [class*="bg-red-500/10"]{border-color:rgba(241,101,126,.16)!important;color:#e3a4b0!important;background:rgba(176,47,72,.055)!important}
 .app-shell [class*="bg-[#070812]/90"]{border-color:rgba(255,255,255,.06)!important;background:linear-gradient(145deg,rgba(18,19,35,.88),rgba(9,10,21,.94))!important;box-shadow:inset 0 1px rgba(255,255,255,.03)}
-@keyframes app-star-drift{to{transform:translate3d(90px,50px,0)}}@keyframes app-aurora{50%{transform:translateX(-50%) scale(1.12);opacity:.7}}@keyframes app-cloud{50%{transform:translate3d(90px,-20px,0) scale(1.1)}}@keyframes app-pulse{50%{opacity:.45;box-shadow:0 0 0 6px rgba(115,223,179,0)}}@keyframes agent-float{50%{transform:translateY(-7px)}}@keyframes agent-ring{to{transform:rotate(360deg)}}
+@keyframes app-star-drift{to{transform:translate3d(90px,50px,0)}}@keyframes app-aurora{50%{transform:translateX(-50%) scale(1.12);opacity:.7}}@keyframes app-cloud{50%{transform:translate3d(90px,-20px,0) scale(1.1)}}@keyframes app-pulse{50%{opacity:.45;box-shadow:0 0 0 6px rgba(115,223,179,0)}}@keyframes agent-float{50%{transform:translateY(-7px)}}@keyframes agent-ring{to{transform:rotate(360deg)}}@keyframes agent-thinking{0%,70%,100%{opacity:.28;transform:translateY(0)}35%{opacity:1;transform:translateY(-3px)}}
 @media(max-width:767px){.app-header>div{gap:8px}.app-nav-item{padding:0 10px;font-size:11px}.app-nav-active i{bottom:-18px}.app-shell main{padding-left:16px!important;padding-right:16px!important}}
 @media(prefers-reduced-motion:reduce){.app-shell *,.app-shell *:before,.app-shell *:after{animation:none!important}}

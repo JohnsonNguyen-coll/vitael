@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Send, StopCircle } from "lucide-react";
 import { useAccount } from "wagmi";
 import { backendApi, type Conversation, type StoredMessage } from "@/lib/backendApi";
+import { AgentIdentity, AgentMark } from "./AgentIdentity";
 import { LeftSidebar } from "./LeftSidebar";
 import { MessageList } from "./MessageList";
 
@@ -85,7 +86,7 @@ export function ChatWindow() {
 
   useEffect(() => {
     if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const selectConversation = async (conversation: Conversation) => {
     if (!address || isLoading) return;
@@ -220,7 +221,13 @@ export function ChatWindow() {
           <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 sm:px-6">
             {messages.length === 0 ? (
               <div className="relative z-10 flex flex-1 flex-col items-center justify-center py-8 text-center sm:py-10">
-                <span className="mb-5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-[#777e92]">Vitael AI</span>
+                <div className="mb-6 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-5 py-4">
+                  <AgentIdentity />
+                  <div className="mt-3 flex items-center justify-center gap-2 border-t border-white/[0.06] pt-3 text-[10px] font-medium text-[#747c91]">
+                    <span className="size-1.5 rounded-full bg-[#72d7ad]" />
+                    Market-aware · Wallet-controlled
+                  </div>
+                </div>
                 <h1 className="mb-3 text-3xl font-semibold tracking-[-0.04em] text-[#f0f1f4] sm:text-4xl">How can I help?</h1>
                 <p className="mb-8 max-w-md text-sm leading-6 text-[#7f8699]">Review positions, compare markets or prepare an onchain action.</p>
                 <div className="grid w-full max-w-3xl grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -230,6 +237,22 @@ export function ChatWindow() {
             ) : (
               <div className="flex-1 py-6 sm:py-8">
                 <MessageList messages={messages} onStrategyStepSuccess={() => void sendMessage({ role: "user", content: "The previous strategy step has completed on-chain. Continue the active strategy with the next remaining step now. Do not ask for confirmation." })} />
+                {isLoading && (
+                  <div className="mt-2 flex items-start gap-3" role="status" aria-live="polite">
+                    <AgentMark compact />
+                    <div className="rounded-2xl rounded-tl-md border border-white/[0.07] bg-white/[0.025] px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-[#aeb2c0]">Analyzing context</span>
+                        <span className="flex items-center gap-1" aria-hidden="true">
+                          <i className="agent-thinking-dot size-1 rounded-full bg-[#9c91c8]" />
+                          <i className="agent-thinking-dot size-1 rounded-full bg-[#9c91c8]" />
+                          <i className="agent-thinking-dot size-1 rounded-full bg-[#9c91c8]" />
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[10px] text-[#666e82]">Reviewing markets, positions and available actions</p>
+                    </div>
+                  </div>
+                )}
                 {error && <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-300"><span className="mb-1 block font-bold">AI Agent Error</span>{error.message}</div>}
               </div>
             )}
@@ -240,7 +263,7 @@ export function ChatWindow() {
             <form onSubmit={onSubmit} className="agent-composer relative flex overflow-hidden rounded-xl border border-white/[0.1] bg-[#111219] transition-colors focus-within:border-white/[0.2]">
               <textarea ref={textareaRef} value={localInput} onChange={(event) => setLocalInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); onSubmit(); } }} placeholder="Ask Vitael..." rows={1} className="min-h-[54px] max-h-[200px] w-full resize-none bg-transparent py-4 pl-4 pr-2 text-sm leading-relaxed text-white outline-none placeholder:text-[#555c70]" />
               <div className="self-end pb-3 pl-2 pr-3 pt-3">
-                {isLoading ? <button type="button" onClick={() => abortRef.current?.abort()} aria-label="Stop response" className="flex size-9 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-[#a7adbd]"><StopCircle className="size-4" /></button> : <button type="submit" aria-label="Send message" disabled={!localInput.trim()} className="flex size-9 items-center justify-center rounded-lg bg-[#d8d2ff] text-[#111219] transition-colors hover:bg-white disabled:bg-white/[0.06] disabled:text-white/20"><Send className="size-4" /></button>}
+                {isLoading ? <button type="button" onClick={() => abortRef.current?.abort()} aria-label="Stop response" className="flex h-9 items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-[#b8bdca] hover:bg-white/[0.08]"><StopCircle className="size-3.5" />Stop</button> : <button type="submit" aria-label="Send message" disabled={!localInput.trim()} className="flex h-9 items-center justify-center gap-2 rounded-lg bg-[#d8d2ff] px-3 text-xs font-semibold text-[#111219] transition-colors hover:bg-white disabled:bg-white/[0.06] disabled:text-white/20"><Send className="size-3.5" />Send</button>}
               </div>
             </form>
             <p className="mt-2.5 text-center text-[10px] font-medium text-[#737b98]">Vitael AI can make mistakes. Consider verifying important information.</p>
