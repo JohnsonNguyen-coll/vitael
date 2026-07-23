@@ -22,10 +22,15 @@ export function MessageList({ messages, onStrategyStepSuccess }: MessageListProp
         <div key={m.id}>
           {/* Render Text Content */}
           {m.content && m.content.trim().length > 0 && (
-            <MessageBubble role={m.role as 'user' | 'assistant'} content={m.content} />
+            <MessageBubble
+              role={m.role as 'user' | 'assistant'}
+              content={m.content}
+              hasFollowUp={Boolean(m.toolInvocations?.length)}
+            />
           )}
 
           {/* Render Tool Invocations */}
+          <div className={m.role === "user" ? "" : "ml-10 max-w-[calc(100%-2.5rem)]"}>
           {m.toolInvocations?.map((toolInvocation) => {
             const toolCallId = toolInvocation.toolCallId;
             const toolName = toolInvocation.toolName;
@@ -49,7 +54,7 @@ export function MessageList({ messages, onStrategyStepSuccess }: MessageListProp
               // Ensure we received a valid tx payload before rendering
               if (unsignedTx && unsignedTx.to) {
                 return (
-                  <div key={toolCallId}>
+                  <div key={toolCallId} className="mt-1">
                     <TransactionPreviewCard 
                       toolName={toolName} 
                       args={toolInvocation.args} 
@@ -71,6 +76,7 @@ export function MessageList({ messages, onStrategyStepSuccess }: MessageListProp
 
             return null;
           })}
+          </div>
         </div>
       ))}
     </div>

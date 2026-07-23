@@ -9,9 +9,10 @@ import { AgentMark } from './AgentIdentity';
 interface MessageBubbleProps {
   role: 'user' | 'assistant';
   content: string;
+  hasFollowUp?: boolean;
 }
 
-export function MessageBubble({ role, content }: MessageBubbleProps) {
+export function MessageBubble({ role, content, hasFollowUp = false }: MessageBubbleProps) {
   const isUser = role === 'user';
   const [copied, setCopied] = useState(false);
 
@@ -22,13 +23,20 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
   };
 
   return (
-    <div className={`group flex w-full mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`group flex w-full ${hasFollowUp ? 'mb-2' : 'mb-6'} ${isUser ? 'justify-end' : 'justify-start'}`}>
       
       <div className={`flex flex-col ${isUser ? 'max-w-[78%] items-end sm:max-w-[72%]' : 'max-w-[92%] items-start'}`}>
         {!isUser && (
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-2 flex w-full items-center gap-2">
             <AgentMark compact />
             <div><p className="text-[11px] font-semibold text-[#c8cad3]">Vitael Agent</p><p className="text-[9px] text-[#656c80]">Onchain intelligence</p></div>
+            <button
+              onClick={handleCopy}
+              className="ml-auto rounded-md p-1 text-[#71788c] opacity-0 transition hover:bg-white/5 hover:text-white group-hover:opacity-100"
+              title="Copy message"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-[#8bd7b7]" /> : <Copy className="w-3.5 h-3.5" />}
+            </button>
           </div>
         )}
         <div
@@ -79,19 +87,6 @@ export function MessageBubble({ role, content }: MessageBubbleProps) {
             </ReactMarkdown>
           </div>
         </div>
-
-        {/* Message Actions */}
-        {!isUser && (
-          <div className="flex items-center space-x-2 mt-2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button 
-              onClick={handleCopy}
-              className="p-1 text-[#71788c] transition-colors hover:text-white"
-              title="Copy message"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-[#8bd7b7]" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

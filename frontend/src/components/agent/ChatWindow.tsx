@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Send, StopCircle } from "lucide-react";
 import { useAccount } from "wagmi";
 import { backendApi, type Conversation, type StoredMessage } from "@/lib/backendApi";
-import { AgentIdentity, AgentMark } from "./AgentIdentity";
+import { AgentMark } from "./AgentIdentity";
 import { LeftSidebar } from "./LeftSidebar";
 import { MessageList } from "./MessageList";
 
@@ -224,11 +224,11 @@ export function ChatWindow() {
           <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 sm:px-6">
             {messages.length === 0 ? (
               <div className="relative z-10 flex flex-1 flex-col items-center justify-center py-8 text-center sm:py-10">
-                <div className="mb-6 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-5 py-4">
-                  <AgentIdentity />
-                  <div className="mt-3 flex items-center justify-center gap-2 border-t border-white/[0.06] pt-3 text-[10px] font-medium text-[#747c91]">
+                <div className="mb-6 flex flex-col items-center gap-3">
+                  <AgentMark />
+                  <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.02em] text-[#9ba1b2]">
                     <span className="size-1.5 rounded-full bg-[#72d7ad]" />
-                    Market-aware · Wallet-controlled
+                    Vitael Intelligence
                   </div>
                 </div>
                 <h1 className="mb-3 text-3xl font-semibold tracking-[-0.04em] text-[#f0f1f4] sm:text-4xl">How can I help?</h1>

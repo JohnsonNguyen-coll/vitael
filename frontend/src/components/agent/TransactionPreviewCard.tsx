@@ -269,8 +269,8 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
 
   if (isSuccess) {
     return (
-      <div className="flex w-full justify-start mt-2 mb-4">
-        <div className="bg-[#0D0E1E] border border-white/10 rounded-2xl p-5 shadow-xl w-full max-w-md">
+      <div className="flex w-full justify-start mb-3">
+        <div className="w-full max-w-md rounded-xl border border-white/[0.09] bg-[#111219] p-4 shadow-lg">
            <div className="flex items-start gap-3">
              <div className="w-full">
               <h4 className="font-bold text-white mb-1">{title} Confirmed</h4>
@@ -300,9 +300,9 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
   }
 
   return (
-    <div className="flex w-full justify-start mb-4 relative">
+    <div className="relative flex w-full justify-start mb-3">
       {renderToast()}
-       <div className="w-full max-w-sm rounded-xl border border-white/[0.09] bg-[#111219] p-5">
+       <div className="w-full max-w-md rounded-xl border border-white/[0.09] bg-[#111219] p-4">
         <div className="flex items-center justify-between mb-4">
            <h3 className="font-semibold text-gray-100">Review {title}</h3>
           <span className="text-xs font-mono bg-zinc-800 text-zinc-400 px-2 py-1 rounded">
