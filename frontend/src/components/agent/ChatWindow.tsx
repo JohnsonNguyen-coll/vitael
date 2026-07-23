@@ -179,7 +179,10 @@ export function ChatWindow() {
         signal: controller.signal,
         body: JSON.stringify({ messages: requestMessages, userAddress: address }),
       });
-      if (!response.ok) throw new Error("The Vitael agent is temporarily unavailable.");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(failure?.error || "The Vitael agent is temporarily unavailable.");
+      }
       const data = await response.json();
       const assistantMessage: ChatMessage = {
         id: crypto.randomUUID(),

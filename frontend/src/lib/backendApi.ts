@@ -11,11 +11,13 @@ export class BackendApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
+    const headers = new Headers(init?.headers);
+    if (init?.body != null && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
-      headers: init?.body instanceof FormData
-        ? init.headers
-        : { "Content-Type": "application/json", ...init?.headers },
+      headers,
     });
   } catch {
     throw new BackendApiError("Backend API is unavailable", 0);
