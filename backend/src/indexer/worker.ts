@@ -429,18 +429,48 @@ async function captureSnapshot(blockNumber: bigint, pairs: PairInfo[]) {
 export async function runIndexer(signal: AbortSignal) {
   let pairs = await loadPairs();
   let state = await verifyCheckpoint(await checkpoint());
+  let liveCursor: bigint | null = null;
   let lastSnapshotAt = 0;
   let pairRefreshAt = Date.now();
   console.log(`[indexer] started at block ${state.block + 1n}; ${pairs.length} DEX pair(s)`);
 
-  // Publish current analytics immediately; historical transaction backfill can continue afterwards.
+  const syncLiveHead = async (confirmedHead: bigint) => {
+    let indexedEvents = 0;
+    if (liveCursor === null) {
+      const lookback = BigInt(env.INDEXER_LIVE_LOOKBACK_BLOCKS);
+      const earliest = BigInt(env.INDEXER_START_BLOCK) - 1n;
+      liveCursor = confirmedHead > lookback ? confirmedHead - lookback : earliest;
+      if (liveCursor < earliest) liveCursor = earliest;
+      console.log(`[indexer] live tail starts at block ${liveCursor + 1n}`);
+    }
+
+    let cursor: bigint = liveCursor;
+    while (cursor < confirmedHead && !signal.aborted) {
+      const from: bigint = cursor + 1n;
+      const to: bigint = from + BigInt(env.INDEXER_BLOCK_CHUNK - 1) < confirmedHead
+        ? from + BigInt(env.INDEXER_BLOCK_CHUNK - 1)
+        : confirmedHead;
+      const count = await scanRange(from, to, pairs);
+      indexedEvents += count;
+      cursor = to;
+      liveCursor = cursor;
+      console.log(`[indexer] live blocks ${from}-${to}, ${count} event(s)`);
+    }
+    return indexedEvents;
+  };
+
+  // Index the recent chain tip before publishing analytics. Historical backfill
+  // continues separately and can never block new swaps from appearing.
   try {
     const latest = await arcClient.getBlockNumber();
-    const confirmedHead = latest - BigInt(env.INDEXER_CONFIRMATIONS);
+    const confirmedHead = latest > BigInt(env.INDEXER_CONFIRMATIONS)
+      ? latest - BigInt(env.INDEXER_CONFIRMATIONS)
+      : 0n;
+    await syncLiveHead(confirmedHead);
     await captureSnapshot(confirmedHead, pairs);
     lastSnapshotAt = Date.now();
   } catch (error) {
-    console.error("[indexer] initial snapshot failed", error);
+    console.error("[indexer] initial live sync failed", error);
   }
 
   while (!signal.aborted) {
@@ -452,8 +482,12 @@ export async function runIndexer(signal: AbortSignal) {
       const latest = await arcClient.getBlockNumber();
       const confirmedHead = latest > BigInt(env.INDEXER_CONFIRMATIONS)
         ? latest - BigInt(env.INDEXER_CONFIRMATIONS) : 0n;
-      let next = state.block + 1n;
-      while (next <= confirmedHead && !signal.aborted) {
+      const liveEvents = await syncLiveHead(confirmedHead);
+
+      // Process only one historical chunk per cycle so RPC throttling or a large
+      // backlog cannot starve the live tail.
+      const next = state.block + 1n;
+      if (next <= confirmedHead && !signal.aborted) {
         const to = next + BigInt(env.INDEXER_BLOCK_CHUNK - 1) < confirmedHead
           ? next + BigInt(env.INDEXER_BLOCK_CHUNK - 1) : confirmedHead;
         const count = await scanRange(next, to, pairs);
@@ -461,10 +495,13 @@ export async function runIndexer(signal: AbortSignal) {
         if (!block.hash) throw new Error(`Block ${to} has no hash`);
         await saveCheckpoint(to, block.hash, to < confirmedHead ? "syncing" : "idle");
         state = { block: to, hash: block.hash };
-        console.log(`[indexer] blocks ${next}-${to}, ${count} event(s)`);
-        next = to + 1n;
+        console.log(`[indexer] backfill blocks ${next}-${to}, ${count} event(s)`);
       }
-      if (confirmedHead > 0n && Date.now() - lastSnapshotAt >= env.SNAPSHOT_INTERVAL_MS) {
+
+      if (
+        confirmedHead > 0n
+        && (liveEvents > 0 || Date.now() - lastSnapshotAt >= env.SNAPSHOT_INTERVAL_MS)
+      ) {
         await captureSnapshot(confirmedHead, pairs);
         lastSnapshotAt = Date.now();
       }

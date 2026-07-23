@@ -13,6 +13,7 @@ const envSchema = z.object({
   INDEXER_START_BLOCK: z.coerce.number().int().nonnegative().default(44966040),
   INDEXER_CONFIRMATIONS: z.coerce.number().int().min(1).default(3),
   INDEXER_BLOCK_CHUNK: z.coerce.number().int().min(10).max(5000).default(5000),
+  INDEXER_LIVE_LOOKBACK_BLOCKS: z.coerce.number().int().min(100).max(100000).default(5000),
   INDEXER_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).default(6000),
   SNAPSHOT_INTERVAL_MS: z.coerce.number().int().min(60000).default(300000),
 });

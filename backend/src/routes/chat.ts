@@ -96,6 +96,20 @@ export async function chatRoutes(app: FastifyInstance) {
     return { conversation: data };
   });
 
+  app.delete("/chat/conversations", {
+    config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+  }, async (request, reply) => {
+    const query = walletQuerySchema.safeParse(request.query);
+    if (!query.success) return reply.code(400).send({ error: "Invalid clear history request" });
+
+    const { data, error } = await supabase.from("chat_conversations")
+      .delete()
+      .eq("wallet_address", query.data.walletAddress)
+      .select("id");
+    if (error) return reply.code(503).send({ error: "Unable to clear conversation history" });
+    return { deletedCount: data.length };
+  });
+
   app.delete("/chat/conversations/:id", async (request, reply) => {
     const params = conversationParamsSchema.safeParse(request.params);
     const query = walletQuerySchema.safeParse(request.query);

@@ -6,6 +6,7 @@ import { MetricCard } from "../../components/analytics/MetricCard";
 import { VolumeChart, type ChartDataPoint } from "../../components/analytics/VolumeChart";
 import PageLayout from "../../components/PageLayout";
 import { backendApi } from "../../lib/backendApi";
+import { formatUsd } from "../../lib/format";
 
 type Metrics = {
   tvl: number;
@@ -83,10 +84,10 @@ export default function AnalyticsDashboard() {
           {error && <div className="flex flex-col gap-4 rounded-2xl border border-amber-400/15 bg-amber-400/[0.06] p-4 sm:flex-row sm:items-center"><AlertTriangle className="size-5 shrink-0 text-amber-300" /><p className="flex-1 text-sm text-amber-100/80">{error}</p><button onClick={() => void load()} className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/15 px-4 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-300/10"><RefreshCw className="size-3.5" />Try again</button></div>}
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <MetricCard title="Total Value Locked" value={`$${metrics.tvl.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} icon={TrendingUp} isLoading={isLoading} description="Lending assets plus DEX reserves" />
-            <MetricCard title="Total Supplied" value={`$${metrics.totalSupplied.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} icon={Activity} isLoading={isLoading} description="Current lender positions" />
-            <MetricCard title="Total Borrowed" value={`$${metrics.totalBorrowed.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} icon={BarChart3} isLoading={isLoading} description="Outstanding protocol debt" />
-            <MetricCard title="24h Swap Volume" value={`$${metrics.swapVolume.toLocaleString(undefined, { maximumFractionDigits: 0 })}`} icon={Users} isLoading={isLoading} description={`${metrics.assetsCount} indexed lending markets`} />
+            <MetricCard title="Total Value Locked" value={formatUsd(metrics.tvl)} icon={TrendingUp} isLoading={isLoading} description="Lending assets plus DEX reserves" />
+            <MetricCard title="Total Supplied" value={formatUsd(metrics.totalSupplied)} icon={Activity} isLoading={isLoading} description="Current lender positions" />
+            <MetricCard title="Total Borrowed" value={formatUsd(metrics.totalBorrowed)} icon={BarChart3} isLoading={isLoading} description="Outstanding protocol debt" />
+            <MetricCard title="24h Swap Volume" value={formatUsd(metrics.swapVolume)} icon={Users} isLoading={isLoading} description={`${metrics.assetsCount} indexed lending markets`} />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

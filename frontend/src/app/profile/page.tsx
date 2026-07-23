@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import PageLayout from "@/components/PageLayout";
 import { backendApi, BackendApiError, type Profile } from "@/lib/backendApi";
+import { formatTokenAmount, formatUsd } from "@/lib/format";
 
 const USDC_ADDRESS = process.env.NEXT_PUBLIC_USDC as `0x${string}`;
 const EURC_ADDRESS = process.env.NEXT_PUBLIC_EURC as `0x${string}`;
@@ -204,8 +205,8 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!address) return;
 
-    const fetchHistory = async () => {
-      setIsLoadingHistory(true);
+    const fetchHistory = async (showLoader = false) => {
+      if (showLoader) setIsLoadingHistory(true);
       try {
         const formatAsset = (addr: string) => {
           if (addr.toLowerCase() === USDC_ADDRESS.toLowerCase())
@@ -244,7 +245,7 @@ export default function ProfilePage() {
             transactionHash: transaction.transaction_hash,
             type: meta.label,
             asset: assetInfo.name,
-            amount: Number(formatUnits(BigInt(rawAmount), decimals)).toLocaleString(undefined, { maximumFractionDigits: 4 }),
+            amount: formatTokenAmount(formatUnits(BigInt(rawAmount), decimals), { min: 0, max: 4 }),
             status: transaction.status === "confirmed" ? "Completed" : transaction.status,
             time: new Date(transaction.block_timestamp).toLocaleString(),
             icon: meta.icon,
@@ -255,11 +256,13 @@ export default function ProfilePage() {
       } catch (error) {
         console.warn("Failed to fetch history:", error);
       } finally {
-        setIsLoadingHistory(false);
+        if (showLoader) setIsLoadingHistory(false);
       }
     };
 
-    void fetchHistory();
+    void fetchHistory(true);
+    const interval = window.setInterval(() => void fetchHistory(), 30_000);
+    return () => window.clearInterval(interval);
   }, [address]);
 
   if (!mounted) return null;
@@ -411,8 +414,8 @@ export default function ProfilePage() {
               {[
                 ["Network", "Arc Testnet"],
                 ["Member since", memberSince],
-                ["Total supplied", `$${totalSupplyUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}`],
-                ["Total borrowed", `$${totalBorrowUSD.toLocaleString(undefined, { maximumFractionDigits: 2 })}`],
+                ["Total supplied", formatUsd(totalSupplyUSD)],
+                ["Total borrowed", formatUsd(totalBorrowUSD)],
                 ["Indexed activity", history.length.toString()],
                 ["Position", totalBorrowUSD > 0 ? "Active debt" : "No debt"],
               ].map(([label, value]) => (
@@ -460,9 +463,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-right relative z-10">
                     <div className="font-bold text-white text-xl">
-                      {usdcBal.toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}
+                      {formatTokenAmount(usdcBal, { min: 2, max: 2 })}
                     </div>
                     <div className="text-xs text-[#A998FF] mt-1 tracking-wider">
                       NATIVE
@@ -492,9 +493,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-right relative z-10">
                     <div className="font-bold text-white text-xl">
-                      {eurcBal.toLocaleString(undefined, {
-                        maximumFractionDigits: 2,
-                      })}
+                      {formatTokenAmount(eurcBal, { min: 2, max: 2 })}
                     </div>
                   </div>
                 </div>
@@ -521,9 +520,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-right relative z-10">
                     <div className="font-bold text-white text-xl">
-                      {cirBtcBal.toLocaleString(undefined, {
-                        maximumFractionDigits: 4,
-                      })}
+                      {formatTokenAmount(cirBtcBal, { min: 0, max: 4 })}
                     </div>
                   </div>
                 </div>
@@ -589,7 +586,7 @@ export default function ProfilePage() {
                                 fontWeight: "bold",
                               }}
                               formatter={(value) => [
-                                `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+                                formatUsd(Number(value)),
                                 "Value",
                               ]}
                             />
@@ -658,7 +655,7 @@ export default function ProfilePage() {
                                 fontWeight: "bold",
                               }}
                               formatter={(value) => [
-                                `$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`,
+                                formatUsd(Number(value)),
                                 "Value",
                               ]}
                             />

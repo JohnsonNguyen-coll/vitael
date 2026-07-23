@@ -115,9 +115,34 @@ export function ChatWindow() {
     try {
       await backendApi.deleteConversation(conversation.id, address);
       setConversations((current) => current.filter((item) => item.id !== conversation.id));
-      if (activeConversationId === conversation.id) newChat();
+      if (activeConversationId === conversation.id) {
+        abortRef.current?.abort();
+        setIsLoading(false);
+        setActiveConversationId(null);
+        setMessages([]);
+        setError(null);
+        setLocalInput("");
+      }
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError : new Error("Unable to delete conversation."));
+      throw deleteError;
+    }
+  };
+
+  const clearConversationHistory = async () => {
+    if (!address) return;
+    try {
+      await backendApi.clearConversationHistory(address);
+      abortRef.current?.abort();
+      setIsLoading(false);
+      setConversations([]);
+      setActiveConversationId(null);
+      setMessages([]);
+      setError(null);
+      setLocalInput("");
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError : new Error("Unable to clear conversation history."));
+      throw deleteError;
     }
   };
 
@@ -188,7 +213,7 @@ export function ChatWindow() {
 
   return (
     <div className="relative flex min-h-0 w-full flex-1 bg-transparent">
-      <LeftSidebar conversations={conversations} activeId={activeConversationId} isLoading={isLoadingHistory} historyError={historyError} canPersist={Boolean(address)} onNew={newChat} onSelect={(conversation) => void selectConversation(conversation)} onDelete={(conversation) => void deleteConversation(conversation)} />
+      <LeftSidebar conversations={conversations} activeId={activeConversationId} isLoading={isLoadingHistory} historyError={historyError} canPersist={Boolean(address)} onNew={newChat} onSelect={(conversation) => void selectConversation(conversation)} onDelete={deleteConversation} onClear={clearConversationHistory} />
       <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="pointer-events-none absolute left-0 right-0 top-0 z-10 h-8 bg-gradient-to-b from-[#0b0c12] to-transparent" />
         <div ref={scrollContainerRef} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-white/10">

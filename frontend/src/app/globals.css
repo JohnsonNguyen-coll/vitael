@@ -25,7 +25,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   overflow-x: hidden;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
 }
 
 .glass-panel {
@@ -46,7 +46,7 @@ body {
 }
 
 /* Shared application atmosphere */
-.app-shell { position:relative; isolation:isolate; overflow:hidden; background:radial-gradient(ellipse at 50% -10%,#201c3d 0,#0f1022 28%,#080914 62%,#070812 100%); font-family:var(--font-geist-sans),system-ui,sans-serif; }
+.app-shell { position:relative; isolation:isolate; overflow:hidden; background:radial-gradient(ellipse at 50% -10%,#201c3d 0,#0f1022 28%,#080914 62%,#070812 100%); font-family:var(--font-geist-sans),system-ui,sans-serif; font-variant-numeric:tabular-nums lining-nums; }
 .app-sky { position:absolute; z-index:-1; inset:0; overflow:hidden; pointer-events:none; }
 .app-stars { position:absolute; inset:-5%; opacity:.28; background-image:radial-gradient(circle,rgba(229,225,255,.8) 0 1px,transparent 1.3px); background-size:97px 97px; animation:app-star-drift 70s linear infinite; }
 .app-aurora { position:absolute; width:800px; height:520px; left:50%; top:-260px; transform:translateX(-50%); border-radius:50%; background:radial-gradient(circle,rgba(128,102,255,.18),rgba(80,67,164,.06) 45%,transparent 70%); filter:blur(30px); animation:app-aurora 9s ease-in-out infinite; }
@@ -58,7 +58,7 @@ body {
 .app-live-dot{width:6px;height:6px;border-radius:50%;background:#73dfb3;box-shadow:0 0 10px #73dfb3;animation:app-pulse 2.5s ease infinite}
 .app-footer{background:rgba(6,7,15,.66);backdrop-filter:blur(18px)}
 .app-page { min-height:calc(100vh - 72px); }
-.app-page-title { font-family:var(--font-raleway),system-ui,sans-serif; letter-spacing:-.045em; font-weight:650; }
+.app-page-title { font-family:var(--font-geist-sans),system-ui,sans-serif; letter-spacing:-.025em; font-weight:650; }
 .app-eyebrow { display:flex!important;align-items:center;gap:8px;color:#9485dc!important;font-size:10px!important;letter-spacing:.14em!important }.app-eyebrow:before{content:"";width:6px;height:6px;border-radius:50%;background:#9b88ff;box-shadow:0 0 12px #9b88ff}
 .app-action-panel { position:relative; }
 .app-action-panel:after { content:"";position:absolute;z-index:-1;inset:12% 10% -8%;border-radius:35%;background:rgba(112,87,238,.12);filter:blur(35px);pointer-events:none }

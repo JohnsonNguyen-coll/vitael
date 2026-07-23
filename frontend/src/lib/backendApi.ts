@@ -126,6 +126,8 @@ export const backendApi = {
     request<{ conversation: Conversation }>("/api/chat/conversations", { method: "POST", body: JSON.stringify({ walletAddress: wallet(address), title }) }),
   deleteConversation: (id: string, address: string) =>
     request<void>(`/api/chat/conversations/${id}?${query({ walletAddress: wallet(address) })}`, { method: "DELETE" }),
+  clearConversationHistory: (address: string) =>
+    request<{ deletedCount: number }>(`/api/chat/conversations?${query({ walletAddress: wallet(address) })}`, { method: "DELETE" }),
   messages: (conversationId: string, address: string) =>
     request<{ items: StoredMessage[] }>(`/api/chat/conversations/${conversationId}/messages?${query({ walletAddress: wallet(address) })}`),
   appendMessage: (conversationId: string, address: string, message: { role: "system" | "user" | "assistant" | "tool"; content?: string | null; parts?: unknown[]; metadata?: Record<string, unknown> }) =>
