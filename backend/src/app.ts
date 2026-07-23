@@ -15,7 +15,11 @@ export async function buildApp() {
 
   await app.register(helmet);
   await app.register(multipart, { limits: { files: 1, fileSize: 2 * 1024 * 1024 } });
-  await app.register(cors, { origin: env.FRONTEND_URL, credentials: true });
+  await app.register(cors, {
+    origin: env.FRONTEND_URL,
+    credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS"],
+  });
   await app.register(rateLimit, { max: 120, timeWindow: "1 minute" });
 
   await app.register(healthRoutes);
