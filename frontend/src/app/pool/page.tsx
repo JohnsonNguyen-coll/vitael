@@ -129,7 +129,7 @@ function AddPanel() {
           {poolInfo.userLpBalance > 0n && (
             <div className="flex justify-between pt-1 border-t border-white/5">
               <span className="text-[#8991AF]">Your LP</span>
-              <span className="text-[#A998FF] font-semibold">{formatTokenAmount(formatUnits(poolInfo.userLpBalance, 18), { min: 6, max: 10 })}</span>
+              <span className="text-[#A998FF] font-semibold">{formatTokenAmount(formatUnits(poolInfo.userLpBalance, 18), { min: 2, max: 2 })}</span>
             </div>
           )}
         </div>
@@ -160,7 +160,7 @@ function AddPanel() {
         </div>
         {poolInfo && (
           <div className="flex justify-between mt-2 text-xs text-[#8991AF]">
-            <span>Balance: {parseFloat(formatUnits(poolInfo.balanceA, tA.decimals)).toFixed(4)} {tokenA}</span>
+            <span>Balance: {parseFloat(formatUnits(poolInfo.balanceA, tA.decimals)).toFixed(2)} {tokenA}</span>
             <button
               className="text-[#A998FF] hover:underline"
               onClick={() => handleAmountAChange(formatUnits(poolInfo.balanceA, tA.decimals))}
@@ -206,7 +206,7 @@ function AddPanel() {
         </div>
         {poolInfo && (
           <div className="flex justify-between mt-2 text-xs text-[#8991AF]">
-            <span>Balance: {parseFloat(formatUnits(poolInfo.balanceB, tB.decimals)).toFixed(4)} {tokenB}</span>
+            <span>Balance: {parseFloat(formatUnits(poolInfo.balanceB, tB.decimals)).toFixed(2)} {tokenB}</span>
             <button
               className="text-[#A998FF] hover:underline"
               onClick={() => setAmountB(formatUnits(poolInfo.balanceB, tB.decimals))}
@@ -274,8 +274,8 @@ function RemovePanel() {
       const lp = BigInt(Math.floor(parseFloat(lpAmount) * 1e18));
       const r0 = poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve0 : poolInfo.reserve1;
       const r1 = poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve1 : poolInfo.reserve0;
-      estA = parseFloat(formatUnits(lp * r0 / poolInfo.totalSupply, tA.decimals)).toFixed(6);
-      estB = parseFloat(formatUnits(lp * r1 / poolInfo.totalSupply, tB.decimals)).toFixed(6);
+      estA = parseFloat(formatUnits(lp * r0 / poolInfo.totalSupply, tA.decimals)).toFixed(2);
+      estB = parseFloat(formatUnits(lp * r1 / poolInfo.totalSupply, tB.decimals)).toFixed(2);
     } catch { /* ignore */ }
   }
 
@@ -293,7 +293,7 @@ function RemovePanel() {
         <div className="bg-white/2 rounded-xl p-3 mb-4 text-xs">
           <div className="flex justify-between mb-3">
             <span className="text-[#8991AF]">Your LP balance</span>
-            <span className="text-white font-semibold">{parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(6)}</span>
+            <span className="text-white font-semibold">{parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(2)}</span>
           </div>
           <div className="flex gap-2">
             {[25, 50, 75, 100].map(p => (
@@ -334,7 +334,7 @@ function RemovePanel() {
         />
         {poolInfo && poolInfo.userLpBalance > 0n && (
           <div className="flex justify-between mt-2 text-xs text-[#8991AF]">
-            <span>Available: {parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(6)} LP</span>
+            <span>Available: {parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(2)} LP</span>
             <button
               className="text-[#A998FF] hover:underline"
               onClick={() => handlePct(100)}

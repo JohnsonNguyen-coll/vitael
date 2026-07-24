@@ -289,7 +289,7 @@ export default function BorrowPage() {
             <StatCard
               key={c.symbol}
               label={`${c.symbol} Collateral`}
-              value={formatTokenAmount(c.amount, { min: 2, max: 3 })}
+              value={formatTokenAmount(c.amount, { min: 2, max: 2 })}
               sub={`LTV ${COLLATERAL_TOKENS[c.symbol].ltv}%`}
               loading={infoLoading}
             />
@@ -374,7 +374,7 @@ export default function BorrowPage() {
                           <div>
                             <p className="text-sm font-bold text-white">{c.symbol}</p>
                             <p className="text-xs text-[#8991AF]">
-                              {formatTokenAmount(c.amount, { min: 2, max: 3 })}
+                              {formatTokenAmount(c.amount, { min: 2, max: 2 })}
                             </p>
                           </div>
                         </div>
@@ -622,7 +622,7 @@ export default function BorrowPage() {
                         ? "Loading…"
                         : collBalanceError && collBalanceData === undefined
                           ? "Unavailable"
-                          : formatTokenAmount(collWalletBalance, { min: 2, max: 3 })} {collSymbol}
+                          : formatTokenAmount(collWalletBalance, { min: 2, max: 2 })} {collSymbol}
                     </span>
                     <button
                       className="text-white hover:underline"
@@ -633,7 +633,7 @@ export default function BorrowPage() {
                   </>
                 ) : (
                   <>
-                    <span>Deposited: {formatTokenAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0", { min: 2, max: 3 })} {collSymbol}</span>
+                    <span>Deposited: {formatTokenAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0", { min: 2, max: 2 })} {collSymbol}</span>
                     <button
                       className="text-white hover:underline"
                       onClick={() => setCollAmount(collaterals.find(c => c.symbol === collSymbol)?.amount ?? "0")}

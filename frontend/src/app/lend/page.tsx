@@ -40,7 +40,7 @@ function fmtLiquidity(val: string, symbol: string): string {
   const n = parseFloat(val);
   if (isNaN(n) || n === 0) return "—";
   if (symbol === "cirBTC") {
-    if (n >= 1) return `${n.toFixed(4)} BTC`;
+    if (n >= 1) return `${n.toFixed(2)} BTC`;
     return `${(n * 1e8).toFixed(0)} sat`;
   }
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
@@ -379,7 +379,7 @@ export default function LendPage() {
                               <div>
                                 <p className="text-sm font-bold text-white">{a.symbol}</p>
                                 <p className="text-xs text-[#8991AF]">
-                                  {formatTokenAmount(a.supplyBalance, { min: 2, max: 3 })} {a.symbol}
+                                  {formatTokenAmount(a.supplyBalance, { min: 2, max: 2 })} {a.symbol}
                                 </p>
                               </div>
                             </div>
@@ -522,7 +522,7 @@ export default function LendPage() {
                                 ? "Loading…"
                                 : walletBalanceError && directWalletBalance === undefined && !userAsset
                                   ? "Unavailable"
-                                  : formatTokenAmount(walletBalance, { min: 2, max: 3 })} {selectedSymbol}
+                                  : formatTokenAmount(walletBalance, { min: 2, max: 2 })} {selectedSymbol}
                             </span>
                             <button
                               className="text-[#A998FF] hover:underline"
@@ -533,7 +533,7 @@ export default function LendPage() {
                           </>
                         ) : (
                           <>
-                            <span>Supplied: {formatTokenAmount(userAsset?.supplyBalance ?? "0", { min: 2, max: 3 })} {selectedSymbol}</span>
+                            <span>Supplied: {formatTokenAmount(userAsset?.supplyBalance ?? "0", { min: 2, max: 2 })} {selectedSymbol}</span>
                             <button
                               className="text-[#A998FF] hover:underline"
                               onClick={() => setAmount(userAsset?.supplyBalance ?? "0")}

@@ -172,7 +172,7 @@ export default function SwapPage() {
                 <TokenSelector selected={tokenIn} onSelect={s => { setTokenIn(s); reset(); }} exclude={tokenOut} />
               </div>
               <div className="flex justify-between mt-2 text-xs text-[#8991AF]">
-                <span>Balance: {formatTokenAmount(balance, { min: 2, max: 3 })} {tokenIn}</span>
+                <span>Balance: {formatTokenAmount(balance, { min: 2, max: 2 })} {tokenIn}</span>
                 <button
                   className="text-[#A998FF] hover:underline"
                   onClick={() => setAmountIn(balance)}
@@ -208,7 +208,7 @@ export default function SwapPage() {
             {quote && amountIn && (
               <div className="bg-white/2 rounded-xl p-3 mb-4 text-xs space-y-1.5">
                 <div className="flex justify-between"><span className="text-[#8991AF]">Rate</span>
-                  <span className="text-white">1 {tokenIn} ≈ {(parseFloat(quote)/parseFloat(amountIn)).toFixed(6)} {tokenOut}</span></div>
+                  <span className="text-white">1 {tokenIn} ≈ {(parseFloat(quote)/parseFloat(amountIn)).toFixed(2)} {tokenOut}</span></div>
                 <div className="flex justify-between"><span className="text-[#8991AF]">Fee</span><span className="text-white">0.3%</span></div>
                 <div className="flex justify-between"><span className="text-[#8991AF]">Slippage</span><span className="text-white">{slippage}%</span></div>
               </div>

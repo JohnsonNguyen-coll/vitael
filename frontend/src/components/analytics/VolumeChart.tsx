@@ -13,6 +13,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { formatUsd } from "@/lib/format";
 
 export interface ChartDataPoint {
   name: string;
@@ -54,6 +55,7 @@ export function VolumeChart({ data, keys, type = "bar", title }: VolumeChartProp
                 }
               />
               <Tooltip
+                formatter={(value, name) => [formatUsd(Number(value)), name]}
                 contentStyle={{
                   backgroundColor: "#111323",
                   borderColor: "rgba(169,152,255,0.16)",
@@ -109,6 +111,7 @@ export function VolumeChart({ data, keys, type = "bar", title }: VolumeChartProp
                 }
               />
               <Tooltip
+                formatter={(value, name) => [formatUsd(Number(value)), name]}
                 contentStyle={{
                   backgroundColor: "#111323",
                   borderColor: "rgba(169,152,255,0.16)",

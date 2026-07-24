@@ -245,7 +245,7 @@ export default function ProfilePage() {
             transactionHash: transaction.transaction_hash,
             type: meta.label,
             asset: assetInfo.name,
-            amount: formatTokenAmount(formatUnits(BigInt(rawAmount), decimals), { min: 0, max: 4 }),
+            amount: formatTokenAmount(formatUnits(BigInt(rawAmount), decimals), { min: 0, max: 2 }),
             status: transaction.status === "confirmed" ? "Completed" : transaction.status,
             time: new Date(transaction.block_timestamp).toLocaleString(),
             icon: meta.icon,
@@ -520,7 +520,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="text-right relative z-10">
                     <div className="font-bold text-white text-xl">
-                      {formatTokenAmount(cirBtcBal, { min: 0, max: 4 })}
+                      {formatTokenAmount(cirBtcBal, { min: 0, max: 2 })}
                     </div>
                   </div>
                 </div>
