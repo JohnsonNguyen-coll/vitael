@@ -1,5 +1,5 @@
 import { getClient, SupportedChain } from './viemClient.js';
-import { encodeFunctionData, formatUnits, isAddress, pad, zeroAddress } from 'viem';
+import { encodeFunctionData, formatUnits, isAddress, pad, parseUnits, zeroAddress } from 'viem';
 import {
   BRIDGE_ABI,
   ERC20_ABI,
@@ -18,6 +18,8 @@ const ARC_ADDRESSES = {
 
 const CCTP_TOKEN_MESSENGER =
   process.env.BRIDGE ?? '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA';
+const CCTP_FORWARDING_HOOK =
+  '0x636374702d666f72776172640000000000000000000000000000000000000000';
 
 const TOKENS: Partial<Record<SupportedChain, Record<string, string>>> = {
   arcTestnet: {
@@ -468,7 +470,7 @@ export class DefiService {
     destinationCaller: string = zeroAddress,
     maxFee: string = "0",
     minFinalityThreshold: number = 2000,
-    hookData: string = "0x",
+    hookData: string = CCTP_FORWARDING_HOOK,
   ) {
     const bridgeAddress = requireAddress(CCTP_TOKEN_MESSENGER, 'CCTP TokenMessenger');
     const tokenAddress = requireAddress(this.resolveTokenAddress(chain, burnToken), 'burnToken');
@@ -477,16 +479,22 @@ export class DefiService {
     if (!/^0x(?:[0-9a-fA-F]{2})*$/.test(hookData)) {
       throw new Error('hookData must be a hex byte string');
     }
+    const amountAtomic = parseUnits(amount, 6);
+    const maxFeeAtomic = BigInt(maxFee);
+    if (amountAtomic <= 0n) throw new Error('Bridge amount must be greater than zero');
+    if (maxFeeAtomic >= amountAtomic) {
+      throw new Error('Bridge fee must be lower than the amount being bridged');
+    }
     const data = encodeFunctionData({
       abi: BRIDGE_ABI,
       functionName: 'depositForBurnWithHook',
       args: [
-        BigInt(amount),
+        amountAtomic,
         destinationDomain,
         pad(recipient, { size: 32 }),
         tokenAddress,
         pad(caller, { size: 32 }),
-        BigInt(maxFee),
+        maxFeeAtomic,
         minFinalityThreshold,
         hookData as `0x${string}`,
       ]
@@ -495,7 +503,13 @@ export class DefiService {
     return {
       to: bridgeAddress,
       data,
-      value: "0"
+      value: "0",
+      amountAtomic: amountAtomic.toString(),
+      approvals: [{
+        token: tokenAddress,
+        amount: amountAtomic.toString(),
+        spender: bridgeAddress,
+      }],
     };
   }
 

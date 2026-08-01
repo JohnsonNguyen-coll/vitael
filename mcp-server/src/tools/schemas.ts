@@ -33,7 +33,7 @@ export const BridgeSchema = z.object({
   destinationCaller: z.string().optional(),
   maxFee: z.string().default("0"),
   minFinalityThreshold: z.number().int().default(2000),
-  hookData: z.string().default("0x"),
+  hookData: z.string().optional(),
 });
 export const AddLiquiditySchema = z.object({ chain: chainEnum, tokenA: z.string(), tokenB: z.string(), amountA: z.string(), amountB: z.string(), to: z.string(), deadline: z.string() });
 export const RemoveLiquiditySchema = z.object({ chain: chainEnum, tokenA: z.string(), tokenB: z.string(), liquidity: z.string(), to: z.string(), deadline: z.string() });

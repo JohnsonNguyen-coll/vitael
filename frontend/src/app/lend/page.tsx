@@ -230,7 +230,7 @@ export default function LendPage() {
           <StatCard
             label="My Collateral (USD)"
             value={isConnected ? totalSuppliedUSD : "—"}
-            sub="All assets combined"
+            sub="After liquidation-threshold adjustment"
             accent
             loading={posLoading}
           />

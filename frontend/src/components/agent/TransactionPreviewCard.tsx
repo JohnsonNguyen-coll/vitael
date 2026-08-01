@@ -12,6 +12,12 @@ interface UnsignedTransactionStep {
   label?: string;
 }
 
+interface RequiredApproval {
+  token: string;
+  amount: string;
+  spender: string;
+}
+
 interface TransactionPreviewCardProps {
   toolName: string;
   args: Record<string, unknown> & {
@@ -31,6 +37,7 @@ interface TransactionPreviewCardProps {
     data: string;
     value: string;
     transactions?: UnsignedTransactionStep[];
+    approvals?: RequiredApproval[];
   };
   /** Starts the following strategy step only after this wallet transaction is mined. */
   onStrategyStepSuccess?: () => void;
@@ -91,26 +98,31 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
   const { switchChainAsync } = useSwitchChain();
 
   // Extract needed approvals based on toolName
-  const approvalsNeeded: Array<{ token: string, amount: bigint, spender: string }> = [];
+  const approvalsNeeded: Array<{ token: string, amount: bigint, spender: string }> =
+    (unsignedTx.approvals ?? []).map(approval => ({
+      token: approval.token,
+      amount: BigInt(approval.amount),
+      spender: approval.spender,
+    }));
 
-  if (toolName === 'deposit' || toolName === 'repay') {
+  if (approvalsNeeded.length === 0 && (toolName === 'deposit' || toolName === 'repay')) {
     const tokenAddr = resolveAddress(args.asset, args.chain);
     if (tokenAddr && args.amount && tokenAddr !== '0x0000000000000000000000000000000000000000') {
       approvalsNeeded.push({ token: tokenAddr, amount: BigInt(args.amount), spender: unsignedTx.to });
     }
-  } else if (toolName === 'swap') {
+  } else if (approvalsNeeded.length === 0 && toolName === 'swap') {
     if (args.path && args.path.length > 0 && args.amountIn) {
       const tokenAddr = resolveAddress(args.path[0], args.chain);
       if (tokenAddr !== '0x0000000000000000000000000000000000000000') {
         approvalsNeeded.push({ token: tokenAddr, amount: BigInt(args.amountIn), spender: unsignedTx.to });
       }
     }
-  } else if (toolName === 'bridge') {
+  } else if (approvalsNeeded.length === 0 && toolName === 'bridge') {
     const tokenAddr = resolveAddress(args.burnToken, args.chain);
     if (tokenAddr && args.amount && tokenAddr !== '0x0000000000000000000000000000000000000000') {
       approvalsNeeded.push({ token: tokenAddr, amount: BigInt(args.amount), spender: unsignedTx.to });
     }
-  } else if (toolName === 'addLiquidity' && !unsignedTx.transactions?.length) {
+  } else if (approvalsNeeded.length === 0 && toolName === 'addLiquidity' && !unsignedTx.transactions?.length) {
     if (args.tokenA && args.amountA) {
       const tokenAAddr = resolveAddress(args.tokenA, args.chain);
       if (tokenAAddr !== '0x0000000000000000000000000000000000000000') {
