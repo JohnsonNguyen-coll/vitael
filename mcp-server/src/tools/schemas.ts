@@ -4,6 +4,12 @@ const chainEnum = z.enum(["sepolia", "arbitrumSepolia", "baseSepolia", "polygonA
 
 export const GetMarketsSchema = z.object({ chain: chainEnum });
 export const GetPoolsSchema = z.object({ chain: chainEnum });
+export const GetLiquidityPositionSchema = z.object({
+  chain: chainEnum,
+  userAddress: z.string(),
+  tokenA: z.string(),
+  tokenB: z.string(),
+});
 export const GetAPRSchema = z.object({ chain: chainEnum, asset: z.string() });
 export const GetPositionSchema = z.object({ chain: chainEnum, userAddress: z.string() });
 export const GetHealthFactorSchema = z.object({ chain: chainEnum, userAddress: z.string() });

@@ -6,7 +6,7 @@ import { Droplets, Minus, ChevronDown, Wallet, ExternalLink } from "lucide-react
 import TxStatusBanner from "../../components/TxStatusBanner";
 import { useAccount } from "wagmi";
 import WalletConnectButton from "../../components/WalletConnectButton";
-import { formatUnits } from "viem";
+import { formatUnits, parseUnits } from "viem";
 import { formatTokenAmount } from "../../lib/format";
 import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
@@ -15,6 +15,23 @@ import { useVitaelDEX, type TokenSymbol, TOKENS } from "../../hooks/useVitaelDEX
 
 type Tab = "add" | "remove";
 const TOKEN_LIST = Object.values(TOKENS);
+
+function getLpDisplayDecimals(decimalsA: number, decimalsB: number): number {
+  return Math.floor((decimalsA + decimalsB) / 2);
+}
+
+function formatLpBalance(rawBalance: bigint, displayDecimals: number): string {
+  if (rawBalance === 0n) return "0";
+  return formatTokenAmount(formatUnits(rawBalance, displayDecimals), { min: 2, max: 8 });
+}
+
+function formatPoolShare(lpBalance: bigint, totalSupply: bigint): string {
+  if (lpBalance === 0n || totalSupply === 0n) return "0%";
+  const scaledPercent = lpBalance * 100_000_000n / totalSupply;
+  if (scaledPercent === 0n) return "<0.000001%";
+  const percent = formatUnits(scaledPercent, 6);
+  return `${formatTokenAmount(percent, { min: 2, max: 6 })}%`;
+}
 
 // ─── Token selector ───────────────────────────────────────────────────────────
 function TokenSelector({ selected, onSelect, exclude }: {
@@ -75,6 +92,7 @@ function AddPanel() {
   const busy = state.busy;
   const tA = TOKENS[tokenA];
   const tB = TOKENS[tokenB];
+  const lpDisplayDecimals = getLpDisplayDecimals(tA.decimals, tB.decimals);
 
   // Validation
   const amtA = parseFloat(amountA) || 0;
@@ -127,9 +145,15 @@ function AddPanel() {
             <span className="text-white">{formatTokenAmount(formatUnits(poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve1 : poolInfo.reserve0, tB.decimals))}</span>
           </div>
           {poolInfo.userLpBalance > 0n && (
-            <div className="flex justify-between pt-1 border-t border-white/5">
-              <span className="text-[#8991AF]">Your LP</span>
-              <span className="text-[#A998FF] font-semibold">{formatTokenAmount(formatUnits(poolInfo.userLpBalance, 18), { min: 2, max: 2 })}</span>
+            <div className="space-y-1.5 pt-1 border-t border-white/5">
+              <div className="flex justify-between gap-4">
+                <span className="text-[#8991AF]">Your LP</span>
+                <span className="text-[#A998FF] font-semibold text-right">{formatLpBalance(poolInfo.userLpBalance, lpDisplayDecimals)} VLP</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8991AF]">Pool share</span>
+                <span className="text-white">{formatPoolShare(poolInfo.userLpBalance, poolInfo.totalSupply)}</span>
+              </div>
             </div>
           )}
         </div>
@@ -256,6 +280,7 @@ function RemovePanel() {
   const busy = state.busy;
   const tA = TOKENS[tokenA];
   const tB = TOKENS[tokenB];
+  const lpDisplayDecimals = getLpDisplayDecimals(tA.decimals, tB.decimals);
 
   useEffect(() => {
     if (!address) return;
@@ -265,13 +290,13 @@ function RemovePanel() {
   function handlePct(p: number) {
     setPct(p);
     if (!poolInfo || poolInfo.userLpBalance === 0n) return;
-    setLpAmount(formatUnits(poolInfo.userLpBalance * BigInt(p) / 100n, 18));
+    setLpAmount(formatUnits(poolInfo.userLpBalance * BigInt(p) / 100n, lpDisplayDecimals));
   }
 
   let estA = "—", estB = "—";
   if (poolInfo && poolInfo.totalSupply > 0n && lpAmount && parseFloat(lpAmount) > 0) {
     try {
-      const lp = BigInt(Math.floor(parseFloat(lpAmount) * 1e18));
+      const lp = parseUnits(lpAmount, lpDisplayDecimals);
       const r0 = poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve0 : poolInfo.reserve1;
       const r1 = poolInfo.token0.toLowerCase() === tA.address.toLowerCase() ? poolInfo.reserve1 : poolInfo.reserve0;
       estA = parseFloat(formatUnits(lp * r0 / poolInfo.totalSupply, tA.decimals)).toFixed(2);
@@ -291,9 +316,13 @@ function RemovePanel() {
 
       {poolInfo ? (
         <div className="bg-white/2 rounded-xl p-3 mb-4 text-xs">
-          <div className="flex justify-between mb-3">
+          <div className="flex justify-between gap-4 mb-1.5">
             <span className="text-[#8991AF]">Your LP balance</span>
-            <span className="text-white font-semibold">{parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(2)}</span>
+            <span className="text-white font-semibold text-right">{formatLpBalance(poolInfo.userLpBalance, lpDisplayDecimals)} VLP</span>
+          </div>
+          <div className="flex justify-between mb-3">
+            <span className="text-[#8991AF]">Pool share</span>
+            <span className="text-white">{formatPoolShare(poolInfo.userLpBalance, poolInfo.totalSupply)}</span>
           </div>
           <div className="flex gap-2">
             {[25, 50, 75, 100].map(p => (
@@ -326,15 +355,19 @@ function RemovePanel() {
           }}
           onBlur={() => {
             if (!lpAmount || !poolInfo) return;
-            const val = parseFloat(lpAmount);
-            const maxBal = parseFloat(formatUnits(poolInfo.userLpBalance, 18));
-            if (val > maxBal) setLpAmount(maxBal.toString());
+            try {
+              if (parseUnits(lpAmount, lpDisplayDecimals) > poolInfo.userLpBalance) {
+                setLpAmount(formatUnits(poolInfo.userLpBalance, lpDisplayDecimals));
+              }
+            } catch {
+              setLpAmount("");
+            }
           }}
           className="w-full bg-transparent text-2xl font-bold text-white outline-none placeholder-white/20 disabled:opacity-50"
         />
         {poolInfo && poolInfo.userLpBalance > 0n && (
           <div className="flex justify-between mt-2 text-xs text-[#8991AF]">
-            <span>Available: {parseFloat(formatUnits(poolInfo.userLpBalance, 18)).toFixed(2)} LP</span>
+            <span>Available: {formatLpBalance(poolInfo.userLpBalance, lpDisplayDecimals)} VLP</span>
             <button
               className="text-[#A998FF] hover:underline"
               onClick={() => handlePct(100)}

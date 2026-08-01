@@ -34,6 +34,7 @@ function createMcpServer() {
       // Read operations
       { name: "getMarkets", description: "Get active markets for a given chain", inputSchema: { type: "object", properties: { chain: { type: "string" } }, required: ["chain"] } },
       { name: "getPools", description: "Get liquidity pools for a given chain", inputSchema: { type: "object", properties: { chain: { type: "string" } }, required: ["chain"] } },
+      { name: "getLiquidityPosition", description: "Get a user's exact VLP balance, pool ownership percentage, and redeemable underlying token amounts. A non-zero raw balance is an active LP position even when the 18-decimal display value is tiny.", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" }, tokenA: { type: "string" }, tokenB: { type: "string" } }, required: ["chain", "userAddress", "tokenA", "tokenB"] } },
       { name: "getAPR", description: "Get APR for an asset", inputSchema: { type: "object", properties: { chain: { type: "string" }, asset: { type: "string" } }, required: ["chain", "asset"] } },
       { name: "getPosition", description: "Get user position", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "userAddress"] } },
       { name: "getHealthFactor", description: "Get user health factor", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "userAddress"] } },
@@ -71,6 +72,11 @@ function createMcpServer() {
       case "getPools": {
         const parsed = schemas.GetPoolsSchema.parse(args);
         result = await DefiService.getPools(parsed.chain);
+        break;
+      }
+      case "getLiquidityPosition": {
+        const parsed = schemas.GetLiquidityPositionSchema.parse(args);
+        result = await DefiService.getLiquidityPosition(parsed.chain, parsed.userAddress, parsed.tokenA, parsed.tokenB);
         break;
       }
       case "getAPR": {
@@ -150,12 +156,12 @@ function createMcpServer() {
       }
       case "addLiquidity": {
         const parsed = schemas.AddLiquiditySchema.parse(args);
-        result = DefiService.generateAddLiquidityPayload(parsed.chain, parsed.tokenA, parsed.tokenB, parsed.amountA, parsed.amountB, parsed.to, parsed.deadline);
+        result = await DefiService.generateAddLiquidityPayload(parsed.chain, parsed.tokenA, parsed.tokenB, parsed.amountA, parsed.amountB, parsed.to, parsed.deadline);
         break;
       }
       case "removeLiquidity": {
         const parsed = schemas.RemoveLiquiditySchema.parse(args);
-        result = DefiService.generateRemoveLiquidityPayload(parsed.chain, parsed.tokenA, parsed.tokenB, parsed.liquidity, parsed.to, parsed.deadline);
+        result = await DefiService.generateRemoveLiquidityPayload(parsed.chain, parsed.tokenA, parsed.tokenB, parsed.liquidity, parsed.to, parsed.deadline);
         break;
       }
       default:

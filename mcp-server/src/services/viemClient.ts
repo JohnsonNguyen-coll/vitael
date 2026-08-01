@@ -59,23 +59,58 @@ export const getClient = (chainName: SupportedChain) => {
     customRpc = `https://${alchemyNetworkNames[chainName]}.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
   }
 
-  const urls =
+  const publicFallbacks: Record<SupportedChain, string[]> = {
+    sepolia: [
+      'https://ethereum-sepolia-rpc.publicnode.com',
+      'https://rpc.sepolia.org',
+      'https://sepolia.drpc.org',
+    ],
+    arbitrumSepolia: [
+      'https://sepolia-rollup.arbitrum.io/rpc',
+      'https://arbitrum-sepolia-rpc.publicnode.com',
+    ],
+    baseSepolia: [
+      'https://sepolia.base.org',
+      'https://base-sepolia-rpc.publicnode.com',
+    ],
+    polygonAmoy: [
+      'https://rpc-amoy.polygon.technology',
+      'https://polygon-amoy-bor-rpc.publicnode.com',
+    ],
+    avalancheFuji: [
+      'https://api.avax-test.network/ext/bc/C/rpc',
+      'https://avalanche-fuji-c-chain-rpc.publicnode.com',
+    ],
+    optimismSepolia: [
+      'https://sepolia.optimism.io',
+      'https://optimism-sepolia-rpc.publicnode.com',
+    ],
+    arcTestnet: [
+      'https://rpc.testnet.arc.network',
+      'https://rpc.blockdaemon.testnet.arc.network',
+      'https://rpc.drpc.testnet.arc.network',
+      'https://rpc.quicknode.testnet.arc.network',
+    ],
+  };
+
+  const configuredFallbacks =
     chainName === 'arcTestnet'
-      ? [
-          customRpc ?? 'https://rpc.testnet.arc.network',
-          ...(process.env.RPC_ARC_FALLBACK_URLS ?? '')
-            .split(',')
-            .map((url) => url.trim())
-            .filter(Boolean),
-        ]
-      : [customRpc].filter((url): url is string => Boolean(url));
+      ? (process.env.RPC_ARC_FALLBACK_URLS ?? '').split(',')
+      : [];
+  const urls = [
+    customRpc,
+    ...configuredFallbacks,
+    ...publicFallbacks[chainName],
+  ]
+    .map((url) => url?.trim())
+    .filter((url): url is string => Boolean(url))
+    .filter((url, index, all) => all.indexOf(url) === index);
 
   return createPublicClient({
     chain,
-    transport:
-      urls.length > 1
-        ? fallback(urls.map((url) => http(url, { timeout: 10_000 })))
-        : http(urls[0], { timeout: 10_000 }),
+    transport: fallback(
+      urls.map((url) => http(url, { timeout: 12_000, retryCount: 1 })),
+    ),
   });
 };
 

@@ -32,6 +32,23 @@ export const ERC20_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    name: "transfer",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalSupply",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export const LENDING_POOL_ABI = [
@@ -195,6 +212,37 @@ export const FACTORY_ABI = [
 ] as const;
 
 export const PAIR_ABI = [
+  {
+    inputs: [{ name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalSupply",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "to", type: "address" }],
+    name: "mint",
+    outputs: [{ name: "liquidity", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "to", type: "address" }],
+    name: "burn",
+    outputs: [
+      { name: "amount0", type: "uint256" },
+      { name: "amount1", type: "uint256" },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
   {
     inputs: [],
     name: "token0",

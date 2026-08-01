@@ -144,6 +144,82 @@ export class DefiService {
     return pools;
   }
 
+  static async getLiquidityPosition(
+    chain: SupportedChain,
+    userAddress: string,
+    tokenA: string,
+    tokenB: string,
+  ) {
+    const client = getClient(chain);
+    const factory = getArcAddresses(chain).factory as `0x${string}`;
+    const user = requireAddress(userAddress, 'userAddress');
+    const addressA = requireAddress(this.resolveTokenAddress(chain, tokenA), 'tokenA');
+    const addressB = requireAddress(this.resolveTokenAddress(chain, tokenB), 'tokenB');
+    const pair = await client.readContract({
+      address: factory,
+      abi: FACTORY_ABI,
+      functionName: 'getPair',
+      args: [addressA, addressB],
+    });
+
+    if (pair === zeroAddress) {
+      return {
+        pair,
+        hasPosition: false,
+        lpBalanceRaw: '0',
+        lpBalance: '0',
+        sharePercent: '0',
+        underlying: [],
+      };
+    }
+
+    const [lpBalance, totalSupply, reserves, token0, decimalsA, decimalsB] = await Promise.all([
+      client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'balanceOf', args: [user] }),
+      client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'totalSupply' }),
+      client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'getReserves' }),
+      client.readContract({ address: pair, abi: PAIR_ABI, functionName: 'token0' }),
+      client.readContract({ address: addressA, abi: ERC20_ABI, functionName: 'decimals' }),
+      client.readContract({ address: addressB, abi: ERC20_ABI, functionName: 'decimals' }),
+    ]);
+
+    const [reserveA, reserveB] =
+      token0.toLowerCase() === addressA.toLowerCase()
+        ? [reserves[0], reserves[1]]
+        : [reserves[1], reserves[0]];
+    const amountA = totalSupply === 0n ? 0n : (lpBalance * reserveA) / totalSupply;
+    const amountB = totalSupply === 0n ? 0n : (lpBalance * reserveB) / totalSupply;
+    const sharePercentScaled =
+      totalSupply === 0n ? 0n : (lpBalance * 100_000_000n) / totalSupply;
+    const displayDecimals = Math.floor((decimalsA + decimalsB) / 2);
+
+    return {
+      pair,
+      hasPosition: lpBalance > 0n,
+      lpBalanceRaw: lpBalance.toString(),
+      lpBalance: formatUnits(lpBalance, 18),
+      displayBalance: formatUnits(lpBalance, displayDecimals),
+      displayDecimals,
+      totalSupplyRaw: totalSupply.toString(),
+      sharePercent:
+        lpBalance > 0n && sharePercentScaled === 0n
+          ? '<0.000001'
+          : formatUnits(sharePercentScaled, 6),
+      underlying: [
+        {
+          symbol: tokenA,
+          amountRaw: amountA.toString(),
+          amount: formatUnits(amountA, decimalsA),
+        },
+        {
+          symbol: tokenB,
+          amountRaw: amountB.toString(),
+          amount: formatUnits(amountB, decimalsB),
+        },
+      ],
+      note: 'Use displayBalance for users. lpBalance is the canonical 18-decimal ERC-20 representation; ownership is determined by lpBalanceRaw / totalSupplyRaw.',
+    };
+  }
+
   static async getAPR(chain: SupportedChain, asset: string) {
     const client = getClient(chain);
     const pool = getArcAddresses(chain).pool as `0x${string}`;
@@ -423,39 +499,101 @@ export class DefiService {
     };
   }
 
-  static generateAddLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, amountA: string, amountB: string, to: string, deadline: string) {
-    const routerAddress = getArcAddresses(chain).router as `0x${string}`;
+  static async generateAddLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, amountA: string, amountB: string, to: string, deadline: string) {
+    const client = getClient(chain);
+    const factory = getArcAddresses(chain).factory as `0x${string}`;
     const tA = requireAddress(this.resolveTokenAddress(chain, tokenA), 'tokenA');
     const tB = requireAddress(this.resolveTokenAddress(chain, tokenB), 'tokenB');
     const recipient = requireAddress(to, 'to');
-    const data = encodeFunctionData({
-      abi: ROUTER_ABI,
-      functionName: 'addLiquidity',
-      args: [tA, tB, BigInt(amountA), BigInt(amountB), 0n, 0n, recipient, normalizeDeadline(deadline)]
-    });
+    normalizeDeadline(deadline);
 
-    return {
-      to: routerAddress,
-      data,
-      value: "0"
-    };
+    const pair = await client.readContract({
+      address: factory,
+      abi: FACTORY_ABI,
+      functionName: 'getPair',
+      args: [tA, tB],
+    });
+    if (pair === zeroAddress) {
+      throw new Error('Liquidity pair does not exist yet');
+    }
+
+    const transactions = [
+      {
+        to: tA,
+        data: encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: 'transfer',
+          args: [pair, BigInt(amountA)],
+        }),
+        value: '0',
+        label: `Transfer ${tokenA} to pool`,
+      },
+      {
+        to: tB,
+        data: encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: 'transfer',
+          args: [pair, BigInt(amountB)],
+        }),
+        value: '0',
+        label: `Transfer ${tokenB} to pool`,
+      },
+      {
+        to: pair,
+        data: encodeFunctionData({
+          abi: PAIR_ABI,
+          functionName: 'mint',
+          args: [recipient],
+        }),
+        value: '0',
+        label: 'Mint VLP tokens',
+      },
+    ];
+
+    return { ...transactions[0], transactions, pair };
   }
 
-  static generateRemoveLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, liquidity: string, to: string, deadline: string) {
-    const routerAddress = getArcAddresses(chain).router as `0x${string}`;
+  static async generateRemoveLiquidityPayload(chain: SupportedChain, tokenA: string, tokenB: string, liquidity: string, to: string, deadline: string) {
+    const client = getClient(chain);
+    const factory = getArcAddresses(chain).factory as `0x${string}`;
     const tA = requireAddress(this.resolveTokenAddress(chain, tokenA), 'tokenA');
     const tB = requireAddress(this.resolveTokenAddress(chain, tokenB), 'tokenB');
     const recipient = requireAddress(to, 'to');
-    const data = encodeFunctionData({
-      abi: ROUTER_ABI,
-      functionName: 'removeLiquidity',
-      args: [tA, tB, BigInt(liquidity), 0n, 0n, recipient, normalizeDeadline(deadline)]
-    });
+    normalizeDeadline(deadline);
 
-    return {
-      to: routerAddress,
-      data,
-      value: "0"
-    };
+    const pair = await client.readContract({
+      address: factory,
+      abi: FACTORY_ABI,
+      functionName: 'getPair',
+      args: [tA, tB],
+    });
+    if (pair === zeroAddress) {
+      throw new Error('Liquidity pair does not exist');
+    }
+
+    const transactions = [
+      {
+        to: pair,
+        data: encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: 'transfer',
+          args: [pair, BigInt(liquidity)],
+        }),
+        value: '0',
+        label: 'Transfer VLP to pool',
+      },
+      {
+        to: pair,
+        data: encodeFunctionData({
+          abi: PAIR_ABI,
+          functionName: 'burn',
+          args: [recipient],
+        }),
+        value: '0',
+        label: `Withdraw ${tokenA} and ${tokenB}`,
+      },
+    ];
+
+    return { ...transactions[0], transactions, pair };
   }
 }

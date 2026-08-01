@@ -1,16 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSendTransaction, useWaitForTransactionReceipt, useAccount, useReadContract, useWriteContract, usePublicClient, useSwitchChain, useConfig } from 'wagmi';
+import { createPortal } from 'react-dom';
+import { useSendTransaction, useAccount, useReadContract, useWriteContract, useSwitchChain, useConfig } from 'wagmi';
 import { waitForTransactionReceipt } from '@wagmi/core';
-import { erc20Abi, maxUint256 } from 'viem';
+import { erc20Abi } from 'viem';
 import { Loader2, Copy, ExternalLink, X } from 'lucide-react';
+
+interface UnsignedTransactionStep {
+  to: string;
+  data: string;
+  value: string;
+  label?: string;
+}
 
 interface TransactionPreviewCardProps {
   toolName: string;
-  args: Record<string, any>;
+  args: Record<string, unknown> & {
+    chain?: string;
+    asset?: string;
+    amount?: string;
+    amountIn?: string;
+    path?: string[];
+    burnToken?: string;
+    tokenA?: string;
+    amountA?: string;
+    tokenB?: string;
+    amountB?: string;
+  };
   unsignedTx: {
     to: string;
     data: string;
     value: string;
+    transactions?: UnsignedTransactionStep[];
   };
   /** Starts the following strategy step only after this wallet transaction is mined. */
   onStrategyStepSuccess?: () => void;
@@ -20,7 +40,7 @@ import { ARC_TOKENS } from '@/lib/arcTokens';
 import { sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from 'viem/chains';
 import { arcTestnet } from '@/app/providers';
 
-const getChainId = (chainName: string) => {
+const getChainId = (chainName?: string) => {
   if (!chainName) return arcTestnet.id;
   const name = chainName.toLowerCase();
   if (name.includes('sepolia') && !name.includes('arbitrum') && !name.includes('base') && !name.includes('optimism')) return sepolia.id;
@@ -32,7 +52,7 @@ const getChainId = (chainName: string) => {
   return arcTestnet.id;
 };
 
-const getExplorerUrl = (chainName: string, hash: string) => {
+const getExplorerUrl = (chainName: string | undefined, hash: string) => {
   const chainId = getChainId(chainName);
   switch (chainId) {
     case sepolia.id: return `https://sepolia.etherscan.io/tx/${hash}`;
@@ -45,16 +65,19 @@ const getExplorerUrl = (chainName: string, hash: string) => {
   }
 };
 
-function resolveAddress(tokenOrAddress: string, chainName?: string): string {
-  if (!tokenOrAddress) return tokenOrAddress;
+function resolveAddress(tokenOrAddress?: string, chainName?: string): string {
+  if (!tokenOrAddress) return '';
   if (tokenOrAddress.startsWith('0x')) return tokenOrAddress;
   const upper = tokenOrAddress.toUpperCase();
   
   if (upper === 'USDC') {
     const name = (chainName || '').toLowerCase();
-    if (name.includes('sepolia') && !name.includes('arbitrum') && !name.includes('base') && !name.includes('optimism')) {
-      return '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238'; // Sepolia USDC
-    }
+    if (name.includes('arbitrum')) return '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
+    if (name.includes('base')) return '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+    if (name.includes('polygon') || name.includes('amoy')) return '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582';
+    if (name.includes('avalanche') || name.includes('fuji')) return '0x5425890298aed601595a70AB815c96711a31Bc65';
+    if (name.includes('optimism')) return '0x5fd84259d66Cd46123540766Be93DFE6D43130D7';
+    if (name.includes('sepolia')) return '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
   }
 
   if (upper in ARC_TOKENS) {
@@ -87,7 +110,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
     if (tokenAddr && args.amount && tokenAddr !== '0x0000000000000000000000000000000000000000') {
       approvalsNeeded.push({ token: tokenAddr, amount: BigInt(args.amount), spender: unsignedTx.to });
     }
-  } else if (toolName === 'addLiquidity') {
+  } else if (toolName === 'addLiquidity' && !unsignedTx.transactions?.length) {
     if (args.tokenA && args.amountA) {
       const tokenAAddr = resolveAddress(args.tokenA, args.chain);
       if (tokenAAddr !== '0x0000000000000000000000000000000000000000') {
@@ -103,10 +126,11 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
   }
 
   const [approvalIndex, setApprovalIndex] = useState(0);
+  const [localError, setLocalError] = useState<string | null>(null);
   const currentApproval = approvalsNeeded[approvalIndex];
 
   // 1. Read Allowance
-  const { data: currentAllowance, refetch: refetchAllowance, isLoading: isCheckingAllowance, isError: isAllowanceError } = useReadContract({
+  const { data: currentAllowance, refetch: refetchAllowance } = useReadContract({
     chainId: getChainId(args.chain),
     address: currentApproval?.token as `0x${string}`,
     abi: erc20Abi,
@@ -129,6 +153,8 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
 
   const handleApprove = async () => {
     if (!currentApproval) return;
+    setLocalError(null);
+    setIsToastClosed(false);
     setIsApproving(true);
     try {
       const targetChainId = getChainId(args.chain);
@@ -145,10 +171,13 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
       setIsApproving(false);
       setIsApproveMining(true);
       
-      await waitForTransactionReceipt(config, { 
+      const receipt = await waitForTransactionReceipt(config, {
         hash,
         chainId: targetChainId
       });
+      if (receipt.status === 'reverted') {
+        throw new Error('Approval reverted on-chain');
+      }
       
       await refetchAllowance();
       if (approvalIndex < approvalsNeeded.length - 1) {
@@ -156,27 +185,31 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
       }
     } catch (e) {
       console.error("Approve failed:", e);
+      setLocalError(e instanceof Error ? e.message.split('\n')[0] : 'Approval failed');
     } finally {
       setIsApproving(false);
       setIsApproveMining(false);
     }
   };
 
-  const { sendTransaction, data: hash, isPending: isConfirming, error: sendError } = useSendTransaction();
-  
-  const { isLoading: isMining, isSuccess, data: receipt } = useWaitForTransactionReceipt({ 
-    chainId: getChainId(args.chain),
-    hash 
-  });
+  const { sendTransactionAsync, error: sendError } = useSendTransaction();
+  const [transactionStatus, setTransactionStatus] =
+    useState<'idle' | 'signing' | 'confirming' | 'success'>('idle');
+  const [hash, setHash] = useState<`0x${string}` | undefined>();
+  const [confirmedBlock, setConfirmedBlock] = useState<bigint | undefined>();
+  const [activeStep, setActiveStep] = useState(0);
+  const transactions =
+    unsignedTx.transactions && unsignedTx.transactions.length > 0
+      ? unsignedTx.transactions
+      : [{ to: unsignedTx.to, data: unsignedTx.data, value: unsignedTx.value }];
+  const isConfirming = transactionStatus === 'signing';
+  const isMining = transactionStatus === 'confirming';
+  const isSuccess = transactionStatus === 'success';
 
   const [isToastClosed, setIsToastClosed] = useState(false);
   const reportedStrategySuccess = useRef(false);
 
   // Reset toast if a new transaction starts
-  useEffect(() => {
-    if (isConfirming) setIsToastClosed(false);
-  }, [isConfirming]);
-
   useEffect(() => {
     if (!isSuccess || !onStrategyStepSuccess || reportedStrategySuccess.current) return;
     reportedStrategySuccess.current = true;
@@ -187,27 +220,41 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
 
   const handleConfirm = async () => {
     if (!unsignedTx) return;
-    
+    setLocalError(null);
+    setIsToastClosed(false);
+
     try {
       const targetChainId = getChainId(args.chain);
       if (currentChainId !== targetChainId) {
         await switchChainAsync({ chainId: targetChainId });
       }
+      for (let index = 0; index < transactions.length; index += 1) {
+        const transaction = transactions[index];
+        setActiveStep(index);
+        setTransactionStatus('signing');
+        const nextHash = await sendTransactionAsync({
+          to: transaction.to as `0x${string}`,
+          data: transaction.data as `0x${string}`,
+          value: BigInt(transaction.value || '0'),
+          chainId: targetChainId,
+        });
+        setHash(nextHash);
+        setTransactionStatus('confirming');
+        const receipt = await waitForTransactionReceipt(config, {
+          hash: nextHash,
+          chainId: targetChainId,
+        });
+        if (receipt.status === 'reverted') {
+          throw new Error(`${transaction.label ?? 'Transaction'} reverted on-chain`);
+        }
+        setConfirmedBlock(receipt.blockNumber);
+      }
+      setTransactionStatus('success');
     } catch (e) {
-      console.warn("Failed to switch chain", e);
-      return; // Stop if user rejects switch
+      console.warn('Transaction failed', e);
+      setTransactionStatus('idle');
+      setLocalError(e instanceof Error ? e.message.split('\n')[0] : 'Transaction failed');
     }
-
-
-
-    sendTransaction({
-      to: unsignedTx.to as `0x${string}`,
-      data: unsignedTx.data as `0x${string}`,
-      value: BigInt(unsignedTx.value || "0"),
-      gas: 500000n, // Hardcode gas limit
-      maxFeePerGas: 25000000000n, // 25 gwei
-      maxPriorityFeePerGas: 25000000000n, // 25 gwei
-    });
   };
 
   // Human readable title based on tool
@@ -218,7 +265,8 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
   if (!isToastClosed) {
     if (isSuccess) toastStatus = 'success';
     else if (isMining) toastStatus = 'confirming';
-    else if (isConfirming) toastStatus = 'signing';
+    else if (isConfirming || isApproving) toastStatus = 'signing';
+    else if (isApproveMining) toastStatus = 'confirming';
   }
 
   const copyToClipboard = (text: string) => {
@@ -226,10 +274,14 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
   };
 
   const renderToast = () => {
-    if (!toastStatus) return null;
+    if (!toastStatus || typeof document === 'undefined') return null;
+    const stepLabel = transactions[activeStep]?.label;
+    const stepProgress = transactions.length > 1
+      ? `Step ${activeStep + 1} of ${transactions.length}`
+      : null;
 
-    return (
-      <div className="fixed top-6 right-6 z-[100] min-w-[340px] max-w-[400px] bg-[#0D0E1E] border border-white/10 rounded-2xl p-5 shadow-2xl animate-in slide-in-from-right fade-in duration-300">
+    return createPortal(
+      <div className="fixed top-[88px] right-4 sm:right-6 z-[1000] min-w-[300px] max-w-[calc(100vw-2rem)] sm:min-w-[340px] sm:max-w-[400px] bg-[#0D0E1E] border border-white/10 rounded-2xl p-5 shadow-2xl animate-in slide-in-from-right fade-in duration-300">
         <button onClick={() => setIsToastClosed(true)} className="absolute top-4 right-4 text-white/50 hover:text-white">
           <X className="w-4 h-4" />
         </button>
@@ -239,7 +291,8 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
              <Loader2 className="w-5 h-5 text-[#9da3b4] animate-spin mt-0.5" />
             <div>
               <h4 className="font-bold text-white mb-1">Signing Transaction</h4>
-              <p className="text-sm text-white/60">Requesting wallet signature...</p>
+              <p className="text-sm text-white/60">{stepLabel ?? 'Requesting wallet signature...'}</p>
+              {stepProgress && <p className="mt-1 text-xs text-white/40">{stepProgress}</p>}
             </div>
           </div>
         )}
@@ -249,7 +302,8 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
              <Loader2 className="w-5 h-5 text-[#9da3b4] animate-spin mt-0.5" />
             <div className="w-full pr-4">
               <h4 className="font-bold text-white mb-1">Confirming on Blockchain</h4>
-              <p className="text-sm text-white/60 mb-3">Waiting for blockchain confirmation...</p>
+              <p className="text-sm text-white/60 mb-1">{stepLabel ?? 'Waiting for blockchain confirmation...'}</p>
+              {stepProgress && <p className="mb-3 text-xs text-white/40">{stepProgress}</p>}
               {hash && (
                 <div className="flex items-center justify-between bg-black/30 rounded-lg p-2 text-xs text-white/70">
                   <span className="text-white/50">TX Hash:</span>
@@ -263,13 +317,22 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
             </div>
           </div>
         )}
+        {toastStatus === 'success' && (
+          <div className="pr-6">
+            <h4 className="font-bold text-white mb-1">{title} Confirmed</h4>
+            <p className="text-sm text-white/60">All transaction steps completed successfully.</p>
+          </div>
+        )}
       </div>
+      ,
+      document.body,
     );
   };
 
   if (isSuccess) {
     return (
       <div className="flex w-full justify-start mb-3">
+        {renderToast()}
         <div className="w-full max-w-md rounded-xl border border-white/[0.09] bg-[#111219] p-4 shadow-lg">
            <div className="flex items-start gap-3">
              <div className="w-full">
@@ -287,9 +350,9 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
                 </div>
               )}
               
-              {receipt?.blockNumber && (
+              {confirmedBlock && (
                 <div className="text-xs text-white/50">
-                  Block: {receipt.blockNumber.toString()}
+                  Block: {confirmedBlock.toString()}
                 </div>
               )}
             </div>
@@ -324,9 +387,9 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
           })}
         </div>
 
-        {(sendError || approveError) && (
+        {(localError || sendError || approveError) && (
           <div className="mb-4 p-2 bg-red-900/20 border border-red-500/30 rounded text-xs text-red-400 break-words">
-            {sendError?.message.split('\n')[0] || approveError?.message.split('\n')[0]}
+            {localError || sendError?.message.split('\n')[0] || approveError?.message.split('\n')[0]}
           </div>
         )}
 
@@ -365,7 +428,7 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
                 Mining...
               </>
             ) : (
-               <>Confirm {title}</>
+               <>Confirm {title}{transactions.length > 1 ? ` (${transactions.length} steps)` : ''}</>
             )}
           </button>
         )}
