@@ -49,6 +49,7 @@ type TransactionRow = {
 
 const lower = (value: Address | Hash) => value.toLowerCase();
 const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const warnedUnsupportedPairs = new Set<string>();
 
 function requireToken(address: Address) {
   const token = tokenByAddress.get(address.toLowerCase());
@@ -70,13 +71,30 @@ async function loadPairs(): Promise<PairInfo[]> {
       args: [BigInt(index)],
     })),
   );
-  return Promise.all(addresses.map(async (address) => {
+  const pairs = await Promise.all(addresses.map(async (address): Promise<PairInfo | null> => {
     const [token0Address, token1Address] = await Promise.all([
       arcClient.readContract({ address, abi: pairAbi, functionName: "token0" }),
       arcClient.readContract({ address, abi: pairAbi, functionName: "token1" }),
     ]);
-    return { address, token0: requireToken(token0Address), token1: requireToken(token1Address) };
+    const token0 = tokenByAddress.get(lower(token0Address));
+    const token1 = tokenByAddress.get(lower(token1Address));
+    if (!token0 || !token1) {
+      const pairKey = lower(address);
+      if (!warnedUnsupportedPairs.has(pairKey)) {
+        warnedUnsupportedPairs.add(pairKey);
+        const unsupported = [
+          !token0 ? token0Address : null,
+          !token1 ? token1Address : null,
+        ].filter((token): token is Address => token !== null);
+        console.warn(
+          `[indexer] skipping unsupported DEX pair ${address}; token(s): ${unsupported.join(", ")}`,
+        );
+      }
+      return null;
+    }
+    return { address, token0, token1 };
   }));
+  return pairs.filter((pair): pair is PairInfo => pair !== null);
 }
 
 async function blockContext(blockNumber: bigint, cache: Map<bigint, { hash: Hash; timestamp: string }>) {
