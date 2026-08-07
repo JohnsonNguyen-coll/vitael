@@ -25,6 +25,14 @@ export const TOKENS = {
 } as const;
 export type TokenSymbol = keyof typeof TOKENS;
 
+/**
+ * VLP uses small raw balances because minting is based on the underlying token
+ * units. Use a pair-specific display scale and apply it in both directions.
+ */
+export function getLpDisplayDecimals(tokenA: TokenSymbol, tokenB: TokenSymbol): number {
+  return Math.floor((TOKENS[tokenA].decimals + TOKENS[tokenB].decimals) / 2);
+}
+
 // ─── ABIs ─────────────────────────────────────────────────────────────────────
 const ERC20_ABI = [
   { type: "function", name: "approve",   stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }] },
@@ -282,7 +290,14 @@ export function useVitaelDEX() {
       }) as Address;
       if (!pair || pair === "0x0000000000000000000000000000000000000000") throw new Error("Pair not found");
 
-      const lpAmount = parseUnits(lpAmountHuman, 18);
+      const lpDisplayDecimals = getLpDisplayDecimals(tokenA, tokenB);
+      const lpAmount = parseUnits(lpAmountHuman, lpDisplayDecimals);
+      const lpBalance = await arcClient.readContract({
+        address: pair, abi: PAIR_ABI, functionName: "balanceOf", args: [account],
+      }) as bigint;
+      if (lpAmount > lpBalance) {
+        throw new Error("Amount exceeds your available LP balance");
+      }
 
       setStep("approving");
       const tx1 = await sendWithEstimatedGas(

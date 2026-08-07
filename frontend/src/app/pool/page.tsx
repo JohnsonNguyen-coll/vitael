@@ -11,14 +11,15 @@ import { formatTokenAmount } from "../../lib/format";
 import PageLayout from "../../components/PageLayout";
 import TokenIcon from "../../components/TokenIcon";
 import NetworkGuard from "../../components/NetworkGuard";
-import { useVitaelDEX, type TokenSymbol, TOKENS } from "../../hooks/useVitaelDEX";
+import {
+  useVitaelDEX,
+  getLpDisplayDecimals,
+  type TokenSymbol,
+  TOKENS,
+} from "../../hooks/useVitaelDEX";
 
 type Tab = "add" | "remove";
 const TOKEN_LIST = Object.values(TOKENS);
-
-function getLpDisplayDecimals(decimalsA: number, decimalsB: number): number {
-  return Math.floor((decimalsA + decimalsB) / 2);
-}
 
 function formatLpBalance(rawBalance: bigint, displayDecimals: number): string {
   if (rawBalance === 0n) return "0";
@@ -92,7 +93,7 @@ function AddPanel() {
   const busy = state.busy;
   const tA = TOKENS[tokenA];
   const tB = TOKENS[tokenB];
-  const lpDisplayDecimals = getLpDisplayDecimals(tA.decimals, tB.decimals);
+  const lpDisplayDecimals = getLpDisplayDecimals(tokenA, tokenB);
 
   // Validation
   const amtA = parseFloat(amountA) || 0;
@@ -280,7 +281,7 @@ function RemovePanel() {
   const busy = state.busy;
   const tA = TOKENS[tokenA];
   const tB = TOKENS[tokenB];
-  const lpDisplayDecimals = getLpDisplayDecimals(tA.decimals, tB.decimals);
+  const lpDisplayDecimals = getLpDisplayDecimals(tokenA, tokenB);
 
   useEffect(() => {
     if (!address) return;
