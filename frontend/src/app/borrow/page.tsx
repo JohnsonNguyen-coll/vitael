@@ -45,6 +45,11 @@ function fmtLiquidity(usdc: string): string {
   return `$${n.toFixed(0)}`;
 }
 
+function parseUsdValue(value: string): number {
+  const parsed = Number.parseFloat(value.replace(/[$,]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEP_LABELS: Record<string, string> = {
   switching:  "Switching to Arc Testnet...",
@@ -155,17 +160,32 @@ export default function BorrowPage() {
   const healthFactor = userInfo?.healthFactor ?? "∞";
   const collaterals  = userInfo?.collaterals  ?? [];
 
-  // Calculate max borrow based on collateral value and LTV
+  // Calculate borrow power using each asset's configured LTV. The lending pool
+  // counts both dedicated collateral and supplied balances as collateral.
   const totalCollateralValueUsd = collaterals.reduce((sum, c) => {
-    const val = c.valueUsd.replace(/[$,]/g, "");
-    return sum + (val === "—" ? 0 : parseFloat(val));
+    return sum + parseUsdValue(c.valueUsd);
   }, 0);
-  const currentBorrowedUsd = parseFloat(borrowedUsdc);
-  const maxBorrowUSD = Math.max(0, totalCollateralValueUsd * 0.9 - currentBorrowedUsd); // Assuming 90% max LTV
+  const collateralBorrowPowerUsd = collaterals.reduce((sum, c) => {
+    const ltv = COLLATERAL_TOKENS[c.symbol].ltv / 100;
+    return sum + parseUsdValue(c.valueUsd) * ltv;
+  }, 0);
+  const collateralThresholdUsd = collaterals.reduce((sum, c) => {
+    const threshold = COLLATERAL_TOKENS[c.symbol].liquidationThreshold / 100;
+    return sum + parseUsdValue(c.valueUsd) * threshold;
+  }, 0);
+  const currentBorrowedUsd = parseUsdValue(userInfo?.totalBorrowed ?? "0");
+  const maxBorrowUSD = Math.max(0, collateralBorrowPowerUsd - currentBorrowedUsd);
+  const hasCollateral = totalCollateralValueUsd > 0;
 
   // Borrow/Repay balance validation
   const borrowMaxBal = subTab === "borrow" ? maxBorrowUSD : parseFloat(borrowedUsdc);
   const insufficientBorrowBalance = num > borrowMaxBal;
+  const projectedDebtUsd = subTab === "borrow"
+    ? currentBorrowedUsd + num
+    : Math.max(0, currentBorrowedUsd - Math.min(num, parseFloat(borrowedUsdc) || 0));
+  const projectedHealthFactor = projectedDebtUsd > 0
+    ? (collateralThresholdUsd / projectedDebtUsd).toFixed(2)
+    : "∞";
 
   // Collateral balance validation
   const collNum = parseFloat(collAmount) || 0;
@@ -517,12 +537,33 @@ export default function BorrowPage() {
                         </div>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-[#8991AF]">Health Factor</span>
+                        <span className="text-[#8991AF]">Current Health Factor</span>
                         <span className={`font-bold ${hfColor(healthFactor)}`}>{healthFactor}</span>
                       </div>
+                      {num > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#8991AF]">
+                            After {subTab === "borrow" ? "borrowing" : "repaying"}
+                          </span>
+                          <span className={`font-bold ${hfColor(projectedHealthFactor)}`}>
+                            {projectedHealthFactor}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
-                    {subTab === "borrow" && !collaterals.some(c => parseFloat(c.amount) > 0) && (
+                    {num > 0 && (
+                      <p className={`text-xs mb-4 ${
+                        parseFloat(projectedHealthFactor) <= 1.1
+                          ? "text-red-400"
+                          : "text-[#8991AF]"
+                      }`}>
+                        Estimated Health Factor after {subTab === "borrow" ? "borrowing" : "repaying"}{" "}
+                        {formatTokenAmount(amount)} USDC. A position can be liquidated when it falls below 1.00.
+                      </p>
+                    )}
+
+                    {subTab === "borrow" && !hasCollateral && (
                       <p className="text-xs text-yellow-400/90 mb-3">
                         Deposit EURC, cirBTC, or USDC collateral below (get tokens from Circle Faucet if needed).
                       </p>
@@ -553,7 +594,7 @@ export default function BorrowPage() {
                         onClick={executeBorrowRepay}
                         disabled={
                           busy || !amount || num <= 0
-                          || (subTab === "borrow" && !collaterals.some(c => parseFloat(c.amount) > 0))
+                          || (subTab === "borrow" && !hasCollateral)
                           || noPoolLiquidity
                           || borrowExceedsPool
                           || insufficientBorrowBalance
