@@ -9,6 +9,9 @@ const baseURL = process.env.ANTHROPIC_BASE_URL || undefined;
 const client = new Anthropic({
   apiKey,
   baseURL,
+  ...(baseURL && apiKey
+    ? { defaultHeaders: { Authorization: `Bearer ${apiKey}` } }
+    : {}),
 });
 const STRATEGY_INTENT = /\b(strategy|strategies|optimi[sz]e|yield plan|portfolio plan|loop|leverage)\b|chi[eế]n lược|tối ưu|lợi nhuận|đòn bẩy/i;
 const STRATEGY_CONTINUATION = /previous strategy step has completed|continue (the )?(active )?strategy|tiếp tục.*chiến lược/i;

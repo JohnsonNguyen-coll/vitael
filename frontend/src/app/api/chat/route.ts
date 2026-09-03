@@ -9,6 +9,9 @@ const baseURL = process.env.ANTHROPIC_BASE_URL || undefined;
 const client = new Anthropic({
   apiKey,
   baseURL,
+  ...(baseURL && apiKey
+    ? { defaultHeaders: { Authorization: `Bearer ${apiKey}` } }
+    : {}),
 });
 
 export async function POST(req: Request) {
