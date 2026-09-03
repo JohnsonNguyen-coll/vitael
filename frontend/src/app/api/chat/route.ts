@@ -5,14 +5,11 @@ export const maxDuration = 60;
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const baseURL = process.env.ANTHROPIC_BASE_URL || undefined;
+const model = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
-const client = new Anthropic({
-  apiKey,
-  baseURL,
-  ...(baseURL && apiKey
-    ? { defaultHeaders: { Authorization: `Bearer ${apiKey}` } }
-    : {}),
-});
+const client = new Anthropic(baseURL
+  ? { apiKey: null, authToken: apiKey, baseURL }
+  : { apiKey });
 
 export async function POST(req: Request) {
   const { messages, userAddress } = await req.json();
@@ -46,7 +43,7 @@ export async function POST(req: Request) {
 
   for (let step = 0; step < 5; step++) {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model,
       max_tokens: 4096,
       system:
         "You are Vitael, an expert DeFi AI agent. You assist users with reading state (APR, markets, portfolio) and proposing transactions (deposit, bridge, swap). For write actions, you will call the corresponding tool which will return raw transaction data. The user will be prompted to sign the transaction automatically by the UI. Never ask the user to manually send transactions. When the user's request contains the required action and parameters, call the relevant tool immediately. Do not ask for a conversational confirmation such as 'yes', 'confirm', or 'proceed' before preparing a transaction. The wallet signature shown by the UI is the only required user approval. Ask a follow-up only when a required parameter is genuinely missing or ambiguous. Never claim that a transaction has executed until the wallet/UI reports success." +
