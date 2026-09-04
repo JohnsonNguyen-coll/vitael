@@ -5,6 +5,7 @@ A multi-asset DeFi protocol on Arc Testnet featuring lending, borrowing, swappin
 ## 🌟 Features
 
 - **Multi-Asset Lending**: Supply USDC, EURC, or cirBTC to earn yield
+- **USDC Earn Vault**: ERC-4626 vault that compounds Vitael lending yield into its share price
 - **Over-Collateralized Borrowing**: Borrow against your collateral with real-time health monitoring
 - **DEX & Liquidity Pools**: Uniswap V2-style AMM with 0.3% trading fees
 - **CCTP Bridge**: Native USDC bridging via Circle's Cross-Chain Transfer Protocol
@@ -47,6 +48,9 @@ npm install
 npm run dev
 ```
 
+After deploying `DeployUSDCVault.s.sol`, configure `NEXT_PUBLIC_USDC_VAULT` in the
+frontend and `USDC_VAULT` in the MCP server with the deployed vault address.
+
 See [frontend/README.md](frontend/README.md) for frontend setup and development.
 
 ## 🌐 Deployed on Arc Testnet
@@ -59,6 +63,7 @@ See [frontend/README.md](frontend/README.md) for frontend setup and development.
 ### Contract Addresses
 
 - **VitaelLendingPool**: `0xEa282eea5bC90905C15Df05Ca43eeA967BcDe49f`
+- **VitaelUSDCVault**: `0x78C1a89ba59f14542b16e81E60363B7a71e31a4B` (10,000 USDC cap)
 - **USDC Price Feed**: `0xCB33a6cD...` (Mock - $1.00)
 - **EURC Price Feed**: `0x0F12E271...` (Mock - $1.08)
 - **cirBTC Price Feed**: `0x5288559510...` (Stork live)

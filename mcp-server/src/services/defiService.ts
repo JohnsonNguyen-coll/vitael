@@ -7,6 +7,7 @@ import {
   LENDING_POOL_ABI,
   PAIR_ABI,
   ROUTER_ABI,
+  VAULT_ABI,
 } from '../contracts/abi.js';
 
 const ARC_ADDRESSES = {
@@ -14,6 +15,7 @@ const ARC_ADDRESSES = {
   router: process.env.DEX_ROUTER ?? '0x4d306D129C52E88a7766dc3d70ce28d423E3b1Ef',
   factory: process.env.DEX_FACTORY ?? '0xdE6b2AEf32FE1e675060dBC47BC2dF049052494E',
   quoter: process.env.DEX_QUOTER ?? '0x0078B36f4E91D1AEbBAf4049F7468ea4B9183810',
+  vault: process.env.USDC_VAULT ?? '',
 } as const;
 
 const CCTP_TOKEN_MESSENGER =
@@ -40,6 +42,10 @@ function getArcAddresses(chain: SupportedChain) {
     throw new Error(`Vitael lending and DEX are only deployed on arcTestnet, not ${chain}`);
   }
   return ARC_ADDRESSES;
+}
+
+function getVaultAddress(chain: SupportedChain): `0x${string}` {
+  return requireAddress(getArcAddresses(chain).vault, 'USDC_VAULT');
 }
 
 function normalizeDeadline(deadline: string) {
@@ -281,6 +287,60 @@ export class DefiService {
     return { asset, address: tokenAddress, balance: balance.toString(), decimals };
   }
 
+  static async getVaults(chain: SupportedChain) {
+    const client = getClient(chain);
+    const vault = getVaultAddress(chain);
+    const pool = getArcAddresses(chain).pool as `0x${string}`;
+    const [asset, totalAssets, totalSupply, depositCap, availableLiquidity, shutdown] = await Promise.all([
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'asset' }),
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'totalAssets' }),
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'totalSupply' }),
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'depositCap' }),
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'availableLiquidity' }),
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'shutdown' }),
+    ]);
+    const supplyRate = await client.readContract({
+      address: pool, abi: LENDING_POOL_ABI, functionName: 'getSupplyRate', args: [asset],
+    });
+    return [{
+      name: 'Vitael USDC Earn Vault', symbol: 'vUSDC-EARN', address: vault, asset,
+      totalAssets: totalAssets.toString(), totalSupply: totalSupply.toString(),
+      depositCap: depositCap.toString(), availableLiquidity: availableLiquidity.toString(),
+      supplyApyPercent: formatUnits(supplyRate, 16), shutdown,
+      strategy: 'Vitael USDC Lending', assetDecimals: 6, shareDecimals: 9,
+    }];
+  }
+
+  static async getVaultPosition(chain: SupportedChain, userAddress: string) {
+    const client = getClient(chain);
+    const vault = getVaultAddress(chain);
+    const user = requireAddress(userAddress, 'userAddress');
+    const [shares, maxWithdraw] = await Promise.all([
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'balanceOf', args: [user] }),
+      client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'maxWithdraw', args: [user] }),
+    ]);
+    const assets = await client.readContract({
+      address: vault, abi: VAULT_ABI, functionName: 'convertToAssets', args: [shares],
+    });
+    return { vault, userAddress: user, shares: shares.toString(), assets: assets.toString(), maxWithdraw: maxWithdraw.toString(), assetDecimals: 6, shareDecimals: 9 };
+  }
+
+  static async getVaultQuote(chain: SupportedChain, action: 'deposit' | 'withdraw', amount: string, userAddress?: string) {
+    const client = getClient(chain);
+    const vault = getVaultAddress(chain);
+    const amountAtomic = BigInt(amount);
+    if (amountAtomic <= 0n) throw new Error('Vault amount must be greater than zero');
+    if (action === 'deposit') {
+      if (amountAtomic < 1_000_000n) throw new Error('Vault deposit must be at least 1 USDC (1000000 atomic units)');
+      const shares = await client.readContract({ address: vault, abi: VAULT_ABI, functionName: 'previewDeposit', args: [amountAtomic] });
+      return { action, vault, assets: amount, expectedShares: shares.toString(), assetDecimals: 6, shareDecimals: 9 };
+    }
+    if (!userAddress) throw new Error('userAddress is required for a withdrawal quote');
+    const position = await this.getVaultPosition(chain, userAddress);
+    if (amountAtomic > BigInt(position.maxWithdraw)) throw new Error(`Amount exceeds maxWithdraw (${position.maxWithdraw})`);
+    return { action, vault, assets: amount, maxWithdraw: position.maxWithdraw, assetDecimals: 6 };
+  }
+
   static async quoteSwap(chain: SupportedChain, amountIn: string, path: string[]) {
     if (path.length < 2) throw new Error('Swap path must contain at least two assets');
     const client = getClient(chain);
@@ -436,6 +496,32 @@ export class DefiService {
       data,
       value: "0",
       requiredSender: sender,
+    };
+  }
+
+  static generateDepositVaultPayload(chain: SupportedChain, amount: string, receiver: string) {
+    const vault = getVaultAddress(chain);
+    const asset = requireAddress(this.resolveTokenAddress(chain, 'USDC'), 'USDC');
+    const recipient = requireAddress(receiver, 'receiver');
+    const amountAtomic = BigInt(amount);
+    if (amountAtomic < 1_000_000n) throw new Error('Vault deposit must be at least 1 USDC (1000000 atomic units)');
+    return {
+      to: vault,
+      data: encodeFunctionData({ abi: VAULT_ABI, functionName: 'deposit', args: [amountAtomic, recipient] }),
+      value: '0', requiredSender: recipient,
+      approvals: [{ token: asset, amount: amountAtomic.toString(), spender: vault }],
+    };
+  }
+
+  static generateWithdrawVaultPayload(chain: SupportedChain, amount: string, receiver: string) {
+    const vault = getVaultAddress(chain);
+    const recipient = requireAddress(receiver, 'receiver');
+    const amountAtomic = BigInt(amount);
+    if (amountAtomic <= 0n) throw new Error('Vault amount must be greater than zero');
+    return {
+      to: vault,
+      data: encodeFunctionData({ abi: VAULT_ABI, functionName: 'withdraw', args: [amountAtomic, recipient, recipient] }),
+      value: '0', requiredSender: recipient,
     };
   }
 

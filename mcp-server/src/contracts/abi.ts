@@ -187,6 +187,21 @@ export const LENDING_POOL_ABI = [
   }
 ] as const;
 
+export const VAULT_ABI = [
+  { inputs: [], name: "asset", outputs: [{ type: "address" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "totalAssets", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "totalSupply", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "depositCap", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "availableLiquidity", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [], name: "shutdown", outputs: [{ type: "bool" }], stateMutability: "view", type: "function" },
+  { inputs: [{ name: "owner", type: "address" }], name: "balanceOf", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [{ name: "owner", type: "address" }], name: "maxWithdraw", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [{ name: "assets", type: "uint256" }], name: "previewDeposit", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [{ name: "shares", type: "uint256" }], name: "convertToAssets", outputs: [{ type: "uint256" }], stateMutability: "view", type: "function" },
+  { inputs: [{ name: "assets", type: "uint256" }, { name: "receiver", type: "address" }], name: "deposit", outputs: [{ type: "uint256" }], stateMutability: "nonpayable", type: "function" },
+  { inputs: [{ name: "assets", type: "uint256" }, { name: "receiver", type: "address" }, { name: "owner", type: "address" }], name: "withdraw", outputs: [{ type: "uint256" }], stateMutability: "nonpayable", type: "function" },
+] as const;
+
 export const FACTORY_ABI = [
   {
     inputs: [],

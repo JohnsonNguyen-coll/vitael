@@ -39,6 +39,9 @@ function createMcpServer() {
       { name: "getPosition", description: "Get user position", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "userAddress"] } },
       { name: "getHealthFactor", description: "Get user health factor", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "userAddress"] } },
       { name: "getBalance", description: "Get user wallet balance for an asset", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" }, asset: { type: "string" } }, required: ["chain", "userAddress", "asset"] } },
+      { name: "getVaults", description: "Get Vitael yield vaults, live APY, TVL, cap, liquidity, and emergency status", inputSchema: { type: "object", properties: { chain: { type: "string" } }, required: ["chain"] } },
+      { name: "getVaultPosition", description: "Get a user's USDC vault shares, asset value, and currently withdrawable amount", inputSchema: { type: "object", properties: { chain: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "userAddress"] } },
+      { name: "getVaultQuote", description: "Preview a vault deposit or validate a withdrawal. amount is in USDC atomic units (6 decimals).", inputSchema: { type: "object", properties: { chain: { type: "string" }, action: { type: "string", enum: ["deposit", "withdraw"] }, amount: { type: "string" }, userAddress: { type: "string" } }, required: ["chain", "action", "amount"] } },
       
       // Quotes
       { name: "quoteSwap", description: "Quote a token swap", inputSchema: { type: "object", properties: { chain: { type: "string" }, amountIn: { type: "string" }, path: { type: "array", items: { type: "string" } } }, required: ["chain", "amountIn", "path"] } },
@@ -50,6 +53,8 @@ function createMcpServer() {
       { name: "withdraw", description: "Generate withdraw transaction", inputSchema: { type: "object", properties: { chain: { type: "string" }, asset: { type: "string" }, amount: { type: "string" }, to: { type: "string" } }, required: ["chain", "asset", "amount", "to"] } },
       { name: "borrow", description: "Generate borrow transaction", inputSchema: { type: "object", properties: { chain: { type: "string" }, asset: { type: "string" }, amount: { type: "string" }, onBehalfOf: { type: "string" } }, required: ["chain", "asset", "amount", "onBehalfOf"] } },
       { name: "repay", description: "Generate repay transaction", inputSchema: { type: "object", properties: { chain: { type: "string" }, asset: { type: "string" }, amount: { type: "string" }, onBehalfOf: { type: "string" } }, required: ["chain", "asset", "amount", "onBehalfOf"] } },
+      { name: "depositVault", description: "Generate an unsigned USDC vault deposit plus its required token approval. amount is in USDC atomic units (6 decimals).", inputSchema: { type: "object", properties: { chain: { type: "string" }, amount: { type: "string" }, receiver: { type: "string" } }, required: ["chain", "amount", "receiver"] } },
+      { name: "withdrawVault", description: "Generate an unsigned USDC vault withdrawal. amount is in USDC atomic units (6 decimals).", inputSchema: { type: "object", properties: { chain: { type: "string" }, amount: { type: "string" }, receiver: { type: "string" } }, required: ["chain", "amount", "receiver"] } },
       { name: "swap", description: "Generate swap transaction", inputSchema: { type: "object", properties: { chain: { type: "string" }, amountIn: { type: "string" }, amountOutMin: { type: "string" }, path: { type: "array", items: { type: "string" } }, to: { type: "string" }, deadline: { type: "string" } }, required: ["chain", "amountIn", "amountOutMin", "path", "to", "deadline"] } },
       { name: "bridge", description: "Generate a CCTP V2 forwarding transaction. amount is the exact human-readable USDC amount requested by the user (for example, \"0.1\" means 0.1 USDC). Never pre-subtract fees or convert amount to atomic units.", inputSchema: { type: "object", properties: { chain: { type: "string" }, amount: { type: "string", description: "Exact human-readable USDC amount requested, e.g. 0.1" }, destinationDomain: { type: "number" }, mintRecipient: { type: "string" }, burnToken: { type: "string" }, destinationCaller: { type: "string" }, maxFee: { type: "string", description: "Maximum CCTP fee in USDC atomic units from quoteBridge" }, minFinalityThreshold: { type: "number" }, hookData: { type: "string" } }, required: ["chain", "amount", "destinationDomain", "mintRecipient", "burnToken"] } },
       { name: "addLiquidity", description: "Generate add liquidity transaction", inputSchema: { type: "object", properties: { chain: { type: "string" }, tokenA: { type: "string" }, tokenB: { type: "string" }, amountA: { type: "string" }, amountB: { type: "string" }, to: { type: "string" }, deadline: { type: "string" } }, required: ["chain", "tokenA", "tokenB", "amountA", "amountB", "to", "deadline"] } },
@@ -99,6 +104,21 @@ function createMcpServer() {
         result = await DefiService.getBalance(parsed.chain, parsed.userAddress, parsed.asset);
         break;
       }
+      case "getVaults": {
+        const parsed = schemas.GetVaultsSchema.parse(args);
+        result = await DefiService.getVaults(parsed.chain);
+        break;
+      }
+      case "getVaultPosition": {
+        const parsed = schemas.GetVaultPositionSchema.parse(args);
+        result = await DefiService.getVaultPosition(parsed.chain, parsed.userAddress);
+        break;
+      }
+      case "getVaultQuote": {
+        const parsed = schemas.GetVaultQuoteSchema.parse(args);
+        result = await DefiService.getVaultQuote(parsed.chain, parsed.action, parsed.amount, parsed.userAddress);
+        break;
+      }
       case "quoteSwap": {
         const parsed = schemas.QuoteSwapSchema.parse(args);
         result = await DefiService.quoteSwap(parsed.chain, parsed.amountIn, parsed.path);
@@ -132,6 +152,16 @@ function createMcpServer() {
       case "repay": {
         const parsed = schemas.RepaySchema.parse(args);
         result = DefiService.generateRepayPayload(parsed.chain, parsed.asset, parsed.amount, parsed.onBehalfOf);
+        break;
+      }
+      case "depositVault": {
+        const parsed = schemas.DepositVaultSchema.parse(args);
+        result = DefiService.generateDepositVaultPayload(parsed.chain, parsed.amount, parsed.receiver);
+        break;
+      }
+      case "withdrawVault": {
+        const parsed = schemas.WithdrawVaultSchema.parse(args);
+        result = DefiService.generateWithdrawVaultPayload(parsed.chain, parsed.amount, parsed.receiver);
         break;
       }
       case "swap": {

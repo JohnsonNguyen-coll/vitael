@@ -7,6 +7,7 @@ import WalletConnectButton from "./WalletConnectButton";
 
 const NAV = [
   { label: "Lend", href: "/lend" },
+  { label: "Vaults", href: "/vaults" },
   { label: "Borrow", href: "/borrow" },
   { label: "Swap", href: "/swap" },
   { label: "Pool", href: "/pool" },
