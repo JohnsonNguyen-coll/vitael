@@ -11,6 +11,7 @@ const SECTIONS = [
   { id: "what",        label: "What is Vitael?" },
   { id: "lend",        label: "Lending" },
   { id: "borrow",      label: "Borrowing" },
+  { id: "vaults",      label: "Vaults" },
   { id: "interest",    label: "Interest Rates" },
   { id: "health",      label: "Health Factor" },
   { id: "liquidation", label: "Liquidation" },
@@ -22,7 +23,7 @@ const SECTIONS = [
 
 const SECTION_GROUPS = [
   { label: "Overview", items: ["what"] },
-  { label: "Lending protocol", items: ["lend", "borrow", "interest", "health", "liquidation"] },
+  { label: "Lending protocol", items: ["lend", "borrow", "vaults", "interest", "health", "liquidation"] },
   { label: "Move assets", items: ["swap", "pool", "bridge"] },
   { label: "Resources", items: ["faq"] },
 ] as const;
@@ -85,6 +86,9 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       </InfoBox>
       <InfoBox title="Borrow" color="#7EE2B7">
         <p>Use your deposited assets as collateral to borrow USDC. You keep your original assets and get extra liquidity. You pay interest on what you borrow.</p>
+      </InfoBox>
+      <InfoBox title="Vaults" color="#A998FF">
+        <p>Deposit USDC into automated ERC-4626 vaults that earn lending yield automatically. Your shares compound value continuously with hands-off management.</p>
       </InfoBox>
       <InfoBox title="Swap" color="#7968E8">
         <p>Trade USDC ↔ EURC or USDC ↔ cirBTC instantly. Prices are determined by the liquidity pool, not an order book.</p>
@@ -194,6 +198,59 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
         Your collateral stays in the smart contract while you have an active loan. You can withdraw it once you repay your debt
         (as long as your health factor stays above 1.0 after the withdrawal).
       </P>
+    </div>
+  ),
+
+  vaults: (
+    <div>
+      <H2>Vaults</H2>
+      <P>
+        Vitael Vaults are <Highlight>automated ERC-4626 yield-earning vaults</Highlight> that allow you to deposit assets like USDC and earn automated returns without actively managing lending positions or collateral ratios.
+      </P>
+      <P>
+        When you deposit into a vault, you receive vault shares (<Highlight>vUSDC-EARN</Highlight>). The vault smart contract automatically supplies your deposited capital into the Vitael Lending Pool strategy to generate yield.
+      </P>
+
+      <H3>How do Vaults work?</H3>
+      <P>
+        1. <Highlight>Deposit USDC</Highlight>: You deposit USDC into the vault and receive ERC-4626 compliant shares.<br />
+        2. <Highlight>Automated Yield Strategy</Highlight>: The vault supplies idle USDC into Vitael Lending, earning supply APY continuously.<br />
+        3. <Highlight>Native Auto-compounding</Highlight>: As interest accrues in the lending pool, the exchange rate between vault shares and USDC increases. No manual harvest or transaction fees needed.<br />
+        4. <Highlight>Flexible Withdrawal</Highlight>: Redeem your vault shares at any time to receive your original USDC plus accumulated yield, subject to pool liquidity.
+      </P>
+
+      <InfoBox title="Share Exchange Rate Example" color="#A998FF">
+        <p>Suppose 1 vUSDC-EARN share initially equals 1.00 USDC. Over time, as lending interest accrues in the underlying pool, 1 vUSDC-EARN share becomes redeemable for 1.05 USDC.</p>
+        <p className="mt-1">When you redeem 1,000 shares, you withdraw ~1,050 USDC directly to your wallet.</p>
+      </InfoBox>
+
+      <H3>Key Vault Features</H3>
+      <div className="glass-panel rounded-2xl overflow-hidden mb-4">
+        <Row label="Standard"              value="ERC-4626 Tokenized Vault" />
+        <Row label="Underlying Strategy"    value="Vitael USDC Lending Pool" />
+        <Row label="Performance Fee"        value="0% protocol fee" />
+        <Row label="Minimum Deposit"        value="1.0 USDC" />
+        <Row label="Safety Protections"     value="Testnet Deposit Cap & Emergency Shutdown" />
+      </div>
+
+      <H3>Security & Risk Management</H3>
+      <P>
+        • <Highlight>Testnet Deposit Cap</Highlight>: The vault features an adjustable deposit cap to manage protocol risk during initial deployment on Arc Testnet.
+      </P>
+      <P>
+        • <Highlight>Emergency Controls</Highlight>: In the event of market turbulence or contract upgrades, the vault owner can pause new deposits or trigger an emergency withdrawal of strategy liquidity to keep user assets safe and idle.
+      </P>
+
+      <H3>AI Agent Integration</H3>
+      <P>
+        Vitael Vaults are designed to be <Highlight>AI Agent Ready</Highlight>. The Vitael AI Agent can read vault parameters, query real-time supply APYs, calculate projected earnings, and stage unsigned deposit or withdrawal transactions for your wallet to execute with full control.
+      </P>
+
+      <H3>How to Deposit & Withdraw</H3>
+      <P>1. Navigate to the <Highlight>Vaults</Highlight> page in the Vitael App.</P>
+      <P>2. Select the <Highlight>Deposit</Highlight> tab, enter the amount of USDC (minimum 1 USDC), and click Deposit.</P>
+      <P>3. Approve the USDC spending allowance in your wallet and confirm the deposit transaction.</P>
+      <P>4. To redeem, switch to the <Highlight>Withdraw</Highlight> tab, specify your desired USDC or share amount, and confirm the transaction to receive your funds back.</P>
     </div>
   ),
 
@@ -480,6 +537,14 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       <P>
         Connect your wallet on the Lend or Borrow page. Your supplied balances, borrowed amounts, health factor,
         and collateral are all shown in real time.
+      </P>
+
+      <H3>What is the difference between direct Lending and Vaults?</H3>
+      <P>
+        <Highlight>Direct Lending</Highlight> deposits tokens into the pool to earn yield while also allowing you to use those deposits as collateral to borrow other assets.
+      </P>
+      <P>
+        <Highlight>Vaults</Highlight> are single-click automated ERC-4626 yield vaults (such as vUSDC-EARN) optimized specifically for passive earning. They do not open a borrowing line, providing a simpler hands-off yield experience.
       </P>
     </div>
   ),
