@@ -19,8 +19,8 @@ contract PatchMissingStorkFeeds is Script {
         MockV3Aggregator usdcMock = new MockV3Aggregator(8, 1e8); // $1.00
         MockV3Aggregator eurcMock = new MockV3Aggregator(8, 108_000_000); // ~$1.08
 
-        oracle.setPriceFeed(LendingConfig.USDC, address(usdcMock));
-        oracle.setPriceFeed(LendingConfig.EURC, address(eurcMock));
+        oracle.setPriceFeed(LendingConfig.USDC, address(usdcMock), vm.envUint("ORACLE_USDC_MAX_AGE"));
+        oracle.setPriceFeed(LendingConfig.EURC, address(eurcMock), vm.envUint("ORACLE_EURC_MAX_AGE"));
 
         vm.stopBroadcast();
 

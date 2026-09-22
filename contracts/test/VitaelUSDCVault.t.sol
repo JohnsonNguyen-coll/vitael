@@ -49,8 +49,8 @@ contract VitaelUSDCVaultTest is Test {
         eurc = new MockERC20("Euro Coin", "EURC", 6);
 
         VitaelOracle oracle = new VitaelOracle();
-        oracle.addPriceFeed(address(usdc), address(new MockV3Aggregator(8, 1e8)));
-        oracle.addPriceFeed(address(eurc), address(new MockV3Aggregator(8, 1e8)));
+        oracle.addPriceFeed(address(usdc), address(new MockV3Aggregator(8, 1e8)), 1 hours);
+        oracle.addPriceFeed(address(eurc), address(new MockV3Aggregator(8, 1e8)), 1 hours);
 
         pool = new VitaelLendingPool(address(oracle));
         pool.addAsset(address(usdc), 6, 9000, 9200, 500, 2e16, 8e17, 4e16, 75e16, 1000);

@@ -94,6 +94,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     error InsufficientBalance();
     error InsufficientLiquidity();
     error HealthFactorTooLow();
+    error BorrowLimitExceeded();
     error PositionHealthy();
     error RepayExceedsDebt();
     error ExceedsCloseFactor();
@@ -272,12 +273,12 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         assetStates[asset].totalShares -= shares;
         userShares[msg.sender][asset] -= shares;
 
-        // Health check if user also has borrows
+        // Validate the final cash/share state; a revert rolls back the transfer.
+        IERC20(asset).safeTransfer(msg.sender, amount);
         if (_hasBorrow(msg.sender)) {
-            if (_healthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
+            _validateBorrowPosition(msg.sender);
         }
 
-        IERC20(asset).safeTransfer(msg.sender, amount);
         emit Withdrawn(msg.sender, asset, amount, shares);
     }
 
@@ -298,20 +299,20 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     }
 
     /**
-     * @notice Withdraw collateral. Reverts if health factor would drop below 1.
+     * @notice Withdraw collateral only if remaining collateral covers debt at the configured LTV.
      */
     function withdrawCollateral(address asset, uint256 amount) external nonReentrant whenNotPaused {
         if (amount == 0) revert ZeroAmount();
         if (userCollateral[msg.sender][asset] < amount) revert InsufficientBalance();
 
         userCollateral[msg.sender][asset] -= amount;
-
-        if (_hasBorrow(msg.sender)) {
-            if (_healthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
-        }
-
         totalCollateral[asset] -= amount;
         IERC20(asset).safeTransfer(msg.sender, amount);
+
+        if (_hasBorrow(msg.sender)) {
+            _validateBorrowPosition(msg.sender);
+        }
+
         emit CollateralWithdrawn(msg.sender, asset, amount);
     }
 
@@ -340,10 +341,9 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
 
         s.totalBorrowed += amount;
 
-        // Health check AFTER updating state
-        if (_healthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
-
+        // Check after cash leaves: otherwise supplied collateral is temporarily inflated.
         IERC20(asset).safeTransfer(msg.sender, amount);
+        _validateBorrowPosition(msg.sender);
         emit Borrowed(msg.sender, asset, amount);
     }
 
@@ -592,10 +592,11 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         for (uint256 i = 0; i < supportedAssets.length; i++) {
             address asset = supportedAssets[i];
             AssetConfig storage c = assetConfigs[asset];
-            uint256 price = oracle.getAssetPrice(asset);
-
             // Collateral: dedicated deposits + supply positions
             uint256 collAmt = userCollateral[user][asset] + _sharesToAsset(asset, userShares[user][asset]);
+            uint256 debt = getBorrowBalance(user, asset);
+            if (collAmt == 0 && debt == 0) continue;
+            uint256 price = oracle.getAssetPrice(asset);
 
             if (collAmt > 0) {
                 uint256 valueUSD = (collAmt * price) / (10 ** c.decimals);
@@ -604,7 +605,6 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
             }
 
             // Borrows
-            uint256 debt = getBorrowBalance(user, asset);
             if (debt > 0) {
                 totalBorrowUSD += (debt * price) / (10 ** c.decimals);
             }
@@ -615,5 +615,11 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         (uint256 collThreshUSD,, uint256 borrowUSD) = _positionValues(user);
         if (borrowUSD == 0) return type(uint256).max;
         return (collThreshUSD * 1e18) / borrowUSD;
+    }
+
+    function _validateBorrowPosition(address user) internal view {
+        (uint256 thresholdUSD, uint256 ltvUSD, uint256 debtUSD) = _positionValues(user);
+        if (debtUSD > thresholdUSD) revert HealthFactorTooLow();
+        if (debtUSD > ltvUSD) revert BorrowLimitExceeded();
     }
 }

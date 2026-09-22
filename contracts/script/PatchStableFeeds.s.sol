@@ -28,16 +28,18 @@ contract PatchStableFeeds is Script {
 
         vm.startBroadcast(pk);
 
-        // USDC = $1.00 (8 decimals)
-        MockV3Aggregator usdcMock = new MockV3Aggregator(8, 1_00000000);
-        // EURC = $1.08 (8 decimals) — approximate EUR/USD rate
-        MockV3Aggregator eurcMock = new MockV3Aggregator(8, 1_08000000);
-
-        oracle.addPriceFeed(LendingConfig.USDC, address(usdcMock));
-        oracle.addPriceFeed(LendingConfig.EURC, address(eurcMock));
-
-        console.log("USDC mock feed ($1.00):", address(usdcMock));
-        console.log("EURC mock feed ($1.08):", address(eurcMock));
+        {
+            uint256 maxAge = vm.envUint("ORACLE_USDC_MAX_AGE");
+            MockV3Aggregator usdcMock = new MockV3Aggregator(8, 1_00000000);
+            oracle.addPriceFeed(LendingConfig.USDC, address(usdcMock), maxAge);
+            console.log("USDC mock feed ($1.00):", address(usdcMock));
+        }
+        {
+            uint256 maxAge = vm.envUint("ORACLE_EURC_MAX_AGE");
+            MockV3Aggregator eurcMock = new MockV3Aggregator(8, 1_08000000);
+            oracle.addPriceFeed(LendingConfig.EURC, address(eurcMock), maxAge);
+            console.log("EURC mock feed ($1.08):", address(eurcMock));
+        }
         console.log("cirBTC unchanged - Stork BTC/USD live");
 
         vm.stopBroadcast();

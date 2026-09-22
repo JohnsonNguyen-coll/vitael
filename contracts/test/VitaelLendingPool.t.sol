@@ -39,9 +39,9 @@ contract VitaelLendingPoolTest is Test {
         btcFeed = new MockV3Aggregator(8, 60000_00000000); // $60 000
 
         oracle = new VitaelOracle();
-        oracle.addPriceFeed(address(usdc), address(usdcFeed));
-        oracle.addPriceFeed(address(eurc), address(eurcFeed));
-        oracle.addPriceFeed(address(cirBtc), address(btcFeed));
+        oracle.addPriceFeed(address(usdc), address(usdcFeed), 1 hours);
+        oracle.addPriceFeed(address(eurc), address(eurcFeed), 1 hours);
+        oracle.addPriceFeed(address(cirBtc), address(btcFeed), 1 hours);
 
         pool = new VitaelLendingPool(address(oracle));
 

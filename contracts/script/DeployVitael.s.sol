@@ -35,9 +35,9 @@ contract DeployVitael is Script {
         address eurcFeed = _feed(useMock, LendingConfig.STORK_EURCUSD, 1_08000000); // $1.08
         address btcFeed = _feed(useMock, LendingConfig.STORK_BTCUSD, 60000_00000000); // $60 000
 
-        oracle.addPriceFeed(LendingConfig.USDC, usdcFeed);
-        oracle.addPriceFeed(LendingConfig.EURC, eurcFeed);
-        oracle.addPriceFeed(LendingConfig.CIRBTC, btcFeed);
+        oracle.addPriceFeed(LendingConfig.USDC, usdcFeed, vm.envUint("ORACLE_USDC_MAX_AGE"));
+        oracle.addPriceFeed(LendingConfig.EURC, eurcFeed, vm.envUint("ORACLE_EURC_MAX_AGE"));
+        oracle.addPriceFeed(LendingConfig.CIRBTC, btcFeed, vm.envUint("ORACLE_CIRBTC_MAX_AGE"));
         console.log("USDC feed  :", usdcFeed);
         console.log("EURC feed  :", eurcFeed);
         console.log("cirBTC feed:", btcFeed);

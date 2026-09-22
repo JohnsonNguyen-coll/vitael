@@ -47,13 +47,13 @@ contract PatchEURCFeed is Script {
 
             if (step == 0) {
                 // Step 2 inline: update oracle immediately
-                oracle.setPriceFeed(LendingConfig.EURC, address(newFeed));
+                oracle.setPriceFeed(LendingConfig.EURC, address(newFeed), vm.envUint("ORACLE_EURC_MAX_AGE"));
                 console.log("Oracle EURC feed updated to:", address(newFeed));
             }
         } else if (step == 2) {
             // Step 2 standalone: just update oracle with pre-deployed feed address
             address feedAddr = vm.envAddress("EURC_FEED");
-            oracle.setPriceFeed(LendingConfig.EURC, feedAddr);
+            oracle.setPriceFeed(LendingConfig.EURC, feedAddr, vm.envUint("ORACLE_EURC_MAX_AGE"));
             console.log("Oracle EURC feed updated to:", feedAddr);
         }
 

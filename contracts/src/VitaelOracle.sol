@@ -23,26 +23,41 @@ interface AggregatorV3Interface {
  */
 contract VitaelOracle is Ownable {
     mapping(address => AggregatorV3Interface) public priceFeeds;
+    mapping(address => uint256) public maxPriceAge;
 
     event FeedAdded(address indexed asset, address indexed feed);
+    event FeedMaxAgeUpdated(address indexed asset, uint256 maxAge);
 
     error AssetPriceNotSet(address asset);
     error InvalidPrice();
+    error InvalidFeedConfiguration();
+    error InvalidPriceTimestamp();
+    error StalePrice(address asset);
+    error IncompleteRound();
 
     constructor() Ownable(msg.sender) {}
 
     /**
      * @notice Thêm Chainlink feed cho asset (chỉ owner)
      */
-    function addPriceFeed(address asset, address chainlinkFeed) external onlyOwner {
-        priceFeeds[asset] = AggregatorV3Interface(chainlinkFeed);
-        emit FeedAdded(asset, chainlinkFeed);
+    function addPriceFeed(address asset, address chainlinkFeed, uint256 maxAge) external onlyOwner {
+        _setPriceFeed(asset, chainlinkFeed, maxAge);
     }
 
     /// @notice Replace an existing feed (e.g. migrate mock → Stork).
-    function setPriceFeed(address asset, address chainlinkFeed) external onlyOwner {
+    function setPriceFeed(address asset, address chainlinkFeed, uint256 maxAge) external onlyOwner {
+        _setPriceFeed(asset, chainlinkFeed, maxAge);
+    }
+
+    function _setPriceFeed(address asset, address chainlinkFeed, uint256 maxAge) internal {
+        if (asset == address(0) || chainlinkFeed.code.length == 0 || maxAge == 0) {
+            revert InvalidFeedConfiguration();
+        }
+        if (AggregatorV3Interface(chainlinkFeed).decimals() > 18) revert InvalidFeedConfiguration();
         priceFeeds[asset] = AggregatorV3Interface(chainlinkFeed);
+        maxPriceAge[asset] = maxAge;
         emit FeedAdded(asset, chainlinkFeed);
+        emit FeedMaxAgeUpdated(asset, maxAge);
     }
 
     /**
@@ -52,9 +67,23 @@ contract VitaelOracle is Ownable {
         AggregatorV3Interface feed = priceFeeds[asset];
         if (address(feed) == address(0)) revert AssetPriceNotSet(asset);
 
-        (, int256 price,,,) = feed.latestRoundData();
-
+        (uint80 roundId, int256 price,, uint256 updatedAt, uint80 answeredInRound) = feed.latestRoundData();
         if (price <= 0) revert InvalidPrice();
-        return uint256(price); // Chainlink trả về 8 decimals
+        if (updatedAt == 0 || updatedAt > block.timestamp) revert InvalidPriceTimestamp();
+        if (block.timestamp - updatedAt > maxPriceAge[asset]) revert StalePrice(asset);
+        if (roundId == 0 || answeredInRound < roundId) revert IncompleteRound();
+
+        uint8 feedDecimals = feed.decimals();
+        if (feedDecimals > 18) revert InvalidFeedConfiguration();
+        uint256 normalized = uint256(price);
+        if (feedDecimals < 8) {
+            uint256 factor = 10 ** (8 - feedDecimals);
+            if (normalized > type(uint256).max / factor) revert InvalidPrice();
+            normalized *= factor;
+        } else if (feedDecimals > 8) {
+            normalized /= 10 ** (feedDecimals - 8);
+        }
+        if (normalized == 0) revert InvalidPrice();
+        return normalized;
     }
 }

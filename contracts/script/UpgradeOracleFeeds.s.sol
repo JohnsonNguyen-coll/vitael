@@ -28,9 +28,9 @@ contract UpgradeOracleFeeds is Script {
         address eurcFeed = address(new StorkPriceFeed(LendingConfig.STORK_AGGREGATOR, LendingConfig.STORK_EURCUSD));
         address btcFeed = address(new StorkPriceFeed(LendingConfig.STORK_AGGREGATOR, LendingConfig.STORK_BTCUSD));
 
-        oracle.addPriceFeed(LendingConfig.USDC, usdcFeed);
-        oracle.addPriceFeed(LendingConfig.EURC, eurcFeed);
-        oracle.addPriceFeed(LendingConfig.CIRBTC, btcFeed);
+        oracle.addPriceFeed(LendingConfig.USDC, usdcFeed, vm.envUint("ORACLE_USDC_MAX_AGE"));
+        oracle.addPriceFeed(LendingConfig.EURC, eurcFeed, vm.envUint("ORACLE_EURC_MAX_AGE"));
+        oracle.addPriceFeed(LendingConfig.CIRBTC, btcFeed, vm.envUint("ORACLE_CIRBTC_MAX_AGE"));
 
         console.log("USDC feed  :", usdcFeed);
         console.log("EURC feed  :", eurcFeed);

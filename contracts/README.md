@@ -83,6 +83,21 @@ forge coverage
 
 ## Deployment
 
+### Oracle configuration for the current source
+
+`addPriceFeed` and `setPriceFeed` now take `(asset, feed, maxAgeSeconds)`.
+Set `ORACLE_USDC_MAX_AGE`, `ORACLE_EURC_MAX_AGE`, and
+`ORACLE_CIRBTC_MAX_AGE` for the assets configured by your script. Values must
+be positive and chosen from the verified feed heartbeat and risk policy;
+there is no default. Feed prices are normalized from 0–18 decimals to 8 and
+rejected when timestamps or rounds are invalid or the configured age expires.
+
+Updated patch scripts target the new oracle ABI, not already-deployed legacy
+oracles. The current pool/oracle/vault changes require a fresh deployment.
+Borrowing and withdrawals with debt now enforce LTV using final balances;
+liquidation still uses the liquidation threshold. Read
+[`MAINNET_READINESS.md`](../MAINNET_READINESS.md) before production deployment.
+
 ### Deploy to Arc Testnet
 
 ```bash

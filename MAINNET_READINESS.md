@@ -4,7 +4,7 @@ Status: not ready for public deposits. This is an implementation checklist, not 
 
 ## Implemented: dedicated collateral accounting
 
-- `contracts/src/VitaelLendingPool.sol`: track aggregate dedicated collateral per asset. Exclude it from supplier exchange rates, interest calculations, utilization, borrow/withdraw liquidity and reserve withdrawals. Update custody on deposits, withdrawals and liquidation, preserving the pre-transfer cash balance during health checks and share conversions.
+- `contracts/src/VitaelLendingPool.sol`: track aggregate dedicated collateral per asset. Exclude it from supplier exchange rates, interest calculations, utilization, borrow/withdraw liquidity and reserve withdrawals. Update custody on deposits, withdrawals and liquidation; health checks use settled balances and liquidation share conversions use the pre-transfer exchange rate.
 - `contracts/src/vaults/VitaelUSDCVault.sol`: use the pool's collateral-excluding liquidity for ERC-4626 withdrawal limits.
 - Regression tests: `contracts/test/CollateralAccounting.t.sol` and `contracts/test/VaultCollateralAccounting.t.sol`.
 
@@ -28,12 +28,40 @@ forge fmt --check src/VitaelLendingPool.sol test/CollateralAccounting.t.sol test
 
 No live-network, frontend or backend tests were run for this contract-only fix.
 
+## Implemented: oracle validation and borrowing limits
+
+- Oracle feed registration/replacement now requires an explicit positive `maxAge` in seconds per asset. Both administrative functions have a new three-argument ABI; old deployed oracles are incompatible with the updated scripts.
+- Prices reject missing/future/stale timestamps, non-positive values, incomplete rounds and values that normalize to zero. Supported feed decimals are 0 through 18, normalized to 8; unsupported decimals and multiplication overflow are rejected.
+- The mock feed now stores the actual update timestamp and advances its round on updates. It does not fabricate a fresh timestamp on reads. Mock stable feeds therefore expire unless updated and must not be used for mainnet.
+- Borrowing and withdrawals with outstanding debt enforce weighted LTV as well as the liquidation threshold. Checks occur after token transfer so temporary cash/share balances cannot inflate collateral. Failed checks revert the entire transaction, including the transfer. Existing exact-transfer, non-rebasing token assumptions still apply.
+- Liquidation continues to use the liquidation threshold, not LTV. Repayment does not require working oracle prices; after fully repaying, dedicated collateral can be withdrawn without prices. Accounts with debt cannot withdraw against stale relevant prices. Unused asset feeds are skipped in account valuation.
+- The default one-hour ages in unit tests are fixtures, not recommended mainnet heartbeat settings.
+
+Deployment/patch scripts now require the applicable variables `ORACLE_USDC_MAX_AGE`, `ORACLE_EURC_MAX_AGE`, and `ORACLE_CIRBTC_MAX_AGE` (seconds). Choose each from verified provider heartbeat/update guarantees and risk policy. There is no silent production default. Update admin tooling to the new ABI. New oracle/pool/vault deployment is required; do not run these updated patch scripts against legacy oracles.
+
+Frontend follow-up: add user-facing messages for `BorrowLimitExceeded`, `StalePrice`, invalid timestamps/rounds/configuration and the revised invalid-price cases in `frontend/src/lib/lendingErrors.ts`; reconcile UI maximum-withdraw and maximum-borrow calculations with weighted LTV. No frontend deployment was performed here.
+
+### Oracle/LTV validation (2026-09-22)
+
+Before the fix, three regressions failed: above-LTV borrowing below the liquidation threshold was accepted, stale prices were accepted, and an 18-decimal price was not normalized. The final CI-profile run passed all 100 test executions across seven suites (including inherited baseline tests). Fuzz tests ran 1,000 cases each; all three existing vault invariants passed 100 runs / 50,000 calls each with zero reverts. The new suites cover LTV boundaries, borrowing against same-asset supply, withdrawal bypasses, stale-price rollback, repayment during an oracle outage, unrelated stale feeds, timestamp/round validation, decimal normalization and the Stork adapter.
+
+Run from `contracts/` with `FOUNDRY_PROFILE=ci`:
+
+```text
+forge test --out out-risk --cache-path cache-risk -vv
+forge build --out out-risk --cache-path cache-risk --sizes
+```
+
+The full build, including deployment/patch scripts, passed with Solidity 0.8.24 and the existing optimizer/via-IR settings. `PatchStableFeeds.s.sol` now registers/logs one mock at a time to avoid a compiler stack-depth error. Runtime sizes were 8,754 bytes for the pool, 1,895 for the oracle and 7,649 for the vault, below the build's size limits. Lint still flags the oracle's positive-checked signed-to-unsigned conversion and existing unchecked `uint112` reserve conversions in `VitaelPair.sol`; the latter belongs in the pending DEX review.
+
+These are local tests with mocks, not a mainnet fork test or an audit. Production heartbeat values and feed deployments remain unverified.
+
 ## Release blockers and file-level work
 
 | Priority | Files | Required change / acceptance criteria |
 | --- | --- | --- |
-| P0 | `contracts/src/VitaelOracle.sol`, `contracts/src/StorkPriceFeed.sol` | Check price timestamps, maximum age, future/zero timestamps and decimal normalization. Verify each real mainnet feed and price identifier. Define failure behavior; test stale/invalid prices. |
-| P0 | `contracts/src/VitaelLendingPool.sol` | Review LTV enforcement: `borrow` checks liquidation health factor but does not enforce the computed LTV limit. Review transient balances during borrow/withdraw health checks, supply-share rounding, donation/first-depositor behavior, debt rounding, reserve liquidity and liquidation with insufficient collateral/bad debt. Add regression and stateful invariant tests. |
+| P0 | `contracts/src/VitaelOracle.sol`, `contracts/src/StorkPriceFeed.sol` | Timestamp/age/round validation and decimal normalization implemented. Still verify real mainnet feeds, identifiers, heartbeat and maximum-age policies; rehearse outage recovery and liquidation availability. |
+| P0 | `contracts/src/VitaelLendingPool.sol` | LTV enforcement and settled-balance checks implemented for borrow and collateral/supply withdrawals. Still review supply-share rounding, donation/first-depositor behavior, debt/USD rounding, asset-configuration validation, reserve liquidity and liquidation with insufficient collateral/bad debt. Add stateful lending invariants and independent review. |
 | P0 | `contracts/src/dex/*.sol`, `contracts/src/vaults/VitaelUSDCVault.sol`, `contracts/test/` | Audit DEX, pool and vault together. Test manipulation, slippage/deadlines, rounding, liquidity exhaustion, emergency controls and supported token behaviors. Existing tests are not evidence of a completed security audit. |
 | P0 | `contracts/src/LendingConfig.sol`, `contracts/script/DeployVitael.s.sol`, `DeployVitaelDEX.s.sol`, `DeployUSDCVault.s.sol`, `contracts/foundry.toml` | Separate network manifests. Require expected chain ID, valid deployed token/feed code and production addresses; reject mock feeds on mainnet. Dry-run scripts, verify source and record deployment blocks/constructor arguments. |
 | P0 | Contract ownership and deployment scripts | Transfer roles to a verified multisig; design delayed sensitive changes, incident pause/recovery and supply/borrow caps. Reassess LTV/threshold/bonus parameters against real liquidity. |
