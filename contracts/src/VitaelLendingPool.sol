@@ -62,6 +62,9 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     // user => borrow asset => borrow state
     mapping(address => mapping(address => UserBorrow)) public userBorrows;
 
+    // Dedicated collateral is custody-only, never supplier-owned liquidity.
+    mapping(address => uint256) public totalCollateral;
+
     uint256 public constant CLOSE_FACTOR = 5000; // 50% max liquidation
 
     // ─── Events ───────────────────────────────────────────────────────────────
@@ -169,7 +172,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
             return;
         }
 
-        uint256 cash = IERC20(asset).balanceOf(address(this));
+        uint256 cash = getAvailableLiquidity(asset);
         uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
 
         uint256 interest = (s.totalBorrowed * rate * elapsed) / (365 days * 1e18);
@@ -206,7 +209,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         // Simulate pending interest
         AssetConfig storage c = assetConfigs[asset];
         uint256 elapsed = block.timestamp - s.lastAccruedTime;
-        uint256 cash = IERC20(asset).balanceOf(address(this));
+        uint256 cash = getAvailableLiquidity(asset);
         uint256 pendingInterest = 0;
         uint256 pendingReserve = 0;
         if (elapsed > 0 && s.totalBorrowed > 0) {
@@ -264,7 +267,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         if (shares > userSh) revert InsufficientBalance();
 
         uint256 amount = _sharesToAsset(asset, shares);
-        if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+        if (getAvailableLiquidity(asset) < amount) revert InsufficientLiquidity();
 
         assetStates[asset].totalShares -= shares;
         userShares[msg.sender][asset] -= shares;
@@ -289,6 +292,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         if (!assetConfigs[asset].isSupported) revert AssetNotSupported();
 
         userCollateral[msg.sender][asset] += amount;
+        totalCollateral[asset] += amount;
         IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
         emit CollateralDeposited(msg.sender, asset, amount);
     }
@@ -306,6 +310,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
             if (_healthFactor(msg.sender) < 1e18) revert HealthFactorTooLow();
         }
 
+        totalCollateral[asset] -= amount;
         IERC20(asset).safeTransfer(msg.sender, amount);
         emit CollateralWithdrawn(msg.sender, asset, amount);
     }
@@ -323,7 +328,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
 
         accrueInterest(asset);
 
-        if (IERC20(asset).balanceOf(address(this)) < amount) revert InsufficientLiquidity();
+        if (getAvailableLiquidity(asset) < amount) revert InsufficientLiquidity();
 
         // Update user borrow state
         UserBorrow storage ub = userBorrows[msg.sender][asset];
@@ -427,6 +432,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
             userCollateral[borrower][collateralAsset] -= seizedCollateral;
         } else {
             uint256 remainder = seizedCollateral - fromDedicated;
+            if (getAvailableLiquidity(collateralAsset) < remainder) revert InsufficientLiquidity();
             userCollateral[borrower][collateralAsset] = 0;
             // Convert remainder to shares and burn
             accrueInterest(collateralAsset);
@@ -437,6 +443,9 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
             userShares[borrower][collateralAsset] -= sharesToBurn;
             assetStates[collateralAsset].totalShares -= sharesToBurn;
         }
+
+        // Update custody only after share conversions use the pre-transfer cash balance.
+        totalCollateral[collateralAsset] -= seizedCollateral < fromDedicated ? seizedCollateral : fromDedicated;
 
         // Update debt
         ub.principal = totalDebt - repayAmount;
@@ -463,7 +472,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         uint256 elapsed = block.timestamp - s.lastAccruedTime;
         uint256 currentIndex = s.borrowIndex;
         if (elapsed > 0 && s.totalBorrowed > 0) {
-            uint256 cash = IERC20(asset).balanceOf(address(this));
+            uint256 cash = getAvailableLiquidity(asset);
             uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
             currentIndex += (s.borrowIndex * rate * elapsed) / (365 days * 1e18);
         }
@@ -508,7 +517,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     function getBorrowRate(address asset) external view returns (uint256) {
         AssetState storage s = assetStates[asset];
         AssetConfig storage c = assetConfigs[asset];
-        uint256 cash = IERC20(asset).balanceOf(address(this));
+        uint256 cash = getAvailableLiquidity(asset);
         return _borrowRate(c, s.totalBorrowed, cash);
     }
 
@@ -518,7 +527,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     function getSupplyRate(address asset) external view returns (uint256) {
         AssetState storage s = assetStates[asset];
         AssetConfig storage c = assetConfigs[asset];
-        uint256 cash = IERC20(asset).balanceOf(address(this));
+        uint256 cash = getAvailableLiquidity(asset);
         if (s.totalBorrowed == 0) return 0;
         uint256 total = cash + s.totalBorrowed;
         uint256 u = (s.totalBorrowed * 1e18) / total;
@@ -532,9 +541,14 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     function getUtilization(address asset) external view returns (uint256) {
         AssetState storage s = assetStates[asset];
         if (s.totalBorrowed == 0) return 0;
-        uint256 cash = IERC20(asset).balanceOf(address(this));
+        uint256 cash = getAvailableLiquidity(asset);
         uint256 total = cash + s.totalBorrowed;
         return (s.totalBorrowed * 1e18) / total;
+    }
+
+    /// @notice Pool cash excluding dedicated collateral held in custody.
+    function getAvailableLiquidity(address asset) public view returns (uint256) {
+        return IERC20(asset).balanceOf(address(this)) - totalCollateral[asset];
     }
 
     function getSupportedAssets() external view returns (address[] memory) {
@@ -547,6 +561,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         accrueInterest(asset);
         AssetState storage s = assetStates[asset];
         if (amount > s.totalReserves) revert InsufficientReserves();
+        if (getAvailableLiquidity(asset) < amount) revert InsufficientLiquidity();
         s.totalReserves -= amount;
         IERC20(asset).safeTransfer(msg.sender, amount);
         emit ReservesWithdrawn(asset, amount);

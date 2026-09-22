@@ -69,7 +69,7 @@ contract VitaelUSDCVault is ERC4626, Ownable, ReentrancyGuard {
         if (poolShares == 0) return idle;
 
         uint256 rate = lendingPool.exchangeRate(asset());
-        uint256 poolCash = IERC20(asset()).balanceOf(address(lendingPool));
+        uint256 poolCash = lendingPool.getAvailableLiquidity(asset());
         uint256 liquidShares = (poolCash * 1e18) / rate;
         if (liquidShares > poolShares) liquidShares = poolShares;
         return idle + (liquidShares * rate) / 1e18;
