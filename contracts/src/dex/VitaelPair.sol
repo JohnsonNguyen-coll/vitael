@@ -58,18 +58,31 @@ contract VitaelPair is ERC20, ReentrancyGuard {
 
     function _update(uint256 balance0, uint256 balance1) private {
         require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "VitaelPair: OVERFLOW");
+        // Bounds above make these reserve conversions exact.
+        // forge-lint: disable-next-line(unsafe-typecast)
         reserve0 = uint112(balance0);
+        // forge-lint: disable-next-line(unsafe-typecast)
         reserve1 = uint112(balance1);
         blockTimestampLast = uint32(block.timestamp);
         emit Sync(reserve0, reserve1);
+    }
+
+    /// @dev Treasury claims are held in custody, outside LP reserves and swap liquidity.
+    function _lpBalances() private view returns (uint256 balance0, uint256 balance1) {
+        balance0 = IERC20(token0).balanceOf(address(this)) - protocolFees0;
+        balance1 = IERC20(token1).balanceOf(address(this)) - protocolFees1;
+    }
+
+    function _updateBalances() private {
+        (uint256 balance0, uint256 balance1) = _lpBalances();
+        _update(balance0, balance1);
     }
 
     // ─── Mint (Add Liquidity) ─────────────────────────────────────────────────
 
     function mint(address to) external nonReentrant returns (uint256 liquidity) {
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
-        uint256 balance0 = IERC20(token0).balanceOf(address(this));
-        uint256 balance1 = IERC20(token1).balanceOf(address(this));
+        (uint256 balance0, uint256 balance1) = _lpBalances();
         uint256 amount0 = balance0 - _reserve0;
         uint256 amount1 = balance1 - _reserve1;
 
@@ -89,8 +102,7 @@ contract VitaelPair is ERC20, ReentrancyGuard {
     // ─── Burn (Remove Liquidity) ──────────────────────────────────────────────
 
     function burn(address to) external nonReentrant returns (uint256 amount0, uint256 amount1) {
-        uint256 balance0 = IERC20(token0).balanceOf(address(this));
-        uint256 balance1 = IERC20(token1).balanceOf(address(this));
+        (uint256 balance0, uint256 balance1) = _lpBalances();
         uint256 liquidity = balanceOf(address(this));
 
         uint256 _totalSupply = totalSupply();
@@ -101,26 +113,26 @@ contract VitaelPair is ERC20, ReentrancyGuard {
         _burn(address(this), liquidity);
         IERC20(token0).safeTransfer(to, amount0);
         IERC20(token1).safeTransfer(to, amount1);
-        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
+        _updateBalances();
         emit Burn(msg.sender, amount0, amount1, to);
     }
 
     // ─── Swap ─────────────────────────────────────────────────────────────────
 
     /// @notice Execute swap. Router sends input tokens first, then calls this.
-    /// @dev Total fee = 0.3%. Protocol portion (protocolFeeBps/1000 of input) goes to treasury.
+    /// @dev Total fee = 0.3%. Protocol portion (protocolFeeBps/10_000 of input) goes to treasury.
     function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata) external nonReentrant {
+        require(!VitaelFactory(factory).paused(), "VitaelPair: PAUSED");
         require(amount0Out > 0 || amount1Out > 0, "VitaelPair: INSUFFICIENT_OUTPUT_AMOUNT");
         (uint112 _reserve0, uint112 _reserve1,) = getReserves();
         require(amount0Out < _reserve0 && amount1Out < _reserve1, "VitaelPair: INSUFFICIENT_LIQUIDITY");
         require(to != token0 && to != token1, "VitaelPair: INVALID_TO");
 
-        // CEI: send output first
+        // Optimistic output transfer; validate final balances under the reentrancy lock.
         if (amount0Out > 0) IERC20(token0).safeTransfer(to, amount0Out);
         if (amount1Out > 0) IERC20(token1).safeTransfer(to, amount1Out);
 
-        uint256 balance0 = IERC20(token0).balanceOf(address(this));
-        uint256 balance1 = IERC20(token1).balanceOf(address(this));
+        (uint256 balance0, uint256 balance1) = _lpBalances();
 
         uint256 amount0In = balance0 > _reserve0 - amount0Out ? balance0 - (_reserve0 - amount0Out) : 0;
         uint256 amount1In = balance1 > _reserve1 - amount1Out ? balance1 - (_reserve1 - amount1Out) : 0;
@@ -136,11 +148,11 @@ contract VitaelPair is ERC20, ReentrancyGuard {
         // Route protocol fee portion to treasury
         _collectProtocolFee(amount0In, amount1In);
 
-        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
+        _updateBalances();
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
     }
 
-    /// @dev Accumulate protocol fees; treasury pulls them via collectFees()
+    /// @dev Reserve protocol fees for permissionless delivery via collectProtocolFees().
     function _collectProtocolFee(uint256 amount0In, uint256 amount1In) private {
         uint256 feeBps = VitaelFactory(factory).protocolFeeBps();
         if (feeBps == 0) return;
@@ -164,18 +176,19 @@ contract VitaelPair is ERC20, ReentrancyGuard {
         if (fee1 > 0) IERC20(token1).safeTransfer(treas, fee1);
 
         // Update reserves after fee transfer
-        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
+        _updateBalances();
         emit ProtocolFeeCollected(fee0, fee1, treas);
     }
 
     // ─── Utility ──────────────────────────────────────────────────────────────
 
     function skim(address to) external nonReentrant {
-        IERC20(token0).safeTransfer(to, IERC20(token0).balanceOf(address(this)) - reserve0);
-        IERC20(token1).safeTransfer(to, IERC20(token1).balanceOf(address(this)) - reserve1);
+        (uint256 balance0, uint256 balance1) = _lpBalances();
+        IERC20(token0).safeTransfer(to, balance0 - reserve0);
+        IERC20(token1).safeTransfer(to, balance1 - reserve1);
     }
 
     function sync() external nonReentrant {
-        _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)));
+        _updateBalances();
     }
 }

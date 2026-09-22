@@ -52,9 +52,34 @@ forge test --out out-risk --cache-path cache-risk -vv
 forge build --out out-risk --cache-path cache-risk --sizes
 ```
 
-The full build, including deployment/patch scripts, passed with Solidity 0.8.24 and the existing optimizer/via-IR settings. `PatchStableFeeds.s.sol` now registers/logs one mock at a time to avoid a compiler stack-depth error. Runtime sizes were 8,754 bytes for the pool, 1,895 for the oracle and 7,649 for the vault, below the build's size limits. Lint still flags the oracle's positive-checked signed-to-unsigned conversion and existing unchecked `uint112` reserve conversions in `VitaelPair.sol`; the latter belongs in the pending DEX review.
+The full build, including deployment/patch scripts, passed with Solidity 0.8.24 and the existing optimizer/via-IR settings. `PatchStableFeeds.s.sol` now registers/logs one mock at a time to avoid a compiler stack-depth error. Runtime sizes were 8,754 bytes for the pool, 1,895 for the oracle and 7,649 for the vault, below the build's size limits. Lint flagged the oracle's positive-checked signed-to-unsigned conversion and `uint112` reserve conversions in `VitaelPair.sol`. Follow-up inspection confirmed that the pair already checks both reserve bounds before casting; describing those conversions as unchecked was incorrect. A regression test now covers the boundary and overflow rejection.
 
 These are local tests with mocks, not a mainnet fork test or an audit. Production heartbeat values and feed deployments remain unverified.
+
+## Implemented: DEX fee custody and pause enforcement
+
+- Pair reserves, swap liquidity and LP mint/burn claims now exclude `protocolFees0/1`. Pending treasury fees remain separate custodial balances. Collection transfers those claims without changing LP reserves or quotes (assuming no unrelated balance changes).
+- `skim` can only transfer excess LP balances and `sync` cannot reclassify treasury claims as LP reserves. Total swap fee stays 30 bps; the configured 0–10 bps treasury portion is reserved when each swap happens.
+- Pair `swap` now checks the factory pause flag, including calls that bypass the router. Factory pause blocks pair creation and swaps; exits and fee collection remain available. This is not a global freeze of all DEX operations.
+- Router liquidity additions check both minimum amounts on every branch, including initial liquidity. The existing one-sided checks missed some invalid requests.
+- `VitaelPair.sol` already had a correct `uint112` overflow guard. No economic change was made to that guard; comments explain the checked casts to the linter.
+
+The new pair bytecode requires a new factory/pair deployment. Existing factory deployments embed old pair creation code and cannot create the fixed pair version. Coordinate factory/router/quoter/frontend/indexer addresses and any off-chain CREATE2 calculations. LP migration must use an explicit withdrawal/redeposit flow; no balances have been migrated. Raw pair balances now include treasury custody while `getReserves` exposes LP liquidity only, so analytics must label these totals distinctly.
+
+Remaining DEX work includes independent review, malicious/nonstandard token behavior, broader multi-hop routing and economic attack simulations. Exact-transfer, non-rebasing tokens are still the supported accounting assumption.
+
+### DEX validation (2026-09-22)
+
+Four regressions failed on the original implementation: treasury fees were included in reserves, collecting fees changed reserves, swaps bypassed factory pause, and liquidity additions could violate a minimum amount. After the fix the complete CI-profile suite passed 117 test executions across nine suites, with no failures or skips. The 16 DEX tests cover fees, LP entry/exit, both swap directions, exact-output swaps, fee changes, pause/unpause, slippage/deadline rollback and overflow bounds. Fuzz tests ran 1,000 cases each. The new DEX invariant passed 100 runs / 50,000 calls across swaps, mint/burn, collection and skim/sync with zero reverts; all three existing vault invariants also passed.
+
+Full build including scripts passed with size checks. Formatting and diff-whitespace checks passed. Remaining lint notices are the positive-checked oracle cast and unchecked return values on transfers of the known `MockERC20` in test code; production pair/router transfers use `SafeERC20`. No frontend or live-network tests were run for this change.
+
+Run from `contracts/` with `FOUNDRY_PROFILE=ci`:
+
+```text
+forge test --out out-dex --cache-path cache-dex -vv
+forge build --out out-dex --cache-path cache-dex --sizes
+```
 
 ## Release blockers and file-level work
 

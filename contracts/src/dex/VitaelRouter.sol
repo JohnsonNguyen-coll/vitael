@@ -116,6 +116,8 @@ contract VitaelRouter is ReentrancyGuard {
                 (amountA, amountB) = (amountAOptimal, amountBDesired);
             }
         }
+        require(amountA >= amountAMin, "VitaelRouter: INSUFFICIENT_A_AMOUNT");
+        require(amountB >= amountBMin, "VitaelRouter: INSUFFICIENT_B_AMOUNT");
     }
 
     /// @notice Add liquidity. Creates pair if it doesn't exist.
