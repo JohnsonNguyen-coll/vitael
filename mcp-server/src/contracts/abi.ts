@@ -52,6 +52,11 @@ export const ERC20_ABI = [
 ] as const;
 
 export const LENDING_POOL_ABI = [
+  {"type": "function", "name": "getAvailableLiquidity", "stateMutability": "view", "inputs": [{"name": "asset", "type": "address"}], "outputs": [{"type": "uint256"}]},
+  {"type": "function", "name": "previewRedeem", "stateMutability": "view", "inputs": [{"name": "asset", "type": "address"}, {"name": "shares", "type": "uint256"}], "outputs": [{"type": "uint256"}]},
+  {"type": "function", "name": "previewWithdraw", "stateMutability": "view", "inputs": [{"name": "asset", "type": "address"}, {"name": "amount", "type": "uint256"}], "outputs": [{"type": "uint256"}]},
+  {"type": "function", "name": "getAccountShortfall", "stateMutability": "view", "inputs": [{"name": "user", "type": "address"}], "outputs": [{"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}]},
+  {"type": "function", "name": "quoteLiquidation", "stateMutability": "view", "inputs": [{"name": "borrower", "type": "address"}, {"name": "debtAsset", "type": "address"}, {"name": "collateralAsset", "type": "address"}, {"name": "repayAmount", "type": "uint256"}], "outputs": [{"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}]},
   {
     inputs: [
       { name: "asset", type: "address" },

@@ -20,6 +20,9 @@ export const TOKENS: readonly Token[] = [
 export const tokenByAddress = new Map(TOKENS.map((token) => [token.address.toLowerCase(), token]));
 
 export const lendingAbi = parseAbi([
+  "function getAvailableLiquidity(address asset) view returns (uint256)",
+  "function totalCollateral(address asset) view returns (uint256)",
+  "function previewRedeem(address asset, uint256 shares) view returns (uint256)",
   "event Supplied(address indexed user, address indexed asset, uint256 amount, uint256 shares)",
   "event Withdrawn(address indexed user, address indexed asset, uint256 amount, uint256 shares)",
   "event CollateralDeposited(address indexed user, address indexed asset, uint256 amount)",

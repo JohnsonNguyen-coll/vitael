@@ -1,5 +1,7 @@
 "use client";
 
+import { parseUnits } from "viem";
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -185,28 +187,21 @@ export default function LendPage() {
     if (subTab === "supply") {
       await supply(selectedSymbol, amount);
     } else {
-      // Withdraw by shares. User enters token amount; convert proportionally.
-      // If user entered MAX (amount == supplyBalance), pass all shares directly.
-      const supplyBal = parseFloat(userAsset?.supplyBalance ?? "0");
-      const totalShares = parseFloat(userAsset?.shares ?? "0");
-      if (totalShares <= 0) return;
-
-      let sharesToRedeem: string;
-      if (supplyBal > 0 && Math.abs(num - supplyBal) < 0.000001) {
-        // MAX — redeem all shares to avoid dust
-        sharesToRedeem = userAsset!.shares;
-      } else {
-        // Proportional: shares = totalShares * (amount / supplyBalance)
-        const pct = Math.min(num / supplyBal, 1);
-        sharesToRedeem = (totalShares * pct).toFixed(selectedToken.decimals);
-      }
-      await withdraw(selectedSymbol, sharesToRedeem);
+      // Compare exact token amounts; the pool performs share rounding.
+      const redeemAll = parseUnits(amount, selectedToken.decimals)
+        === parseUnits(userAsset?.supplyBalance ?? "0", selectedToken.decimals);
+      await withdraw(selectedSymbol, amount, redeemAll);
     }
   }
 
   return (
     <PageLayout variant="app">
       <main className="app-page relative z-10 max-w-7xl mx-auto px-6 py-12 space-y-8">
+        {position && Number(position.shortfallUSD) > 0 && (
+          <p role="alert" className="rounded-xl border border-red-400/40 bg-red-400/10 p-4 text-red-200">
+            Your debt exceeds your collateral value by ${position.shortfallUSD}. The remaining debt is still owed and continues accruing interest.
+          </p>
+        )}
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
@@ -230,7 +225,7 @@ export default function LendPage() {
           <StatCard
             label="My Collateral (USD)"
             value={isConnected ? totalSuppliedUSD : "—"}
-            sub="After liquidation-threshold adjustment"
+            sub="Supply and dedicated collateral at oracle prices"
             accent
             loading={posLoading}
           />

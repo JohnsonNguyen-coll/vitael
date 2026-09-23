@@ -83,6 +83,20 @@ forge build --out out-dex --cache-path cache-dex --sizes
 
 ## Release blockers and file-level work
 
+### New testnet deployment integration check (2026-09-23)
+
+Read-only RPC checks confirmed chain 5042002 and pool `0x5a2c897eb87ec30045736aecb764f78e93501b84`, whose `oracle()` returns `0x7bac9c169329e05997f73efaa18ec6490e1156a2`. The selected lending broadcast contains 11 successful receipts and no pending transactions. A previously transcribed 41-hex-digit oracle address was incorrect; local contract/frontend environment files and the backend example were corrected using the broadcast and on-chain getter.
+
+At inspection time, USDC/EURC price reads reverted with Stork `NotFound`; cirBTC reverted with `StalePrice`. All three tracked lending cash balances were zero. Price-dependent borrowing, collateral withdrawal and liquidation are not ready for wallet testing until valid current prices are available. No oracle configuration or price update transaction was sent.
+
+The locally configured vault `0x78c1a89ba59f14542b16e81e60363b7a71e31a4b` still returns the historical pool `0xea282eea5bc90905c15df05ca43eea967bcde49f`; it has not migrated. Local DEX addresses also remain the historical set. Keep existing-position access distinct from testing the new deployment.
+
+Frontend and MCP market reads now use tracked liquidity and exact redemption previews. The lend form requests withdrawal shares from the pool rather than using floating-point proportional conversion. Frontend account collateral is valued before liquidation-threshold weighting, and a remaining shortfall is displayed with continuing-debt disclosure. New pool/oracle errors have user-facing messages. Backend market `cash` now means tracked lending cash; `dedicatedCollateral` is reported separately, and lending TVL includes both custody categories but excludes unsolicited transfers. Existing stored snapshots retain their old semantics until a new snapshot is generated.
+
+Backend/indexer runs on Railway according to the operator. Local `backend/.env.example` edits do not update Railway Variables. Configure all required indexer addresses there and check deployment block/checkpoint/history migration before restarting against the new pool. Remote environment state, database checkpoint and live frontend wallet flows have not been verified in this check. ABI support added here does not complete liquidation UI, multi-step transaction or price-outage end-to-end testing.
+
+Validation passed: frontend, MCP and backend TypeScript checks; ESLint on the three changed frontend files; four new error-selector mapping checks; and a live read-only MCP `getMarkets` call returning zero supply/liquidity for all three markets. On request, local `backend/.env` was created with the new pool/oracle and existing testnet DEX/CCTP/token addresses. Supabase credentials and frontend URL remain template/local defaults; Railway configuration was not modified.
+
 ### Lending precision and liquidation changes (2026-09-23)
 
 The pool now tracks lending cash independently of raw token balances, uses shared high-precision debt shares for individual and aggregate debt, and exposes exact supply/redeem/withdraw previews. Inbound transfers must be exact. Zero-share supplies revert; supplied collateral seized during liquidation burns shares rounded upward. Debt valuation rounds upward to prevent sub-USD-unit borrowing without collateral. Asset updates accrue the previous interest configuration before replacement and validate token decimals and basic risk bounds.

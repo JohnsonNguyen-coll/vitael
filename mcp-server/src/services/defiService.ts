@@ -101,6 +101,13 @@ export class DefiService {
         address: pool, abi: LENDING_POOL_ABI, functionName: 'exchangeRate', args: [address],
       });
 
+      const totalSupplied = await client.readContract({
+        address: pool, abi: LENDING_POOL_ABI, functionName: 'previewRedeem', args: [address, state[4]],
+      });
+      const liquidity = await client.readContract({
+        address: pool, abi: LENDING_POOL_ABI, functionName: 'getAvailableLiquidity', args: [address],
+      });
+
       markets.push({
         asset: symbol,
         address,
@@ -108,7 +115,8 @@ export class DefiService {
         totalBorrowed: state[0].toString(),
         totalReserves: state[1].toString(),
         totalShares: state[4].toString(),
-        totalSupplied: ((state[4] * exchangeRate) / 1_000_000_000_000_000_000n).toString(),
+        totalSupplied: totalSupplied.toString(),
+        liquidity: liquidity.toString(),
         supplyApy: formatUnits(supplyRate, 16),
         borrowApy: formatUnits(borrowRate, 16),
         utilization: formatUnits(utilization, 16),

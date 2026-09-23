@@ -2,21 +2,24 @@
 pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../src/dex/VitaelTreasury.sol";
 import "../src/dex/VitaelFactory.sol";
 import "../src/dex/VitaelRouter.sol";
 import "../src/dex/VitaelQuoter.sol";
 import "../src/dex/VitaelPair.sol";
 
-/// @notice Deploy full Vitael DEX V2 stack on Arc Testnet
-/// @dev Seed liquidity via frontend /pool page after deploy (Arc native USDC
-///      has delegatecall logic that causes StackUnderflow in Foundry scripts)
+/// @notice Deploy the DEX using explicit network and token environment configuration.
 contract DeployVitaelDEX is Script {
-    address constant USDC = 0x3600000000000000000000000000000000000000;
-    address constant EURC = 0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a;
-    address constant cirBTC = 0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF;
-
     function run() external {
+        require(block.chainid == vm.envUint("DEPLOY_CHAIN_ID"), "Wrong deployment chain");
+        address USDC = vm.envAddress("USDC_ADDRESS");
+        address EURC = vm.envAddress("EURC_ADDRESS");
+        address cirBTC = vm.envAddress("CIRBTC_ADDRESS");
+        require(USDC != EURC && USDC != cirBTC && EURC != cirBTC, "Duplicate tokens");
+        require(IERC20Metadata(USDC).decimals() == 6, "Wrong USDC decimals");
+        require(IERC20Metadata(EURC).decimals() == 6, "Wrong EURC decimals");
+        require(IERC20Metadata(cirBTC).decimals() == 8, "Wrong cirBTC decimals");
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
 

@@ -7,11 +7,18 @@ import "../src/vaults/VitaelUSDCVault.sol";
 
 contract DeployUSDCVault is Script {
     function run() external {
+        require(block.chainid == vm.envUint("DEPLOY_CHAIN_ID"), "Wrong deployment chain");
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
-        address usdc = vm.envOr("USDC_ADDRESS", vm.envAddress("USDC"));
-        address lendingPool = vm.envOr("LENDING_POOL_ADDRESS", vm.envAddress("POOL"));
+        address usdc = vm.envAddress("USDC_ADDRESS");
+        address lendingPool = vm.envAddress("LENDING_POOL_ADDRESS");
         uint256 depositCap = vm.envOr("VAULT_DEPOSIT_CAP", uint256(10_000e6));
 
+        require(IERC20Metadata(usdc).decimals() == 6, "Wrong USDC decimals");
+        require(lendingPool.code.length > 0, "Missing lending pool");
+        (bool supported,,,,,,,,,) = VitaelLendingPool(lendingPool).assetConfigs(usdc);
+        require(supported, "Pool does not support USDC");
+        require(address(VitaelLendingPool(lendingPool).oracle()) == vm.envAddress("ORACLE_ADDRESS"), "Wrong pool oracle");
+        VitaelLendingPool(lendingPool).oracle().getAssetPrice(usdc);
         vm.startBroadcast(deployerKey);
         VitaelUSDCVault vault =
             new VitaelUSDCVault(IERC20(usdc), VitaelLendingPool(lendingPool), depositCap);

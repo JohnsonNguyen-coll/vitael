@@ -381,22 +381,26 @@ async function captureSnapshot(blockNumber: bigint, pairs: PairInfo[]) {
   let totalBorrowed = 0;
   const markets: Record<string, unknown> = {};
   for (const token of TOKENS) {
-    const [cash, state, exchangeRate] = await Promise.all([
-      arcClient.readContract({ address: token.address, abi: erc20Abi, functionName: "balanceOf", args: [CONTRACTS.lendingPool], blockNumber }),
+    const [cash, state, dedicatedCollateral] = await Promise.all([
+      arcClient.readContract({ address: CONTRACTS.lendingPool, abi: lendingAbi, functionName: "getAvailableLiquidity", args: [token.address], blockNumber }),
       arcClient.readContract({ address: CONTRACTS.lendingPool, abi: lendingAbi, functionName: "assetStates", args: [token.address], blockNumber }),
-      arcClient.readContract({ address: CONTRACTS.lendingPool, abi: lendingAbi, functionName: "exchangeRate", args: [token.address], blockNumber }),
+      arcClient.readContract({ address: CONTRACTS.lendingPool, abi: lendingAbi, functionName: "totalCollateral", args: [token.address], blockNumber }),
     ]);
     const [borrowed, reserves, , , shares] = state;
-    const supplied = shares * exchangeRate / 10n ** 18n;
+    const supplied = await arcClient.readContract({
+      address: CONTRACTS.lendingPool, abi: lendingAbi, functionName: "previewRedeem",
+      args: [token.address, shares], blockNumber,
+    });
     const price = prices.get(lower(token.address)) ?? 0n;
     const cashUsd = toUsd(cash, token, price);
     const suppliedUsd = toUsd(supplied, token, price);
     const borrowedUsd = toUsd(borrowed, token, price);
-    lendingTvl += cashUsd;
+    lendingTvl += cashUsd + toUsd(dedicatedCollateral, token, price);
     totalSupplied += suppliedUsd;
     totalBorrowed += borrowedUsd;
     markets[token.symbol] = {
       address: lower(token.address), cash: cash.toString(), supplied: supplied.toString(),
+      dedicatedCollateral: dedicatedCollateral.toString(),
       borrowed: borrowed.toString(), reserves: reserves.toString(), price8: price.toString(),
     };
   }

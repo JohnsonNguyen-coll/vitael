@@ -12,7 +12,7 @@ import { arcTransport } from "../lib/arcTransport";
 import { parseWalletError } from "../lib/walletErrors";
 import { parseLendingPoolError } from "../lib/lendingErrors";
 
-// ─── Token registry ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Token registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const SUPPORTED_TOKENS = {
   USDC: {
     address:              LENDING_CONTRACTS.USDC,
@@ -49,17 +49,17 @@ export const SUPPORTED_TOKENS = {
 export type TokenSymbol = keyof typeof SUPPORTED_TOKENS;
 export const TOKEN_SYMBOLS = Object.keys(SUPPORTED_TOKENS) as TokenSymbol[];
 
-// Legacy alias — borrow page still uses COLLATERAL_TOKENS
+// Legacy alias â€” borrow page still uses COLLATERAL_TOKENS
 export const COLLATERAL_TOKENS = SUPPORTED_TOKENS;
 export type CollateralSymbol = TokenSymbol;
 
-// ─── Arc public client ────────────────────────────────────────────────────────
+// â”€â”€â”€ Arc public client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const arcClient = createPublicClient({
   chain: arcTestnet,
   transport: arcTransport(),
 });
 
-// ─── ABIs ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ ABIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const ERC20_ABI = [
   { type: "function", name: "balanceOf",   stateMutability: "view",       inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] },
   { type: "function", name: "allowance",   stateMutability: "view",       inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ type: "uint256" }] },
@@ -68,6 +68,11 @@ const ERC20_ABI = [
 ] as const;
 
 const POOL_ABI = [
+  {"type": "function", "name": "getAvailableLiquidity", "stateMutability": "view", "inputs": [{"name": "asset", "type": "address"}], "outputs": [{"type": "uint256"}]},
+  {"type": "function", "name": "previewRedeem", "stateMutability": "view", "inputs": [{"name": "asset", "type": "address"}, {"name": "shares", "type": "uint256"}], "outputs": [{"type": "uint256"}]},
+  {"type": "function", "name": "previewWithdraw", "stateMutability": "view", "inputs": [{"name": "asset", "type": "address"}, {"name": "amount", "type": "uint256"}], "outputs": [{"type": "uint256"}]},
+  {"type": "function", "name": "getAccountShortfall", "stateMutability": "view", "inputs": [{"name": "user", "type": "address"}], "outputs": [{"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}]},
+  {"type": "function", "name": "quoteLiquidation", "stateMutability": "view", "inputs": [{"name": "borrower", "type": "address"}, {"name": "debtAsset", "type": "address"}, {"name": "collateralAsset", "type": "address"}, {"name": "repayAmount", "type": "uint256"}], "outputs": [{"type": "uint256"}, {"type": "uint256"}, {"type": "uint256"}]},
   // Supply / Withdraw
   { type: "function", name: "supply",            stateMutability: "nonpayable", inputs: [{ name: "asset", type: "address" }, { name: "amount", type: "uint256" }], outputs: [] },
   { type: "function", name: "withdraw",          stateMutability: "nonpayable", inputs: [{ name: "asset", type: "address" }, { name: "shares", type: "uint256" }], outputs: [] },
@@ -109,7 +114,7 @@ const ORACLE_ABI = [
   { type: "function", name: "getAssetPrice", stateMutability: "view", inputs: [{ name: "asset", type: "address" }], outputs: [{ type: "uint256" }] },
 ] as const;
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export interface LendingState {
   step:   string;
   busy:   boolean;
@@ -138,6 +143,7 @@ export interface UserAssetInfo {
 }
 
 export interface UserPosition {
+  shortfallUSD:       string;
   assets:             UserAssetInfo[];
   totalCollateralUSD: string;
   totalBorrowUSD:     string;
@@ -166,7 +172,7 @@ export interface ProtocolStats {
 }
 
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function useLending() {
   const { data: walletClient } = useWalletClient();
   const { switchChainAsync }   = useSwitchChain();
@@ -193,7 +199,7 @@ export function useLending() {
   const reset = useCallback(() =>
     setState({ step: "idle", busy: false, error: null, txHash: null }), []);
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   async function ensureArc() {
     if (!walletClient) throw new Error("Wallet not connected");
@@ -261,7 +267,7 @@ export function useLending() {
     return hash;
   }
 
-  // ── Supply ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Supply â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const supply = useCallback(async (symbol: TokenSymbol, amountHuman: string) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
@@ -275,21 +281,25 @@ export function useLending() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
 
-  // ── Withdraw (by shares) ────────────────────────────────────────────────────
-  const withdraw = useCallback(async (symbol: TokenSymbol, sharesHuman: string) => {
+  // â”€â”€ Withdraw (asset amount) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const withdraw = useCallback(async (symbol: TokenSymbol, amountHuman: string, redeemAll = false) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
       await ensureArc();
       const token  = SUPPORTED_TOKENS[symbol];
-      // shares have same decimals as the underlying token
-      const shares = parseUnits(sharesHuman, token.decimals);
+      const shares = redeemAll
+        ? (2n ** 256n - 1n)
+        : await arcClient.readContract({
+            address: POOL, abi: POOL_ABI, functionName: "previewWithdraw",
+            args: [token.address, parseUnits(amountHuman, token.decimals)],
+          });
       const hash = await sendPoolTx("withdrawing", "withdraw", [token.address, shares]);
       setState({ step: "done", busy: false, error: null, txHash: hash });
     } catch (err) { failTx(err); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
 
-  // ── Deposit Collateral ──────────────────────────────────────────────────────
+  // â”€â”€ Deposit Collateral â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const depositCollateral = useCallback(async (symbol: TokenSymbol, amountHuman: string) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
@@ -303,7 +313,7 @@ export function useLending() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
 
-  // ── Withdraw Collateral ─────────────────────────────────────────────────────
+  // â”€â”€ Withdraw Collateral â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const withdrawCollateral = useCallback(async (symbol: TokenSymbol, amountHuman: string) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
@@ -316,7 +326,7 @@ export function useLending() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
 
-  // ── Borrow ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Borrow â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const borrow = useCallback(async (symbol: TokenSymbol, amountHuman: string) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
@@ -326,7 +336,7 @@ export function useLending() {
 
       // Pre-check liquidity
       const cash = await arcClient.readContract({
-        address: token.address, abi: ERC20_ABI, functionName: "balanceOf", args: [POOL],
+        address: POOL, abi: POOL_ABI, functionName: "getAvailableLiquidity", args: [token.address],
       }) as bigint;
       if (cash < amount) {
         const avail = formatUnits(cash, token.decimals);
@@ -339,7 +349,7 @@ export function useLending() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
 
-  // ── Repay ───────────────────────────────────────────────────────────────────
+  // â”€â”€ Repay â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const repay = useCallback(async (symbol: TokenSymbol, amountHuman: string) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
@@ -353,7 +363,7 @@ export function useLending() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletClient]);
 
-  // ── Liquidate ───────────────────────────────────────────────────────────────
+  // â”€â”€ Liquidate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const liquidate = useCallback(async (
     borrower: Address,
     debtSymbol: TokenSymbol,
@@ -376,7 +386,7 @@ export function useLending() {
   }, [walletClient]);
 
 
-  // ── Read: per-asset market info ─────────────────────────────────────────────
+  // â”€â”€ Read: per-asset market info â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getMarketInfo = useCallback(async (): Promise<AssetMarketInfo[]> => {
     if (!POOL) return [];
     try {
@@ -386,7 +396,7 @@ export function useLending() {
           const addr  = token.address;
 
           const [cash, state, supplyRate, borrowRate, utilization] = await Promise.all([
-            arcClient.readContract({ address: addr, abi: ERC20_ABI, functionName: "balanceOf", args: [POOL] }),
+            arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "getAvailableLiquidity", args: [addr] }),
             arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "assetStates", args: [addr] }),
             arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "getSupplyRate", args: [addr] }),
             arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "getBorrowRate",  args: [addr] }),
@@ -398,8 +408,9 @@ export function useLending() {
           const borrowed  = s[0];  // totalBorrowed
           const shares    = s[4];  // totalShares
 
-          // total supplied = cash + borrowed (simplified; excludes reserves)
-          const totalSupplied = cashBal + borrowed;
+          const totalSupplied = await arcClient.readContract({
+            address: POOL, abi: POOL_ABI, functionName: "previewRedeem", args: [addr, shares],
+          });
 
           const rate = shares > 0n
             ? await arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "exchangeRate", args: [addr] }) as bigint
@@ -423,19 +434,19 @@ export function useLending() {
     }
   }, [POOL]);
 
-  // ── Read: user position ─────────────────────────────────────────────────────
+  // â”€â”€ Read: user position â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getUserPosition = useCallback(async (userAddress: Address): Promise<UserPosition | null> => {
     if (!POOL) return null;
     try {
       const [positionRaw, hfRaw] = await Promise.all([
-        arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "getPosition", args: [userAddress] }),
+        arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "getAccountShortfall", args: [userAddress] }),
         arcClient.readContract({ address: POOL, abi: POOL_ABI, functionName: "getHealthFactor", args: [userAddress] }),
       ]);
 
-      const [collUSD, borrowUSD] = positionRaw as [bigint, bigint, bigint];
+      const [collUSD, borrowUSD, shortfallUSD] = positionRaw as [bigint, bigint, bigint];
       const hf = hfRaw as bigint;
       const hfStr = hf === BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-        ? "∞"
+        ? "âˆž"
         : (Number(hf) / 1e18).toFixed(2);
 
       const assets = await Promise.all(
@@ -465,6 +476,7 @@ export function useLending() {
       return {
         assets,
         totalCollateralUSD: formatUnits(collUSD, 8),
+        shortfallUSD:       formatUnits(shortfallUSD, 8),
         totalBorrowUSD:     formatUnits(borrowUSD, 8),
         healthFactor:       hfStr,
       };
@@ -474,7 +486,7 @@ export function useLending() {
     }
   }, [POOL]);
 
-  // ── Legacy compat: getUserInfo (used by borrow page) ────────────────────────
+  // â”€â”€ Legacy compat: getUserInfo (used by borrow page) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getUserInfo = useCallback(async (userAddress: Address): Promise<UserLendingInfo | null> => {
     const pos = await getUserPosition(userAddress);
     if (!pos) return null;
@@ -484,7 +496,7 @@ export function useLending() {
 
     const collaterals = await Promise.all(
       pos.assets.map(async (a) => {
-        let valueUsd = "—";
+        let valueUsd = "â€”";
         const totalAmt = parseFloat(a.collateral) + parseFloat(a.supplyBalance);
         if (oracle && totalAmt > 0) {
           try {
@@ -517,7 +529,7 @@ export function useLending() {
     };
   }, [getUserPosition, POOL]);
 
-  // ── Legacy compat: getProtocolStats ─────────────────────────────────────────
+  // â”€â”€ Legacy compat: getProtocolStats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const getProtocolStats = useCallback(async (): Promise<ProtocolStats | null> => {
     const markets = await getMarketInfo();
     const usdc = markets.find(m => m.symbol === "USDC");
@@ -532,7 +544,7 @@ export function useLending() {
     };
   }, [getMarketInfo]);
 
-  // ── Mint mock collateral (testnet only) ─────────────────────────────────────
+  // â”€â”€ Mint mock collateral (testnet only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const mintCollateral = useCallback(async (symbol: TokenSymbol, amountHuman: string) => {
     setState({ step: "switching", busy: true, error: null, txHash: null });
     try {
