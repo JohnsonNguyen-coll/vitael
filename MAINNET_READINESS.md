@@ -83,10 +83,33 @@ forge build --out out-dex --cache-path cache-dex --sizes
 
 ## Release blockers and file-level work
 
+### Lending precision and liquidation changes (2026-09-23)
+
+The pool now tracks lending cash independently of raw token balances, uses shared high-precision debt shares for individual and aggregate debt, and exposes exact supply/redeem/withdraw previews. Inbound transfers must be exact. Zero-share supplies revert; supplied collateral seized during liquidation burns shares rounded upward. Debt valuation rounds upward to prevent sub-USD-unit borrowing without collateral. Asset updates accrue the previous interest configuration before replacement and validate token decimals and basic risk bounds.
+
+Liquidation quotes cap actual payment by the collateral available and the cash available to redeem supplied collateral. Empty or zero-output liquidation reverts; same-asset liquidation is supported. Close-factor rounding permits a final atomic unit of debt. `Liquidated` reports actual payment rather than the caller's requested maximum.
+
+The selected deficit policy is **keep the debt recorded and report the shortfall, without automatic loss allocation**. `getAccountShortfall` and `AccountShortfall` provide an oracle-valued deficit in 8-decimal USD. Remaining debt continues accruing and stays in supplier accounting assets at face value. This is not a solvency repair: illiquidity, liquidation bonuses and dust can make actual recoveries lower than reported collateral claims. Independent economic review, a recovery/deficit operating policy and user-facing disclosure remain release blockers.
+
+Pool/vault changes require new deployments and coordinated ABI updates. Consumers must use tracked cash and exact previews, query current debt rather than legacy snapshots, and display actual quoted liquidation payment and remaining shortfall. Unsolicited pool transfers are excluded from claims and cannot currently be recovered. Exact-transfer, non-rebasing tokens remain mandatory.
+
+Seven regression tests reproduced failures before the fix (donation dilution/inflation, zero shares, phantom aggregate debt, overpayment for insufficient collateral, empty collateral liquidation and same-asset liquidation). Additional tests cover configuration updates, transfer fees, tiny debt valuation, rounded seizure and preservation of residual debt. A stateful handler exercises borrowing, repayment, supply, withdrawal, time and donation; it checks cash/claims conservation and debt-share reconciliation, then repays all borrowers after each generated sequence to check that aggregate debt reaches zero.
+
+CI-profile validation passed **149 test executions across 11 suites**, with zero failures or skips (includes inherited baseline tests). Fuzz tests ran 1,000 cases each. The new lending invariant, existing DEX invariant and all three vault invariants each passed 100 runs / 50,000 calls with zero reverts. This is local mock-based validation, not a mainnet fork or independent audit.
+
+The full build including deployment scripts passed with size checks: pool runtime 12,149 bytes and vault runtime 7,606 bytes. Formatting of changed Solidity files and diff-whitespace checks passed. Remaining lint notices concern the positive-checked oracle cast and unchecked known-mock transfers in existing DEX tests. No deployment, frontend end-to-end run or live-network transaction was performed.
+
+Run from `contracts/` with `FOUNDRY_PROFILE=ci`:
+
+```text
+forge test --out out-precision --cache-path cache-precision -vv
+forge build --out out-precision --cache-path cache-precision --sizes
+```
+
 | Priority | Files | Required change / acceptance criteria |
 | --- | --- | --- |
 | P0 | `contracts/src/VitaelOracle.sol`, `contracts/src/StorkPriceFeed.sol` | Timestamp/age/round validation and decimal normalization implemented. Still verify real mainnet feeds, identifiers, heartbeat and maximum-age policies; rehearse outage recovery and liquidation availability. |
-| P0 | `contracts/src/VitaelLendingPool.sol` | LTV enforcement and settled-balance checks implemented for borrow and collateral/supply withdrawals. Still review supply-share rounding, donation/first-depositor behavior, debt/USD rounding, asset-configuration validation, reserve liquidity and liquidation with insufficient collateral/bad debt. Add stateful lending invariants and independent review. |
+| P0 | `contracts/src/VitaelLendingPool.sol` | LTV enforcement and settled-balance checks implemented for borrow and collateral/supply withdrawals. Precision, donation isolation, basic asset validation, collateral-capped liquidation and stateful accounting tests are implemented. Still require independent review, reserve/liquidation liquidity stress tests and an operating policy for unallocated bad debt. |
 | P0 | `contracts/src/dex/*.sol`, `contracts/src/vaults/VitaelUSDCVault.sol`, `contracts/test/` | Audit DEX, pool and vault together. Test manipulation, slippage/deadlines, rounding, liquidity exhaustion, emergency controls and supported token behaviors. Existing tests are not evidence of a completed security audit. |
 | P0 | `contracts/src/LendingConfig.sol`, `contracts/script/DeployVitael.s.sol`, `DeployVitaelDEX.s.sol`, `DeployUSDCVault.s.sol`, `contracts/foundry.toml` | Separate network manifests. Require expected chain ID, valid deployed token/feed code and production addresses; reject mock feeds on mainnet. Dry-run scripts, verify source and record deployment blocks/constructor arguments. |
 | P0 | Contract ownership and deployment scripts | Transfer roles to a verified multisig; design delayed sensitive changes, incident pause/recovery and supply/borrow caps. Reassess LTV/threshold/bonus parameters against real liquidity. |

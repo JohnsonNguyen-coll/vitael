@@ -3,6 +3,8 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -64,6 +66,17 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
 
     // Dedicated collateral is custody-only, never supplier-owned liquidity.
     mapping(address => uint256) public totalCollateral;
+    // Only cash received through protocol entry points belongs to the lending market.
+    mapping(address => uint256) public accountedCash;
+    mapping(address => uint256) public totalDebtShares;
+    mapping(address => mapping(address => uint256)) public userDebtShares;
+    uint256 public constant DEBT_SHARE_SCALE = 1e27;
+
+    struct LiquidationQuote {
+        uint256 repayAmount;
+        uint256 seizedCollateral;
+        uint256 supplyShares;
+    }
 
     uint256 public constant CLOSE_FACTOR = 5000; // 50% max liquidation
 
@@ -86,6 +99,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     );
     event InterestAccrued(address indexed asset, uint256 borrowIndex);
     event ReservesWithdrawn(address indexed asset, uint256 amount);
+    event AccountShortfall(address indexed user, uint256 shortfallUSD);
 
     // ─── Errors ───────────────────────────────────────────────────────────────
 
@@ -100,6 +114,11 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     error ExceedsCloseFactor();
     error InsufficientReserves();
     error SameAsset();
+    error InvalidAssetConfiguration();
+    error ZeroShares();
+    error UnsupportedTransfer();
+    error NoLiquidatableCollateral();
+    error LiquidationTooSmall();
 
     // ─── Constructor ──────────────────────────────────────────────────────────
 
@@ -134,6 +153,12 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         uint256 slope2,
         uint256 reserveFactor
     ) external onlyOwner {
+        if (
+            asset.code.length == 0 || decimals > 18 || IERC20Metadata(asset).decimals() != decimals
+                || ltv > liqThreshold || liqThreshold > 10000 || liqBonus > 10000 || reserveFactor > 10000
+                || optimalUtil == 0 || optimalUtil >= 1e18
+        ) revert InvalidAssetConfiguration();
+        if (assetConfigs[asset].isSupported) accrueInterest(asset);
         if (!assetConfigs[asset].isSupported) {
             supportedAssets.push(asset);
             assetStates[asset].borrowIndex = 1e18;
@@ -167,24 +192,14 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     function accrueInterest(address asset) public {
         AssetState storage s = assetStates[asset];
         AssetConfig storage c = assetConfigs[asset];
-        uint256 elapsed = block.timestamp - s.lastAccruedTime;
-        if (elapsed == 0 || s.totalBorrowed == 0) {
-            s.lastAccruedTime = block.timestamp;
-            return;
-        }
-
-        uint256 cash = getAvailableLiquidity(asset);
-        uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
-
-        uint256 interest = (s.totalBorrowed * rate * elapsed) / (365 days * 1e18);
-        uint256 reserve = (interest * c.reserveFactor) / 10000;
-
-        s.totalBorrowed += interest;
-        s.totalReserves += reserve;
-        s.borrowIndex += (s.borrowIndex * rate * elapsed) / (365 days * 1e18);
+        uint256 index = _currentBorrowIndex(asset);
+        uint256 debt = _debtFromShares(totalDebtShares[asset], index);
+        uint256 interest = debt - s.totalBorrowed;
+        s.totalReserves += Math.mulDiv(interest, c.reserveFactor, 10000);
+        s.totalBorrowed = debt;
+        s.borrowIndex = index;
         s.lastAccruedTime = block.timestamp;
-
-        emit InterestAccrued(asset, s.borrowIndex);
+        if (interest > 0) emit InterestAccrued(asset, index);
     }
 
     function _borrowRate(AssetConfig storage c, uint256 totalBorrowed, uint256 cash) internal view returns (uint256) {
@@ -206,31 +221,31 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     function exchangeRate(address asset) public view returns (uint256) {
         AssetState storage s = assetStates[asset];
         if (s.totalShares == 0) return 1e18;
-
-        // Simulate pending interest
-        AssetConfig storage c = assetConfigs[asset];
-        uint256 elapsed = block.timestamp - s.lastAccruedTime;
-        uint256 cash = getAvailableLiquidity(asset);
-        uint256 pendingInterest = 0;
-        uint256 pendingReserve = 0;
-        if (elapsed > 0 && s.totalBorrowed > 0) {
-            uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
-            pendingInterest = (s.totalBorrowed * rate * elapsed) / (365 days * 1e18);
-            pendingReserve = (pendingInterest * c.reserveFactor) / 10000;
-        }
-
-        uint256 totalAssets = cash + s.totalBorrowed + pendingInterest - s.totalReserves - pendingReserve;
-
-        return (totalAssets * 1e18) / s.totalShares;
+        return Math.mulDiv(_supplyAssets(asset), 1e18, s.totalShares);
     }
 
     function _sharesToAsset(address asset, uint256 shares) internal view returns (uint256) {
-        return (shares * exchangeRate(asset)) / 1e18;
+        return previewRedeem(asset, shares);
     }
 
     function _assetToShares(address asset, uint256 amount) internal view returns (uint256) {
-        uint256 rate = exchangeRate(asset);
-        return (amount * 1e18) / rate;
+        return previewSupply(asset, amount);
+    }
+
+    function previewSupply(address asset, uint256 amount) public view returns (uint256) {
+        uint256 shares = assetStates[asset].totalShares;
+        return shares == 0 ? amount : Math.mulDiv(amount, shares, _supplyAssets(asset));
+    }
+
+    function previewRedeem(address asset, uint256 shares) public view returns (uint256) {
+        uint256 total = assetStates[asset].totalShares;
+        return total == 0 ? shares : Math.mulDiv(shares, _supplyAssets(asset), total);
+    }
+
+    /// @notice Shares to burn for an asset withdrawal, rounded against the withdrawing account.
+    function previewWithdraw(address asset, uint256 amount) public view returns (uint256) {
+        uint256 shares = assetStates[asset].totalShares;
+        return shares == 0 ? amount : Math.mulDiv(amount, shares, _supplyAssets(asset), Math.Rounding.Ceil);
     }
 
     // ─── Supply / Withdraw ────────────────────────────────────────────────────
@@ -246,10 +261,11 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         accrueInterest(asset);
 
         uint256 shares = _assetToShares(asset, amount);
+        if (shares == 0) revert ZeroShares();
         assetStates[asset].totalShares += shares;
         userShares[msg.sender][asset] += shares;
-
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        accountedCash[asset] += amount;
+        _pullTokens(asset, amount);
         emit Supplied(msg.sender, asset, amount, shares);
     }
 
@@ -265,13 +281,17 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         accrueInterest(asset);
 
         uint256 userSh = userShares[msg.sender][asset];
+        if (shares == type(uint256).max) shares = userSh;
+        if (shares == 0) revert ZeroShares();
         if (shares > userSh) revert InsufficientBalance();
 
         uint256 amount = _sharesToAsset(asset, shares);
+        if (amount == 0) revert ZeroAmount();
         if (getAvailableLiquidity(asset) < amount) revert InsufficientLiquidity();
 
         assetStates[asset].totalShares -= shares;
         userShares[msg.sender][asset] -= shares;
+        accountedCash[asset] -= amount;
 
         // Validate the final cash/share state; a revert rolls back the transfer.
         IERC20(asset).safeTransfer(msg.sender, amount);
@@ -294,7 +314,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
 
         userCollateral[msg.sender][asset] += amount;
         totalCollateral[asset] += amount;
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        _pullTokens(asset, amount);
         emit CollateralDeposited(msg.sender, asset, amount);
     }
 
@@ -331,15 +351,16 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
 
         if (getAvailableLiquidity(asset) < amount) revert InsufficientLiquidity();
 
-        // Update user borrow state
-        UserBorrow storage ub = userBorrows[msg.sender][asset];
         AssetState storage s = assetStates[asset];
-
-        uint256 currentDebt = _compoundedDebt(ub, s.borrowIndex);
-        ub.principal = currentDebt + amount;
-        ub.borrowIndex = s.borrowIndex;
-
-        s.totalBorrowed += amount;
+        uint256 shares = Math.mulDiv(amount, DEBT_SHARE_SCALE, s.borrowIndex, Math.Rounding.Ceil);
+        totalDebtShares[asset] += shares;
+        userDebtShares[msg.sender][asset] += shares;
+        uint256 debt = _debtFromShares(totalDebtShares[asset], s.borrowIndex);
+        // Rounding dust belongs to reserves, not newly created supplier yield.
+        s.totalReserves += debt - s.totalBorrowed - amount;
+        s.totalBorrowed = debt;
+        _snapshotBorrow(msg.sender, asset);
+        accountedCash[asset] -= amount;
 
         // Check after cash leaves: otherwise supplied collateral is temporarily inflated.
         IERC20(asset).safeTransfer(msg.sender, amount);
@@ -358,20 +379,14 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
 
         accrueInterest(asset);
 
-        UserBorrow storage ub = userBorrows[msg.sender][asset];
-        AssetState storage s = assetStates[asset];
-
-        uint256 currentDebt = _compoundedDebt(ub, s.borrowIndex);
+        uint256 currentDebt = getBorrowBalance(msg.sender, asset);
         if (currentDebt == 0) revert ZeroAmount();
 
         // Allow repaying full debt with max uint
         if (amount > currentDebt) amount = currentDebt;
 
-        ub.principal = currentDebt - amount;
-        ub.borrowIndex = s.borrowIndex;
-        s.totalBorrowed -= amount;
-
-        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        _reduceDebt(msg.sender, asset, amount);
+        _pullTokens(asset, amount);
         emit Repaid(msg.sender, asset, amount);
     }
 
@@ -389,73 +404,68 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         nonReentrant
         whenNotPaused
     {
-        if (repayAmount == 0) revert ZeroAmount();
-        if (debtAsset == collateralAsset) revert SameAsset();
-
         accrueInterest(debtAsset);
+        if (collateralAsset != debtAsset) accrueInterest(collateralAsset);
+        LiquidationQuote memory q = _quoteLiquidation(borrower, debtAsset, collateralAsset, repayAmount);
 
+        uint256 dedicated = Math.min(q.seizedCollateral, userCollateral[borrower][collateralAsset]);
+        userCollateral[borrower][collateralAsset] -= dedicated;
+        totalCollateral[collateralAsset] -= dedicated;
+        userShares[borrower][collateralAsset] -= q.supplyShares;
+        assetStates[collateralAsset].totalShares -= q.supplyShares;
+        accountedCash[collateralAsset] -= q.seizedCollateral - dedicated;
+
+        _reduceDebt(borrower, debtAsset, q.repayAmount);
+        _pullTokens(debtAsset, q.repayAmount);
+        IERC20(collateralAsset).safeTransfer(msg.sender, q.seizedCollateral);
+        emit Liquidated(borrower, msg.sender, collateralAsset, debtAsset, q.repayAmount, q.seizedCollateral);
+
+        (,, uint256 shortfall) = getAccountShortfall(borrower);
+        if (shortfall > 0) emit AccountShortfall(borrower, shortfall);
+    }
+
+    /// @notice Quote executable repayment and collateral, capped by collateral and current liquidity.
+    function quoteLiquidation(address borrower, address debtAsset, address collateralAsset, uint256 repayAmount)
+        external
+        view
+        returns (uint256 actualRepay, uint256 seizedCollateral, uint256 supplyShares)
+    {
+        LiquidationQuote memory q = _quoteLiquidation(borrower, debtAsset, collateralAsset, repayAmount);
+        return (q.repayAmount, q.seizedCollateral, q.supplyShares);
+    }
+
+    function _quoteLiquidation(address borrower, address debtAsset, address collateralAsset, uint256 repayAmount)
+        internal
+        view
+        returns (LiquidationQuote memory q)
+    {
+        if (repayAmount == 0) revert ZeroAmount();
+        if (!assetConfigs[debtAsset].isSupported || !assetConfigs[collateralAsset].isSupported) {
+            revert AssetNotSupported();
+        }
         if (_healthFactor(borrower) >= 1e18) revert PositionHealthy();
+        uint256 totalDebt = getBorrowBalance(borrower, debtAsset);
+        if (totalDebt == 0) revert ZeroAmount();
+        // Ceil lets a final one-unit debt be repaid rather than becoming unliquidatable dust.
+        if (repayAmount > Math.mulDiv(totalDebt, CLOSE_FACTOR, 10000, Math.Rounding.Ceil)) {
+            revert ExceedsCloseFactor();
+        }
 
-        AssetState storage ds = assetStates[debtAsset];
-        UserBorrow storage ub = userBorrows[borrower][debtAsset];
-        uint256 totalDebt = _compoundedDebt(ub, ds.borrowIndex);
-
-        uint256 maxRepay = (totalDebt * CLOSE_FACTOR) / 10000;
-        if (repayAmount > maxRepay) revert ExceedsCloseFactor();
+        uint256 dedicated = userCollateral[borrower][collateralAsset];
+        uint256 supplied = _sharesToAsset(collateralAsset, userShares[borrower][collateralAsset]);
+        uint256 available = dedicated + Math.min(supplied, getAvailableLiquidity(collateralAsset));
+        if (available == 0) revert NoLiquidatableCollateral();
 
         AssetConfig storage cc = assetConfigs[collateralAsset];
-        if (!cc.isSupported) revert AssetNotSupported();
-
-        // USD value of repayAmount (oracle returns 8-decimal price)
-        uint256 debtPrice = oracle.getAssetPrice(debtAsset);
-        uint256 collateralPrice = oracle.getAssetPrice(collateralAsset);
-        uint8 debtDec = assetConfigs[debtAsset].decimals;
-
-        // repayValueUSD in 8-decimal precision
-        uint256 repayValueUSD = (repayAmount * debtPrice) / (10 ** debtDec);
-
-        // seizedCollateral = repayValueUSD * (1 + bonus) / collateralPrice
-        uint256 bonusFactor = 10000 + cc.liquidationBonus;
-        uint256 seizedCollateral = (repayValueUSD * bonusFactor * (10 ** cc.decimals)) / (collateralPrice * 10000);
-
-        // Cap at available collateral (dedicated + supplied)
-        uint256 availableCollateral = userCollateral[borrower][collateralAsset]
-            + _sharesToAsset(collateralAsset, userShares[borrower][collateralAsset]);
-
-        if (seizedCollateral > availableCollateral) {
-            seizedCollateral = availableCollateral;
+        uint256 numerator = oracle.getAssetPrice(debtAsset) * (10 ** cc.decimals) * (10000 + cc.liquidationBonus);
+        uint256 denominator = oracle.getAssetPrice(collateralAsset) * (10 ** assetConfigs[debtAsset].decimals) * 10000;
+        uint256 affordableRepay = Math.mulDiv(available, denominator, numerator);
+        q.repayAmount = Math.min(repayAmount, affordableRepay);
+        q.seizedCollateral = Math.mulDiv(q.repayAmount, numerator, denominator);
+        if (q.repayAmount == 0 || q.seizedCollateral == 0) revert LiquidationTooSmall();
+        if (q.seizedCollateral > dedicated) {
+            q.supplyShares = previewWithdraw(collateralAsset, q.seizedCollateral - dedicated);
         }
-
-        // Deduct from dedicated collateral first, then from supply shares
-        uint256 fromDedicated = userCollateral[borrower][collateralAsset];
-        if (seizedCollateral <= fromDedicated) {
-            userCollateral[borrower][collateralAsset] -= seizedCollateral;
-        } else {
-            uint256 remainder = seizedCollateral - fromDedicated;
-            if (getAvailableLiquidity(collateralAsset) < remainder) revert InsufficientLiquidity();
-            userCollateral[borrower][collateralAsset] = 0;
-            // Convert remainder to shares and burn
-            accrueInterest(collateralAsset);
-            uint256 sharesToBurn = _assetToShares(collateralAsset, remainder);
-            if (sharesToBurn > userShares[borrower][collateralAsset]) {
-                sharesToBurn = userShares[borrower][collateralAsset];
-            }
-            userShares[borrower][collateralAsset] -= sharesToBurn;
-            assetStates[collateralAsset].totalShares -= sharesToBurn;
-        }
-
-        // Update custody only after share conversions use the pre-transfer cash balance.
-        totalCollateral[collateralAsset] -= seizedCollateral < fromDedicated ? seizedCollateral : fromDedicated;
-
-        // Update debt
-        ub.principal = totalDebt - repayAmount;
-        ub.borrowIndex = ds.borrowIndex;
-        ds.totalBorrowed -= repayAmount;
-
-        IERC20(debtAsset).safeTransferFrom(msg.sender, address(this), repayAmount);
-        IERC20(collateralAsset).safeTransfer(msg.sender, seizedCollateral);
-
-        emit Liquidated(borrower, msg.sender, collateralAsset, debtAsset, repayAmount, seizedCollateral);
     }
 
     // ─── View functions ───────────────────────────────────────────────────────
@@ -464,19 +474,7 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
      * @notice Compounded borrow balance for a user on a specific asset.
      */
     function getBorrowBalance(address user, address asset) public view returns (uint256) {
-        UserBorrow storage ub = userBorrows[user][asset];
-        if (ub.principal == 0) return 0;
-        // Simulate pending index
-        AssetState storage s = assetStates[asset];
-        AssetConfig storage c = assetConfigs[asset];
-        uint256 elapsed = block.timestamp - s.lastAccruedTime;
-        uint256 currentIndex = s.borrowIndex;
-        if (elapsed > 0 && s.totalBorrowed > 0) {
-            uint256 cash = getAvailableLiquidity(asset);
-            uint256 rate = _borrowRate(c, s.totalBorrowed, cash);
-            currentIndex += (s.borrowIndex * rate * elapsed) / (365 days * 1e18);
-        }
-        return _compoundedDebt(ub, currentIndex);
+        return _debtFromShares(userDebtShares[user][asset], _currentBorrowIndex(asset));
     }
 
     /**
@@ -509,6 +507,33 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
     {
         (totalCollateralUSD,, totalBorrowUSD) = _positionValues(user);
         healthFactor = _healthFactor(user);
+    }
+
+    /// @notice Mark-to-oracle shortfall in 8-decimal USD. Does not forgive debt or allocate losses.
+    /// @dev Supply collateral is valued at its accounting claim, not guaranteed liquidation proceeds.
+    function getAccountShortfall(address user)
+        public
+        view
+        returns (uint256 collateralUSD, uint256 debtUSD, uint256 shortfallUSD)
+    {
+        for (uint256 i; i < supportedAssets.length; i++) {
+            address asset = supportedAssets[i];
+            uint256 collateral = userCollateral[user][asset] + _sharesToAsset(asset, userShares[user][asset]);
+            uint256 debt = getBorrowBalance(user, asset);
+            if (collateral == 0 && debt == 0) continue;
+            uint256 price = oracle.getAssetPrice(asset);
+            uint256 unit = 10 ** assetConfigs[asset].decimals;
+            collateralUSD += Math.mulDiv(collateral, price, unit);
+            debtUSD += Math.mulDiv(debt, price, unit, Math.Rounding.Ceil);
+        }
+        shortfallUSD = debtUSD > collateralUSD ? debtUSD - collateralUSD : 0;
+    }
+
+    /// @notice Tokens sent outside supply/repay/collateral entry points are not credited to any account.
+    function getUnaccountedBalance(address asset) external view returns (uint256) {
+        uint256 balance = IERC20(asset).balanceOf(address(this));
+        uint256 accounted = accountedCash[asset] + totalCollateral[asset];
+        return balance > accounted ? balance - accounted : 0;
     }
 
     /**
@@ -546,9 +571,9 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         return (s.totalBorrowed * 1e18) / total;
     }
 
-    /// @notice Pool cash excluding dedicated collateral held in custody.
+    /// @notice Accounted lending cash; excludes dedicated collateral and unsolicited transfers.
     function getAvailableLiquidity(address asset) public view returns (uint256) {
-        return IERC20(asset).balanceOf(address(this)) - totalCollateral[asset];
+        return accountedCash[asset];
     }
 
     function getSupportedAssets() external view returns (address[] memory) {
@@ -563,15 +588,57 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
         if (amount > s.totalReserves) revert InsufficientReserves();
         if (getAvailableLiquidity(asset) < amount) revert InsufficientLiquidity();
         s.totalReserves -= amount;
+        accountedCash[asset] -= amount;
         IERC20(asset).safeTransfer(msg.sender, amount);
         emit ReservesWithdrawn(asset, amount);
     }
 
     // ─── Internal helpers ─────────────────────────────────────────────────────
 
-    function _compoundedDebt(UserBorrow storage ub, uint256 currentIndex) internal view returns (uint256) {
-        if (ub.principal == 0 || ub.borrowIndex == 0) return 0;
-        return (ub.principal * currentIndex) / ub.borrowIndex;
+    function _debtFromShares(uint256 shares, uint256 index) internal pure returns (uint256) {
+        return Math.mulDiv(shares, index, DEBT_SHARE_SCALE, Math.Rounding.Ceil);
+    }
+
+    function _currentBorrowIndex(address asset) internal view returns (uint256 index) {
+        AssetState storage s = assetStates[asset];
+        index = s.borrowIndex;
+        if (totalDebtShares[asset] == 0) return index;
+        uint256 rate = _borrowRate(assetConfigs[asset], s.totalBorrowed, getAvailableLiquidity(asset));
+        index += Math.mulDiv(index, rate * (block.timestamp - s.lastAccruedTime), 365 days * 1e18);
+    }
+
+    function _supplyAssets(address asset) internal view returns (uint256) {
+        AssetState storage s = assetStates[asset];
+        uint256 debt = _debtFromShares(totalDebtShares[asset], _currentBorrowIndex(asset));
+        uint256 pendingReserve = Math.mulDiv(debt - s.totalBorrowed, assetConfigs[asset].reserveFactor, 10000);
+        return accountedCash[asset] + debt - s.totalReserves - pendingReserve;
+    }
+
+    function _snapshotBorrow(address user, address asset) internal {
+        uint256 index = assetStates[asset].borrowIndex;
+        userBorrows[user][asset] = UserBorrow(_debtFromShares(userDebtShares[user][asset], index), index);
+    }
+
+    function _reduceDebt(address user, address asset, uint256 amount) internal {
+        AssetState storage s = assetStates[asset];
+        uint256 owned = userDebtShares[user][asset];
+        uint256 shares = amount >= _debtFromShares(owned, s.borrowIndex)
+            ? owned
+            : Math.mulDiv(amount, DEBT_SHARE_SCALE, s.borrowIndex);
+        if (shares == 0) revert ZeroShares();
+        userDebtShares[user][asset] = owned - shares;
+        totalDebtShares[asset] -= shares;
+        uint256 debt = _debtFromShares(totalDebtShares[asset], s.borrowIndex);
+        s.totalReserves += amount - (s.totalBorrowed - debt);
+        s.totalBorrowed = debt;
+        accountedCash[asset] += amount;
+        _snapshotBorrow(user, asset);
+    }
+
+    function _pullTokens(address asset, uint256 amount) internal {
+        uint256 beforeBalance = IERC20(asset).balanceOf(address(this));
+        IERC20(asset).safeTransferFrom(msg.sender, address(this), amount);
+        if (IERC20(asset).balanceOf(address(this)) != beforeBalance + amount) revert UnsupportedTransfer();
     }
 
     function _hasBorrow(address user) internal view returns (bool) {
@@ -599,14 +666,14 @@ contract VitaelLendingPool is ReentrancyGuard, Pausable, Ownable {
             uint256 price = oracle.getAssetPrice(asset);
 
             if (collAmt > 0) {
-                uint256 valueUSD = (collAmt * price) / (10 ** c.decimals);
+                uint256 valueUSD = Math.mulDiv(collAmt, price, 10 ** c.decimals);
                 collateralThresholdUSD += (valueUSD * c.liquidationThreshold) / 10000;
                 collateralLtvUSD += (valueUSD * c.ltv) / 10000;
             }
 
             // Borrows
             if (debt > 0) {
-                totalBorrowUSD += (debt * price) / (10 ** c.decimals);
+                totalBorrowUSD += Math.mulDiv(debt, price, 10 ** c.decimals, Math.Rounding.Ceil);
             }
         }
     }

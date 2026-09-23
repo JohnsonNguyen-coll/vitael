@@ -48,7 +48,9 @@ contract VitaelUSDCVault is ERC4626, Ownable, ReentrancyGuard {
         IERC20(asset_).forceApprove(address(lendingPool_), type(uint256).max);
     }
 
-    /** @notice Idle USDC plus the vault's interest-bearing lending position. */
+    /**
+     * @notice Idle USDC plus the vault's interest-bearing lending position.
+     */
     function totalAssets() public view override returns (uint256) {
         return IERC20(asset()).balanceOf(address(this)) + lendingPool.getSupplyBalance(address(this), asset());
     }
@@ -62,17 +64,18 @@ contract VitaelUSDCVault is ERC4626, Ownable, ReentrancyGuard {
         return previewDeposit(maxDeposit(receiver));
     }
 
-    /** @notice Assets that can currently be paid without exceeding pool cash. */
+    /**
+     * @notice Assets that can currently be paid without exceeding pool cash.
+     */
     function availableLiquidity() public view returns (uint256) {
         uint256 idle = IERC20(asset()).balanceOf(address(this));
         uint256 poolShares = lendingPool.userShares(address(this), asset());
         if (poolShares == 0) return idle;
 
-        uint256 rate = lendingPool.exchangeRate(asset());
         uint256 poolCash = lendingPool.getAvailableLiquidity(asset());
-        uint256 liquidShares = (poolCash * 1e18) / rate;
+        uint256 liquidShares = lendingPool.previewSupply(asset(), poolCash);
         if (liquidShares > poolShares) liquidShares = poolShares;
-        return idle + (liquidShares * rate) / 1e18;
+        return idle + lendingPool.previewRedeem(asset(), liquidShares);
     }
 
     function maxWithdraw(address owner) public view override returns (uint256) {
@@ -97,21 +100,11 @@ contract VitaelUSDCVault is ERC4626, Ownable, ReentrancyGuard {
         return super.mint(shares, receiver);
     }
 
-    function withdraw(uint256 assets, address receiver, address owner)
-        public
-        override
-        nonReentrant
-        returns (uint256)
-    {
+    function withdraw(uint256 assets, address receiver, address owner) public override nonReentrant returns (uint256) {
         return super.withdraw(assets, receiver, owner);
     }
 
-    function redeem(uint256 shares, address receiver, address owner)
-        public
-        override
-        nonReentrant
-        returns (uint256)
-    {
+    function redeem(uint256 shares, address receiver, address owner) public override nonReentrant returns (uint256) {
         return super.redeem(shares, receiver, owner);
     }
 
@@ -121,7 +114,9 @@ contract VitaelUSDCVault is ERC4626, Ownable, ReentrancyGuard {
         emit DepositCapUpdated(oldCap, newCap);
     }
 
-    /** @notice Stops new deposits while keeping withdrawals available. */
+    /**
+     * @notice Stops new deposits while keeping withdrawals available.
+     */
     function setShutdown(bool value) external onlyOwner {
         shutdown = value;
         emit ShutdownUpdated(value);
@@ -157,14 +152,15 @@ contract VitaelUSDCVault is ERC4626, Ownable, ReentrancyGuard {
     }
 
     function _pullFromLending(uint256 assetsNeeded) internal {
-        uint256 rate = lendingPool.exchangeRate(asset());
-        uint256 shares = (assetsNeeded * 1e18 + rate - 1) / rate;
+        uint256 shares = lendingPool.previewWithdraw(asset(), assetsNeeded);
         uint256 ownedShares = lendingPool.userShares(address(this), asset());
         if (shares > ownedShares) shares = ownedShares;
         lendingPool.withdraw(asset(), shares);
     }
 
-    /** @dev Extra share precision strengthens ERC-4626 virtual-share inflation protection. */
+    /**
+     * @dev Extra share precision strengthens ERC-4626 virtual-share inflation protection.
+     */
     function _decimalsOffset() internal pure override returns (uint8) {
         return 3;
     }

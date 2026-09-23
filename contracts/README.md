@@ -14,6 +14,21 @@ Vitael is a multi-asset lending and DEX protocol featuring:
 
 ## Deployed Contracts (Arc Testnet)
 
+The addresses below are historical deployments. The current pool and vault source changes require new deployments; this repository update does not migrate existing positions.
+
+## Lending accounting and liquidation
+
+- Lending cash is tracked by `accountedCash` / `getAvailableLiquidity`. Dedicated collateral and unsolicited transfers do not increase supplier claims, collateral valuation or lending liquidity. `getUnaccountedBalance` reports unsolicited tokens; there is currently no recovery function.
+- Only exact-transfer, non-rebasing assets are supported. Inbound transfers must deliver the entire requested amount or revert. Asset registration checks actual decimals, risk parameter bounds and utilization bounds; updating a market first accrues its existing rate.
+- `userDebtShares` and `totalDebtShares` are authoritative for debt. `userBorrows` remains a last-action snapshot for compatibility; use `getBorrowBalance` for current debt. Rounding dust is accounted as reserves.
+- Use `previewSupply`, `previewRedeem` and `previewWithdraw` for exact share conversions. Supply rounds down and rejects zero shares; asset-denominated seizure/withdrawal requirements round shares up. `exchangeRate` is a scaled display value.
+- `quoteLiquidation` returns actual payment, collateral and supply shares to burn. Payment is capped by available collateral and its market cash. The close-factor limit is 50%, rounded up for debt dust; requests above it revert. Same-asset liquidation is supported. Quotes require fresh feeds and can change before execution.
+- `getAccountShortfall` returns collateral value, debt value and positive shortfall in 8-decimal USD; liquidation emits `AccountShortfall` when a deficit remains. Residual debt remains recorded and continues accruing. No debt forgiveness or automatic loss allocation is implemented.
+
+Shortfall values use oracle prices and accounting claims, not guaranteed proceeds. Illiquidity, bonuses and token dust can reduce recoveries further. Supplier asset values still include outstanding debt at face value, including unrecovered debt. Resolving this economic risk and updating frontend/MCP/indexer integrations remain release requirements. These changes are not evidence of mainnet readiness or an independent audit.
+
+## Historical testnet addresses
+
 ### Lending Protocol
 - **VitaelLendingPool**: `0xEa282eea5bC90905C15Df05Ca43eeA967BcDe49f`
 
