@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { decodeFunctionData, zeroAddress } from 'viem';
+import { DefiService } from '../src/services/defiService.js';
+import { CCTP_CHAINS } from '../src/services/cctpMainnet.js';
+import { calculateBridgeFee } from '../src/services/cctpFees.js';
+import { BRIDGE_ABI } from '../src/contracts/abi.js';
+import { BridgeSchema } from '../src/tools/schemas.js';
+assert.equal(readFileSync('../frontend/src/lib/cctpFees.ts', 'utf8'), readFileSync('src/services/cctpFees.ts', 'utf8'));
+assert.equal(calculateBridgeFee(100_000000n, { minimumFee: 1, forwardFee: { med: 50000 } }).maxFee, 60000n);
+assert.equal(calculateBridgeFee(1_000000n, { minimumFee: 0.325, forwardFee: { med: 15638 } }).protocolFee, 33n);
+for (const med of [undefined, -1, 0.1, Infinity]) assert.throws(() => calculateBridgeFee(1_000000n, { minimumFee: 0, forwardFee: { med } }));
+assert.throws(() => calculateBridgeFee(100n, { minimumFee: 0, forwardFee: { med: 100 } }));
+assert.throws(() => calculateBridgeFee(1_000000n, { minimumFee: NaN, forwardFee: { med: 1 } }));
+const recipient = '0x1111111111111111111111111111111111111111';
+for (const [key, config] of Object.entries(CCTP_CHAINS)) {
+  const chain = key as keyof typeof CCTP_CHAINS;
+  const dst = config.domain === 26 ? 0 : 26;
+  const tx = DefiService.generateBridgePayload(chain, '1', dst, recipient, 'USDC', zeroAddress, '50000', 1000);
+  assert.equal(tx.to, '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d');
+  assert.equal(tx.approvals[0].token, config.usdc);
+  assert.equal(tx.approvals[0].amount, '1000000');
+  const decoded = decodeFunctionData({ abi: BRIDGE_ABI, data: tx.data });
+  assert.equal(decoded.functionName, 'depositForBurnWithHook');
+  assert.equal(decoded.args?.[0], 1_000000n);
+  assert.equal(decoded.args?.[1], dst);
+  assert.throws(() => DefiService.generateBridgePayload(chain, '1', config.domain, recipient, 'USDC'));
+  assert.throws(() => DefiService.generateBridgePayload(chain, '1', dst, recipient, recipient));
+}
+assert.throws(() => DefiService.generateBridgePayload('arcTestnet', '1', 0, recipient, 'USDC'));
+assert.equal(BridgeSchema.safeParse({ chain: 'arcTestnet', amount: '1', destinationDomain: 0, mintRecipient: recipient, burnToken: 'USDC' }).success, false);
+assert.throws(() => DefiService.generateBridgePayload('arc', '1', 0, recipient, 'USDC', zeroAddress, '-1'));
+console.log('CCTP fee math, seven mainnet payloads and invalid-route/token guards passed');

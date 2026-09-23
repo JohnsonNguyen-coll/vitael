@@ -6,6 +6,7 @@ import { useState } from "react";
 // ─── Chain logo map ───────────────────────────────────────────────────────────
 // All URLs verified against CoinGecko large images (more reliable than /small/)
 const CHAIN_LOGOS: Record<string, { src: string; bg: string; name: string }> = {
+  Arc: { src: "/arclogo.jpg", bg: "#00C2CC", name: "Arc" },
   Arc_Testnet: {
     // Arc Network — dùng logo local từ /public/arclogo.jpg
     src:  "/arclogo.jpg",

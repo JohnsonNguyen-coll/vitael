@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-const chainEnum = z.enum(["sepolia", "arbitrumSepolia", "baseSepolia", "polygonAmoy", "avalancheFuji", "optimismSepolia", "arcTestnet"]);
+const bridgeChainEnum = z.enum(["ethereum", "arbitrum", "base", "polygon", "avalanche", "optimism", "arc"]);
+const chainEnum = z.enum(["ethereum", "arbitrum", "base", "polygon", "avalanche", "optimism", "arc", "sepolia", "arbitrumSepolia", "baseSepolia", "polygonAmoy", "avalancheFuji", "optimismSepolia", "arcTestnet"]);
 
 export const GetMarketsSchema = z.object({ chain: chainEnum });
 export const GetPoolsSchema = z.object({ chain: chainEnum });
@@ -23,7 +24,7 @@ export const GetVaultQuoteSchema = z.object({
   userAddress: z.string().optional(),
 });
 export const QuoteSwapSchema = z.object({ chain: chainEnum, amountIn: z.string(), path: z.array(z.string()) });
-export const QuoteBridgeSchema = z.object({ fromChain: chainEnum, toChain: chainEnum, amount: z.string() });
+export const QuoteBridgeSchema = z.object({ fromChain: bridgeChainEnum, toChain: bridgeChainEnum, amount: z.string() });
 export const QuoteAddLiquiditySchema = z.object({ chain: chainEnum, tokenA: z.string(), tokenB: z.string(), amountA: z.string() });
 
 export const DepositSchema = z.object({ chain: chainEnum, asset: z.string(), amount: z.string(), onBehalfOf: z.string() });
@@ -35,7 +36,7 @@ export const WithdrawVaultSchema = z.object({ chain: chainEnum, amount: z.string
 
 export const SwapSchema = z.object({ chain: chainEnum, amountIn: z.string(), amountOutMin: z.string(), path: z.array(z.string()), to: z.string(), deadline: z.string() });
 export const BridgeSchema = z.object({
-  chain: chainEnum,
+  chain: bridgeChainEnum,
   amount: z.string(),
   destinationDomain: z.number().int().nonnegative(),
   mintRecipient: z.string(),

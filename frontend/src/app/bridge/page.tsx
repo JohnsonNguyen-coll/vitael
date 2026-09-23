@@ -12,33 +12,13 @@ import WalletConnectButton from "../../components/WalletConnectButton";
 import PageLayout from "../../components/PageLayout";
 import ChainIcon from "../../components/ChainIcon";
 import TokenIcon from "../../components/TokenIcon";
+import { CCTP_CHAINS, type CctpChain } from "../../lib/cctpMainnet";
 import { useCCTPBridge } from "../../hooks/useCCTPBridge";
 
-// ─── Supported chains (all CCTP V2 testnets) ─────────────────────────────────
-type ChainName = 
-  | "Arc_Testnet"
-  | "Ethereum_Sepolia"
-  | "Arbitrum_Sepolia"
-  | "Base_Sepolia"
-  | "Polygon_Amoy_Testnet"
-  | "Avalanche_Fuji"
-  | "OP_Sepolia";
-
-interface Chain {
-  id: ChainName;
-  name: string;
-  domain: number;
-}
-
-const CHAINS: Chain[] = [
-  { id: "Arc_Testnet",           name: "Arc Testnet",       domain: 26 },
-  { id: "Ethereum_Sepolia",      name: "Ethereum Sepolia",  domain: 0  },
-  { id: "Arbitrum_Sepolia",      name: "Arbitrum Sepolia",  domain: 3  },
-  { id: "Base_Sepolia",          name: "Base Sepolia",      domain: 6  },
-  { id: "Polygon_Amoy_Testnet",  name: "Polygon Amoy",      domain: 7  },
-  { id: "Avalanche_Fuji",        name: "Avalanche Fuji",    domain: 1  },
-  { id: "OP_Sepolia",            name: "OP Sepolia",        domain: 2  },
-];
+type ChainName = CctpChain;
+interface Chain { id: ChainName; name: string; domain: number; }
+const CHAINS: Chain[] = (["Arc", "Ethereum", "Arbitrum", "Base", "Polygon", "Avalanche", "Optimism"] as const)
+  .map(id => ({ id, name: CCTP_CHAINS[id].name, domain: CCTP_CHAINS[id].domain }));
 
 // ─── Chain selector ───────────────────────────────────────────────────────────
 function ChainSelector({ selected, onSelect, label, exclude }: {
@@ -113,22 +93,12 @@ export default function BridgePage() {
   const { state, bridge, reset } = useCCTPBridge();
   const { switchChainAsync } = useSwitchChain();
 
-  const [fromChain, setFromChain] = useState<Chain>(CHAINS[1]); // Ethereum Sepolia
-  const [toChain,   setToChain]   = useState<Chain>(CHAINS[0]); // Arc Testnet
+  const [fromChain, setFromChain] = useState<Chain>(CHAINS[1]); // Ethereum
+  const [toChain,   setToChain]   = useState<Chain>(CHAINS[0]); // Arc
   const [amount,    setAmount]    = useState("");
   const [switchingChain, setSwitchingChain] = useState(false);
 
   // Map chain ID strings to actual chain IDs
-  const chainIdMap: Record<string, number> = {
-    "Arc_Testnet":           5042002,
-    "Ethereum_Sepolia":      11155111,
-    "Arbitrum_Sepolia":      421614,
-    "Base_Sepolia":          84532,
-    "Polygon_Amoy_Testnet":  80002,
-    "Avalanche_Fuji":        43113,
-    "OP_Sepolia":            11155420,
-  };
-
   const numAmt    = parseFloat(amount) || 0;
   const sameChain = fromChain.id === toChain.id;
   const busy        = !["idle", "done", "error", "cancelled"].includes(state.step) || switchingChain;
@@ -145,7 +115,7 @@ export default function BridgePage() {
     
     setSwitchingChain(true);
     try {
-      await switchChainAsync({ chainId: chainIdMap[chain.id] });
+      await switchChainAsync({ chainId: CCTP_CHAINS[chain.id].chainId });
       // Wait a bit for wallet to fully sync
       await new Promise(resolve => setTimeout(resolve, 500));
     } catch (err) {
@@ -236,7 +206,7 @@ export default function BridgePage() {
                 <TokenIcon symbol="USDC" size={28} />
                 <div>
                   <p className="text-sm font-bold text-white">USDC</p>
-                  <p className="text-xs text-[#8991AF]">Circle CCTP V2 — USDC only</p>
+                  <p className="text-xs text-[#8991AF]">Circle CCTP V2 — Mainnet USDC. Fees are deducted from the entered amount.</p>
                 </div>
               </div>
             </div>
@@ -266,7 +236,7 @@ export default function BridgePage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#8991AF] flex items-center gap-1"><Clock className="w-3.5 h-3.5" />Est. time</span>
-                  <span className="text-white">~15s</span>
+                  <span className="text-white">Varies by network</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-[#8991AF]">Wallet confirmations</span>
@@ -390,7 +360,7 @@ export default function BridgePage() {
                 {[
                   { n: "1", title: "Approve USDC", desc: "You sign an ERC-20 approve transaction on the source chain." },
                   { n: "2", title: "Burn & Bridge", desc: "You sign depositForBurnWithHook — USDC is burned and a CCTP message is emitted." },
-                  { n: "3", title: "Circle Attestation", desc: "Circle's Forwarding Service picks up the message and mints USDC on the destination (~15s)." },
+                  { n: "3", title: "Circle Attestation", desc: "Circle's Forwarding Service picks up the message and mints USDC on the destination." },
                 ].map(s => (
                   <div key={s.n} className="flex gap-3">
                     <div className="w-6 h-6 rounded-full bg-[#A998FF]/10 border border-[#A998FF]/20 flex items-center justify-center text-xs font-bold text-[#A998FF] flex-shrink-0 mt-0.5">
@@ -419,22 +389,11 @@ export default function BridgePage() {
                 ))}
               </div>
               <p className="text-xs text-[#8991AF] mt-3 leading-relaxed">
-                Bridge USDC between any of these chains. All routes take ~15s.
+                Bridge USDC between any of these chains. Confirmation time varies by network.
               </p>
             </motion.div>
 
-            {/* Faucet */}
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}
-              className="glass-panel rounded-3xl p-5 border border-[#A998FF]/10">
-              <p className="text-xs uppercase tracking-wider text-[#A998FF] font-bold mb-2">Need testnet USDC?</p>
-              <p className="text-xs text-[#8991AF] mb-3 leading-relaxed">
-                Get free Sepolia USDC and Arc Testnet USDC from the Circle Faucet.
-              </p>
-              <a href="https://faucet.circle.com" target="_blank"
-                className="flex items-center gap-2 text-sm text-[#A998FF] font-semibold hover:underline">
-                faucet.circle.com <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </motion.div>
+
           </div>
         </div>
       </main>

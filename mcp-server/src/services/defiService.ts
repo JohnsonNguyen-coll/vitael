@@ -1,3 +1,5 @@
+import { calculateBridgeFee } from "./cctpFees.js";
+import { CCTP_CHAINS, CCTP_TOKEN_MESSENGER, IRIS_API, type CctpChain } from "./cctpMainnet.js";
 import { getClient, SupportedChain } from './viemClient.js';
 import { encodeFunctionData, formatUnits, isAddress, pad, parseUnits, zeroAddress } from 'viem';
 import {
@@ -18,12 +20,11 @@ const ARC_ADDRESSES = {
   vault: process.env.USDC_VAULT ?? '',
 } as const;
 
-const CCTP_TOKEN_MESSENGER =
-  process.env.BRIDGE ?? '0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA';
 const CCTP_FORWARDING_HOOK =
   '0x636374702d666f72776172640000000000000000000000000000000000000000';
 
 const TOKENS: Partial<Record<SupportedChain, Record<string, string>>> = {
+  ...Object.fromEntries(Object.entries(CCTP_CHAINS).map(([key, c]) => [key, { USDC: c.usdc }])),
   arcTestnet: {
     USDC: '0x3600000000000000000000000000000000000000',
     EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
@@ -371,15 +372,9 @@ export class DefiService {
   }
 
   static async quoteBridge(fromChain: SupportedChain, toChain: SupportedChain, amount: string) {
-    const domains: Partial<Record<SupportedChain, number>> = {
-      sepolia: 0,
-      avalancheFuji: 1,
-      optimismSepolia: 2,
-      arbitrumSepolia: 3,
-      baseSepolia: 6,
-      polygonAmoy: 7,
-      arcTestnet: 26,
-    };
+    const domains: Partial<Record<SupportedChain, number>> = Object.fromEntries(
+      Object.entries(CCTP_CHAINS).map(([key, c]) => [key, c.domain]),
+    );
     const sourceDomain = domains[fromChain];
     const destinationDomain = domains[toChain];
     if (sourceDomain === undefined || destinationDomain === undefined) {
@@ -388,7 +383,7 @@ export class DefiService {
     if (sourceDomain === destinationDomain) throw new Error('Source and destination chains must differ');
 
     const response = await fetch(
-      `https://iris-api-sandbox.circle.com/v2/burn/USDC/fees/${sourceDomain}/${destinationDomain}?forward=true`,
+      `${IRIS_API}/v2/burn/USDC/fees/${sourceDomain}/${destinationDomain}?forward=true`,
     );
     if (!response.ok) throw new Error(`Circle fee API returned HTTP ${response.status}`);
     const feeOptions = await response.json() as Array<{
@@ -397,13 +392,21 @@ export class DefiService {
       forwardFee?: { med?: number };
     }>;
 
+    if (!Array.isArray(feeOptions)) throw new Error('Invalid Circle quote response');
+    const selected = feeOptions.find(f => f.finalityThreshold === 1000 && f.forwardFee?.med !== undefined);
+    if (!selected) throw new Error('Forwarding is unavailable for this route');
+    const amountAtomic = parseUnits(amount, 6);
+    const { maxFee } = calculateBridgeFee(amountAtomic, selected);
     return {
+      maxFeeAtomic: maxFee.toString(),
+      minFinalityThreshold: selected.finalityThreshold,
+      minimumReceivedAtomic: (amountAtomic - maxFee).toString(),
       fromChain,
       toChain,
       sourceDomain,
       destinationDomain,
       amount,
-      amountUnit: 'USDC atomic units (6 decimals)',
+      amountUnit: 'USDC (human-readable); fees are in USDC atomic units',
       feeOptions,
     };
   }
@@ -566,17 +569,26 @@ export class DefiService {
     minFinalityThreshold: number = 2000,
     hookData: string = CCTP_FORWARDING_HOOK,
   ) {
+    const src = CCTP_CHAINS[chain as CctpChain];
+    if (!src) throw new Error('Bridge supports mainnet chains only');
+    if (!Object.values(CCTP_CHAINS).some(c => c.domain === destinationDomain) || src.domain === destinationDomain) {
+      throw new Error('Unsupported or identical destination domain');
+    }
     const bridgeAddress = requireAddress(CCTP_TOKEN_MESSENGER, 'CCTP TokenMessenger');
     const tokenAddress = requireAddress(this.resolveTokenAddress(chain, burnToken), 'burnToken');
+    if (tokenAddress.toLowerCase() !== src.usdc.toLowerCase()) throw new Error('Bridge requires native mainnet USDC');
     const recipient = requireAddress(mintRecipient, 'mintRecipient');
+    if (recipient === zeroAddress) throw new Error('Invalid recipient');
     const caller = requireAddress(destinationCaller, 'destinationCaller');
+    if (caller !== zeroAddress || hookData !== CCTP_FORWARDING_HOOK) throw new Error('Unsupported forwarding configuration');
+    if (![1000, 2000].includes(minFinalityThreshold)) throw new Error('Invalid finality threshold');
     if (!/^0x(?:[0-9a-fA-F]{2})*$/.test(hookData)) {
       throw new Error('hookData must be a hex byte string');
     }
     const amountAtomic = parseUnits(amount, 6);
     const maxFeeAtomic = BigInt(maxFee);
     if (amountAtomic <= 0n) throw new Error('Bridge amount must be greater than zero');
-    if (maxFeeAtomic >= amountAtomic) {
+    if (maxFeeAtomic < 0n || maxFeeAtomic >= amountAtomic) {
       throw new Error('Bridge fee must be lower than the amount being bridged');
     }
     const data = encodeFunctionData({

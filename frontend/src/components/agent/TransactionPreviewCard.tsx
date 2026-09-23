@@ -45,11 +45,15 @@ interface TransactionPreviewCardProps {
 
 import { ARC_TOKENS } from '@/lib/arcTokens';
 import { sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from 'viem/chains';
+import { confirmBridgeMint } from '@/hooks/useCCTPBridge';
+import { CCTP_CHAINS } from '@/lib/cctpMainnet';
 import { arcTestnet } from '@/app/providers';
 
 const getChainId = (chainName?: string) => {
   if (!chainName) return arcTestnet.id;
   const name = chainName.toLowerCase();
+  const mainnet = Object.values(CCTP_CHAINS).find(c => c.name.toLowerCase() === name);
+  if (mainnet) return mainnet.chainId;
   if (name.includes('sepolia') && !name.includes('arbitrum') && !name.includes('base') && !name.includes('optimism')) return sepolia.id;
   if (name.includes('arbitrumsepolia') || name === 'arbitrum_sepolia') return arbitrumSepolia.id;
   if (name.includes('basesepolia') || name === 'base_sepolia') return baseSepolia.id;
@@ -61,6 +65,8 @@ const getChainId = (chainName?: string) => {
 
 const getExplorerUrl = (chainName: string | undefined, hash: string) => {
   const chainId = getChainId(chainName);
+  const mainnet = Object.values(CCTP_CHAINS).find(c => c.chainId === chainId);
+  if (mainnet) return mainnet.explorer + hash;
   switch (chainId) {
     case sepolia.id: return `https://sepolia.etherscan.io/tx/${hash}`;
     case arbitrumSepolia.id: return `https://sepolia.arbiscan.io/tx/${hash}`;
@@ -76,6 +82,8 @@ function resolveAddress(tokenOrAddress?: string, chainName?: string): string {
   if (!tokenOrAddress) return '';
   if (tokenOrAddress.startsWith('0x')) return tokenOrAddress;
   const upper = tokenOrAddress.toUpperCase();
+  const mainnet = Object.values(CCTP_CHAINS).find(c => c.name.toLowerCase() === chainName?.toLowerCase());
+  if (mainnet && upper === 'USDC') return mainnet.usdc;
   
   if (upper === 'USDC') {
     const name = (chainName || '').toLowerCase();
@@ -258,6 +266,11 @@ export function TransactionPreviewCard({ toolName, args, unsignedTx, onStrategyS
         });
         if (receipt.status === 'reverted') {
           throw new Error(`${transaction.label ?? 'Transaction'} reverted on-chain`);
+        }
+        if (toolName === 'bridge') {
+          const source = Object.values(CCTP_CHAINS).find(c => c.chainId === targetChainId);
+          if (!source) throw new Error('Unsupported mainnet bridge source');
+          await confirmBridgeMint(source.domain, Number(args.destinationDomain), nextHash);
         }
         setConfirmedBlock(receipt.blockNumber);
       }

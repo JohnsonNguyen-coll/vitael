@@ -1,3 +1,4 @@
+import { CCTP_CHAINS, type CctpChain } from "./cctpMainnet.js";
 import { createPublicClient, fallback, http, defineChain } from 'viem';
 import { sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from 'viem/chains';
 
@@ -18,6 +19,7 @@ export const arcTestnet = defineChain({
 });
 
 const chains = {
+  ...Object.fromEntries(Object.entries(CCTP_CHAINS).map(([k, c]) => [k, c.chain])) as { [K in CctpChain]: (typeof CCTP_CHAINS)[K]["chain"] },
   sepolia,
   arbitrumSepolia,
   baseSepolia,
@@ -29,7 +31,7 @@ const chains = {
 
 export type SupportedChain = keyof typeof chains;
 
-const rpcEnvKeys: Record<SupportedChain, string> = {
+const rpcEnvKeys: Partial<Record<SupportedChain, string>> = {
   sepolia: 'RPC_SEPOLIA',
   arbitrumSepolia: 'RPC_ARBITRUM_SEPOLIA',
   baseSepolia: 'RPC_BASE_SEPOLIA',
@@ -53,13 +55,16 @@ export const getClient = (chainName: SupportedChain) => {
     throw new Error(`Unsupported chain: ${chainName}`);
   }
 
-  let customRpc = process.env[rpcEnvKeys[chainName]];
+  const mainnetConfig = CCTP_CHAINS[chainName as CctpChain];
+  if (mainnetConfig) return createPublicClient({ chain: mainnetConfig.chain, transport: http(mainnetConfig.rpc) });
+  const envKey = rpcEnvKeys[chainName];
+  let customRpc = envKey ? process.env[envKey] : undefined;
 
   if (!customRpc && process.env.ALCHEMY_API_KEY && alchemyNetworkNames[chainName]) {
     customRpc = `https://${alchemyNetworkNames[chainName]}.g.alchemy.com/v2/${process.env.ALCHEMY_API_KEY}`;
   }
 
-  const publicFallbacks: Record<SupportedChain, string[]> = {
+  const publicFallbacks: Partial<Record<SupportedChain, string[]>> = {
     sepolia: [
       'https://ethereum-sepolia-rpc.publicnode.com',
       'https://rpc.sepolia.org',
@@ -100,7 +105,7 @@ export const getClient = (chainName: SupportedChain) => {
   const urls = [
     customRpc,
     ...configuredFallbacks,
-    ...publicFallbacks[chainName],
+    ...(publicFallbacks[chainName] ?? []),
   ]
     .map((url) => url?.trim())
     .filter((url): url is string => Boolean(url))

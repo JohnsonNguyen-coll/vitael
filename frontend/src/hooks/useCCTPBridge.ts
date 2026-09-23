@@ -4,89 +4,9 @@ import { useState, useCallback } from "react";
 import { useWalletClient, useSwitchChain, useConfig } from "wagmi";
 import { pad, encodeFunctionData, parseUnits, type Hash, createPublicClient, http } from "viem";
 import { getWalletClient } from "@wagmi/core";
-import { sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from "viem/chains";
-import { arcTestnet } from "../app/providers";
+import { CCTP_CHAINS as CONTRACTS, IRIS_API, type CctpChain as SupportedChain } from "../lib/cctpMainnet";
 import { parseWalletError } from "../lib/walletErrors";
-
-// ─── CCTP V2 Contract Addresses (Testnet) ────────────────────────────────────
-// Source: https://developers.circle.com/cctp/evm-smart-contracts
-const CONTRACTS = {
-  // Ethereum Sepolia (domain 0)
-  Ethereum_Sepolia: {
-    chainId:          11155111,
-    domain:           0,
-    usdc:             "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" as `0x${string}`,
-    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
-    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
-    explorer:         "https://sepolia.etherscan.io/tx/",
-    name:             "Ethereum Sepolia",
-  },
-  // Arbitrum Sepolia (domain 3)
-  Arbitrum_Sepolia: {
-    chainId:          421614,
-    domain:           3,
-    usdc:             "0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d" as `0x${string}`,
-    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
-    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
-    explorer:         "https://sepolia.arbiscan.io/tx/",
-    name:             "Arbitrum Sepolia",
-  },
-  // Base Sepolia (domain 6)
-  Base_Sepolia: {
-    chainId:          84532,
-    domain:           6,
-    usdc:             "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`,
-    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
-    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
-    explorer:         "https://sepolia.basescan.org/tx/",
-    name:             "Base Sepolia",
-  },
-  // Polygon Amoy (domain 7)
-  Polygon_Amoy_Testnet: {
-    chainId:          80002,
-    domain:           7,
-    usdc:             "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582" as `0x${string}`,
-    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
-    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
-    explorer:         "https://amoy.polygonscan.com/tx/",
-    name:             "Polygon Amoy",
-  },
-  // Avalanche Fuji (domain 1)
-  Avalanche_Fuji: {
-    chainId:          43113,
-    domain:           1,
-    usdc:             "0x5425890298aed601595a70AB815c96711a31Bc65" as `0x${string}`,
-    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
-    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
-    explorer:         "https://testnet.snowtrace.io/tx/",
-    name:             "Avalanche Fuji",
-  },
-  // OP Sepolia (domain 2)
-  OP_Sepolia: {
-    chainId:          11155420,
-    domain:           2,
-    usdc:             "0x5fd84259d66Cd46123540766Be93DFE6D43130D7" as `0x${string}`,
-    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
-    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
-    explorer:         "https://sepolia-optimism.etherscan.io/tx/",
-    name:             "OP Sepolia",
-  },
-  // Arc Testnet (domain 26)
-  Arc_Testnet: {
-    chainId:          5042002,
-    domain:           26,
-    usdc:             "0x3600000000000000000000000000000000000000" as `0x${string}`,
-    tokenMessenger:   "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA" as `0x${string}`,
-    msgTransmitter:   "0xE737e5cEBEEBa77EFE34D4aa090756590b1CE275" as `0x${string}`,
-    explorer:         "https://testnet.arcscan.app/tx/",
-    name:             "Arc Testnet",
-  },
-} as const;
-
-type SupportedChain = keyof typeof CONTRACTS;
-
-// Iris API (Circle attestation service — sandbox)
-const IRIS_API = "https://iris-api-sandbox.circle.com";
+import { calculateBridgeFee } from "../lib/cctpFees";
 
 // Forwarding Service hook data — tells Circle to auto-mint on destination
 const FORWARDING_HOOK =
@@ -154,7 +74,7 @@ const STEP_LABELS: Record<BridgeStep, string> = {
   fetching_fees:        "Fetching CCTP fees...",
   approving:            "Step 1/2 — Approve USDC (sign in wallet)",
   burning:              "Step 2/2 — Burn & Bridge (sign in wallet)",
-  waiting_attestation:  "Waiting for Circle attestation (~15s)...",
+  waiting_attestation:  "Waiting for destination confirmation...",
   done:                 "Bridge complete ✓",
   error:                "Error",
   cancelled:            "Cancelled",
@@ -202,6 +122,7 @@ export function useCCTPBridge() {
     const dst = CONTRACTS[toChainKey];
 
     try {
+      if (!src || !dst || src.domain === dst.domain) throw new Error("Select two different mainnet chains");
       // ── 1. Switch to source chain ──────────────────────────────────────────
       set("switching_chain", {
         srcExplorer: src.explorer,
@@ -221,6 +142,7 @@ export function useCCTPBridge() {
       // Create a dedicated public client for this specific chain
       const publicClient = getPublicClientForChain(src.chainId);
 
+      if (await publicClient.getChainId() !== src.chainId) throw new Error("Source RPC is on the wrong network");
       // ── 2. Fetch forwarding fees from Iris API ─────────────────────────────
       set("fetching_fees");
       const feeRes = await fetch(
@@ -244,11 +166,9 @@ export function useCCTPBridge() {
       // - forwardFee.med: ABSOLUTE value in USDC atomic units (NOT basis points!)
       //   Example: forwardFee.med = 200000 means 0.2 USDC fixed fee
       
-      const forwardFee  = BigInt(feeData.forwardFee.med); // Already in USDC units (6 decimals)
-      const protocolFee = (amount * BigInt(Math.round(feeData.minimumFee * 10_000))) / BigInt(1_000_000);
-      const maxFee      = forwardFee + protocolFee;
-      const totalBurn   = amount + maxFee;
-      
+      const { forwardFee, protocolFee, maxFee } = calculateBridgeFee(amount, feeData);
+      const totalBurn = amount; // User-entered amount is the total debit; fees are deducted.
+
       console.log("[Bridge] Fee calculation:", {
         amountHuman,
         amount: amount.toString(),
@@ -347,11 +267,8 @@ export function useCCTPBridge() {
         }
       }
       
-      if (!allowanceConfirmed) {
-        console.warn("[Bridge] Could not confirm approval, proceeding optimistically...");
-        console.log("[Bridge] If burn tx fails, check:", src.explorer + approveTx);
-      }
-      
+      if (!allowanceConfirmed) throw new Error("Approval is not confirmed. Check the approval transaction before retrying.");
+
       console.log("[Bridge] Moving to burn step");
 
       // ── 4. depositForBurnWithHook ──────────────────────────────────────────
@@ -382,7 +299,9 @@ export function useCCTPBridge() {
 
       // ── 5. Poll Iris for forwardTxHash ─────────────────────────────────────
       set("waiting_attestation", { burnTx });
-      const forwardTx = await pollForForwardTx(src.domain, burnTx);
+      const burnReceipt = await publicClient.waitForTransactionReceipt({ hash: burnTx, timeout: 180_000 });
+      if (burnReceipt.status !== "success") throw new Error("Burn transaction reverted");
+      const forwardTx = await confirmBridgeMint(src.domain, dst.domain, burnTx);
 
       set("done", { forwardTx });
 
@@ -409,50 +328,9 @@ export function useCCTPBridge() {
 
 // Create public client for a specific chain
 function getPublicClientForChain(chainId: number) {
-  type ChainType = typeof arcTestnet | typeof sepolia | typeof arbitrumSepolia | typeof baseSepolia | typeof polygonAmoy | typeof avalancheFuji | typeof optimismSepolia;
-  
-  // Using Alchemy for better reliability and speed
-  // Get your free API key at: https://www.alchemy.com/
-  const ALCHEMY_API_KEY = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY || "demo"; // Replace with your key
-  
-  const chainMap: Record<number, { chain: ChainType; rpc: string }> = {
-    5042002:   { 
-      chain: arcTestnet,       
-      rpc: "https://rpc.testnet.arc.network" 
-    },
-    11155111:  { 
-      chain: sepolia,          
-      rpc: `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}` 
-    },
-    421614:    { 
-      chain: arbitrumSepolia,  
-      rpc: `https://arb-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}` 
-    },
-    84532:     { 
-      chain: baseSepolia,      
-      rpc: `https://base-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}` 
-    },
-    80002:     { 
-      chain: polygonAmoy,      
-      rpc: `https://polygon-amoy.g.alchemy.com/v2/${ALCHEMY_API_KEY}` 
-    },
-    43113:     { 
-      chain: avalancheFuji,    
-      rpc: "https://api.avax-test.network/ext/bc/C/rpc" // Avalanche official RPC
-    },
-    11155420:  { 
-      chain: optimismSepolia,  
-      rpc: `https://opt-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}` 
-    },
-  };
-
-  const config = chainMap[chainId];
-  if (!config) throw new Error(`No RPC configured for chainId ${chainId}`);
-
-  return createPublicClient({
-    chain: config.chain,
-    transport: http(config.rpc),
-  });
+  const config = Object.values(CONTRACTS).find(c => c.chainId === chainId);
+  if (!config) throw new Error(`Unsupported mainnet chain ${chainId}`);
+  return createPublicClient({ chain: config.chain, transport: http(config.rpc) });
 }
 
 // Poll Iris API until forwardTxHash appears
@@ -498,9 +376,21 @@ async function pollForForwardTx(srcDomain: number, burnTxHash: Hash): Promise<Ha
     }
   }
   
-  throw new Error("Attestation timeout — check ArcScan manually");
+  throw new Error("Bridge is still pending. Check the source transaction in the explorer; do not burn again for the same transfer.");
 }
 
 function sleep(ms: number) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+// Shared by the bridge page and the agent transaction flow.
+export async function confirmBridgeMint(sourceDomain: number, destinationDomain: number, burnTx: Hash): Promise<Hash> {
+  const destination = Object.values(CONTRACTS).find(c => c.domain === destinationDomain);
+  if (!destination) throw new Error("Unsupported bridge destination");
+  const forwardTx = await pollForForwardTx(sourceDomain, burnTx);
+  const client = getPublicClientForChain(destination.chainId);
+  if (await client.getChainId() !== destination.chainId) throw new Error("Destination RPC is on the wrong network");
+  const receipt = await client.waitForTransactionReceipt({ hash: forwardTx, timeout: 180_000 });
+  if (receipt.status !== "success") throw new Error("Destination mint transaction reverted");
+  return forwardTx;
 }

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, fallback, http } from "wagmi";
 import { RainbowKitProvider, darkTheme, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { type Chain, sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from "viem/chains";
+import { CCTP_CHAINS } from "../lib/cctpMainnet";
 import { arcTransport } from "../lib/arcTransport";
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -26,6 +27,7 @@ const config = getDefaultConfig({
   projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
   chains: [
     arcTestnet,
+    ...Object.values(CCTP_CHAINS).map(c => c.chain),
     sepolia,
     arbitrumSepolia,
     baseSepolia,
@@ -34,6 +36,7 @@ const config = getDefaultConfig({
     optimismSepolia,
   ],
   transports: {
+    ...Object.fromEntries(Object.values(CCTP_CHAINS).map(c => [c.chainId, http(c.rpc)])),
     [arcTestnet.id]:         arcTransport(),
     [sepolia.id]: fallback([
       http(process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL ?? "https://ethereum-sepolia-rpc.publicnode.com", { timeout: 12_000, retryCount: 1 }),
