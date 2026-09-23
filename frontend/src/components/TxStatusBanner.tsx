@@ -10,7 +10,7 @@ type TxStatusBannerProps = {
   accent?: "cyan" | "pink";
 };
 
-const EXPLORER = "https://testnet.arcscan.app/tx";
+const EXPLORER = "https://explorer.arc.io/tx";
 
 export default function TxStatusBanner({
   step,

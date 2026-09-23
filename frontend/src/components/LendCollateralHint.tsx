@@ -8,7 +8,7 @@ export default function LendCollateralHint() {
     <div className="glass-panel rounded-2xl p-4 border border-[#00F5FF]/15 bg-[#00F5FF]/5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <p className="text-sm text-[#8E9FB8]">
         <span className="text-white font-semibold">EURC / cirBTC</span> are Arc collateral — deposit on Borrow to borrow{" "}
-        <span className="text-[#FF00C8]">USDC</span>. Prices from Stork oracle.
+        <span className="text-[#FF00C8]">USDC</span>. Prices from Chainlink oracle.
       </p>
       <Link
         href="/borrow"

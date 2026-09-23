@@ -51,7 +51,7 @@ function TokenSelector({ selected, onSelect, exclude }: {
 }
 
 const DEX_STEP_LABELS: Record<string, string> = {
-  switching: "Switching to Arc Testnet...",
+  switching: "Switching to Arc Mainnet...",
   approving: "Approving — sign in wallet...",
   swapping: "Swapping — sign in wallet...",
   confirming: "Waiting for confirmation...",
@@ -113,9 +113,9 @@ export default function SwapPage() {
     <PageLayout variant="app">
       <main className="app-page relative z-10 max-w-5xl mx-auto px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">Arc Testnet · Vitael DEX V2</span>
+          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">Arc Mainnet · Vitael DEX V2</span>
           <h1 className="app-page-title text-5xl text-white">Swap</h1>
-          <p className="text-[#8991AF] mt-2 text-sm">Swap tokens on Arc Testnet. You sign all transactions in your wallet.</p>
+          <p className="text-[#8991AF] mt-2 text-sm">Swap tokens on Arc Mainnet. You sign all transactions in your wallet.</p>
         </motion.div>
 
         <NetworkGuard>
@@ -250,10 +250,10 @@ export default function SwapPage() {
             </motion.div>
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}
               className="glass-panel rounded-3xl p-5 border border-[#A998FF]/10">
-              <p className="text-xs uppercase tracking-wider text-[#A998FF] font-bold mb-2">Need testnet tokens?</p>
-              <p className="text-xs text-[#8991AF] mb-3">Get free USDC and EURC from the Circle Faucet.</p>
-              <a href="https://faucet.circle.com" target="_blank" className="flex items-center gap-2 text-sm text-[#A998FF] font-semibold hover:underline">
-                faucet.circle.com <ExternalLink className="w-3.5 h-3.5" />
+              <p className="text-xs uppercase tracking-wider text-[#A998FF] font-bold mb-2">Need USDC on Arc?</p>
+              <p className="text-xs text-[#8991AF] mb-3">Bridge native USDC to Arc Mainnet, then swap for supported assets.</p>
+              <a href="/bridge" target="_blank" className="flex items-center gap-2 text-sm text-[#A998FF] font-semibold hover:underline">
+                Open bridge <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </motion.div>
           </div>

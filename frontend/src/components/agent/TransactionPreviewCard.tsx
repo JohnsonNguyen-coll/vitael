@@ -44,38 +44,17 @@ interface TransactionPreviewCardProps {
 }
 
 import { ARC_TOKENS } from '@/lib/arcTokens';
-import { sepolia, arbitrumSepolia, baseSepolia, polygonAmoy, avalancheFuji, optimismSepolia } from 'viem/chains';
 import { confirmBridgeMint } from '@/hooks/useCCTPBridge';
-import { CCTP_CHAINS } from '@/lib/cctpMainnet';
-import { arcTestnet } from '@/app/providers';
-
+import { CCTP_CHAINS, arcMainnet } from '@/lib/cctpMainnet';
 const getChainId = (chainName?: string) => {
-  if (!chainName) return arcTestnet.id;
-  const name = chainName.toLowerCase();
-  const mainnet = Object.values(CCTP_CHAINS).find(c => c.name.toLowerCase() === name);
-  if (mainnet) return mainnet.chainId;
-  if (name.includes('sepolia') && !name.includes('arbitrum') && !name.includes('base') && !name.includes('optimism')) return sepolia.id;
-  if (name.includes('arbitrumsepolia') || name === 'arbitrum_sepolia') return arbitrumSepolia.id;
-  if (name.includes('basesepolia') || name === 'base_sepolia') return baseSepolia.id;
-  if (name.includes('polygonamoy') || name === 'polygon_amoy') return polygonAmoy.id;
-  if (name.includes('avalanchefuji') || name === 'avalanche_fuji') return avalancheFuji.id;
-  if (name.includes('optimismsepolia') || name === 'optimism_sepolia') return optimismSepolia.id;
-  return arcTestnet.id;
+  if (!chainName) return arcMainnet.id;
+  const chain = Object.values(CCTP_CHAINS).find(c => c.name.toLowerCase() === chainName.toLowerCase());
+  if (!chain) throw new Error(`Unsupported mainnet chain: ${chainName}`);
+  return chain.chainId;
 };
-
 const getExplorerUrl = (chainName: string | undefined, hash: string) => {
-  const chainId = getChainId(chainName);
-  const mainnet = Object.values(CCTP_CHAINS).find(c => c.chainId === chainId);
-  if (mainnet) return mainnet.explorer + hash;
-  switch (chainId) {
-    case sepolia.id: return `https://sepolia.etherscan.io/tx/${hash}`;
-    case arbitrumSepolia.id: return `https://sepolia.arbiscan.io/tx/${hash}`;
-    case baseSepolia.id: return `https://sepolia.basescan.org/tx/${hash}`;
-    case polygonAmoy.id: return `https://amoy.polygonscan.com/tx/${hash}`;
-    case avalancheFuji.id: return `https://testnet.snowtrace.io/tx/${hash}`;
-    case optimismSepolia.id: return `https://sepolia-optimism.etherscan.io/tx/${hash}`;
-    default: return `https://testnet.arcscan.app/tx/${hash}`;
-  }
+  const chain = Object.values(CCTP_CHAINS).find(c => c.chainId === getChainId(chainName));
+  return `${chain!.explorer}${hash}`;
 };
 
 function resolveAddress(tokenOrAddress?: string, chainName?: string): string {
@@ -85,16 +64,6 @@ function resolveAddress(tokenOrAddress?: string, chainName?: string): string {
   const mainnet = Object.values(CCTP_CHAINS).find(c => c.name.toLowerCase() === chainName?.toLowerCase());
   if (mainnet && upper === 'USDC') return mainnet.usdc;
   
-  if (upper === 'USDC') {
-    const name = (chainName || '').toLowerCase();
-    if (name.includes('arbitrum')) return '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d';
-    if (name.includes('base')) return '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-    if (name.includes('polygon') || name.includes('amoy')) return '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582';
-    if (name.includes('avalanche') || name.includes('fuji')) return '0x5425890298aed601595a70AB815c96711a31Bc65';
-    if (name.includes('optimism')) return '0x5fd84259d66Cd46123540766Be93DFE6D43130D7';
-    if (name.includes('sepolia')) return '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238';
-  }
-
   if (upper in ARC_TOKENS) {
     return ARC_TOKENS[upper as keyof typeof ARC_TOKENS].address;
   }

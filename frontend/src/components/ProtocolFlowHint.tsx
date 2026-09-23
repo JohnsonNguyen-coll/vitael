@@ -5,7 +5,7 @@ import { ArrowRight, Landmark, ShieldCheck } from "lucide-react";
 type Variant = "lend" | "borrow";
 const COPY = {
   lend: { title: "Supply any asset to earn yield", lines: ["Deposit USDC, EURC, or cirBTC", "Earn interest automatically", "Use supplied assets as collateral"] },
-  borrow: { title: "Borrow with a visible safety margin", lines: ["Deposit collateral", "Review live Stork prices", "Borrow USDC from the pool"] },
+  borrow: { title: "Borrow with a visible safety margin", lines: ["Deposit collateral", "Review live Chainlink prices", "Borrow USDC from the pool"] },
 } satisfies Record<Variant, { title: string; lines: string[] }>;
 
 export default function ProtocolFlowHint({ variant }: { variant: Variant }) {

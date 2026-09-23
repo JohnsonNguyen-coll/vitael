@@ -13,10 +13,10 @@ import {
 } from '../contracts/abi.js';
 
 const ARC_ADDRESSES = {
-  pool: process.env.LENDING_POOL ?? '0xEa282eea5bC90905C15Df05Ca43eeA967BcDe49f',
-  router: process.env.DEX_ROUTER ?? '0x4d306D129C52E88a7766dc3d70ce28d423E3b1Ef',
-  factory: process.env.DEX_FACTORY ?? '0xdE6b2AEf32FE1e675060dBC47BC2dF049052494E',
-  quoter: process.env.DEX_QUOTER ?? '0x0078B36f4E91D1AEbBAf4049F7468ea4B9183810',
+  pool: process.env.LENDING_POOL ?? '',
+  router: process.env.DEX_ROUTER ?? '',
+  factory: process.env.DEX_FACTORY ?? '',
+  quoter: process.env.DEX_QUOTER ?? '',
   vault: process.env.USDC_VAULT ?? '',
 } as const;
 
@@ -25,22 +25,19 @@ const CCTP_FORWARDING_HOOK =
 
 const TOKENS: Partial<Record<SupportedChain, Record<string, string>>> = {
   ...Object.fromEntries(Object.entries(CCTP_CHAINS).map(([key, c]) => [key, { USDC: c.usdc }])),
-  arcTestnet: {
-    USDC: '0x3600000000000000000000000000000000000000',
-    EURC: '0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a',
-    CIRBTC: '0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF',
+  arc: {
+    USDC: process.env.USDC_ADDRESS || '0x3600000000000000000000000000000000000000',
+    EURC: process.env.EURC_ADDRESS || '0xbEf5f6d51CB62b58e6A8f77868681825C6fe21c1',
+    CIRBTC: process.env.CIRBTC_ADDRESS || '0x171A4217b86A807A64eB94757Db6849fb4bDbAA0',
   },
-  sepolia: { USDC: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238' },
-  arbitrumSepolia: { USDC: '0x75faf114eafb1BDbe2F0316DF893fd58CE46AA4d' },
-  baseSepolia: { USDC: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' },
-  polygonAmoy: { USDC: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582' },
-  avalancheFuji: { USDC: '0x5425890298aed601595a70AB815c96711a31Bc65' },
-  optimismSepolia: { USDC: '0x5fd84259d66Cd46123540766Be93DFE6D43130D7' },
 };
 
 function getArcAddresses(chain: SupportedChain) {
-  if (chain !== 'arcTestnet') {
-    throw new Error(`Vitael lending and DEX are only deployed on arcTestnet, not ${chain}`);
+  if (chain !== 'arc') {
+    throw new Error(`Vitael lending and DEX are only deployed on Arc mainnet, not ${chain}`);
+  }
+  for (const [key, value] of Object.entries(ARC_ADDRESSES)) {
+    if (key !== 'vault') requireAddress(value, key);
   }
   return ARC_ADDRESSES;
 }

@@ -30,7 +30,7 @@ const ERC20_BALANCE_ABI = [{
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEP_LABELS: Record<string, string> = {
-  switching:  "Switching to Arc Testnet...",
+  switching:  "Switching to Arc Mainnet...",
   approving:  "Approving token...",
   supplying:  "Supplying — sign in wallet...",
   withdrawing:"Withdrawing — sign in wallet...",
@@ -97,7 +97,7 @@ export default function LendPage() {
     abi: ERC20_BALANCE_ABI,
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    chainId: 5042002,
+    chainId: 5042,
     query: {
       enabled: isConnected && !!address,
       retry: 4,
@@ -206,7 +206,7 @@ export default function LendPage() {
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">
-            Arc Testnet · Vitael Protocol
+            Arc Mainnet · Vitael Protocol
           </span>
           <h1 className="app-page-title text-5xl text-white">Lend</h1>
           <p className="text-[#8991AF] mt-2 text-sm">

@@ -11,10 +11,9 @@ type OracleStatusBannerProps = {
 export default function OracleStatusBanner({ status, loading }: OracleStatusBannerProps) {
   if (loading || !status?.length) return null;
 
-  const usdc = status.find((s) => s.symbol === "USDC");
   const missing = status.filter((s) => !s.ok).map((s) => s.symbol);
   const rpcUnavailable = status.some((s) => !s.ok && s.error === "rpc");
-  if (!usdc || usdc.ok) return null;
+  if (missing.length === 0) return null;
 
   if (rpcUnavailable) {
     return (
@@ -22,7 +21,7 @@ export default function OracleStatusBanner({ status, loading }: OracleStatusBann
         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
         <p>
           <span className="font-semibold text-yellow-100">Oracle connection is temporarily unavailable</span>
-          {" — "}Arc Testnet RPC is rate-limiting price checks. Retrying automatically; do not treat this as a missing Stork feed.
+          {" — "}Unable to read prices from Arc Mainnet. Retrying automatically.
         </p>
       </div>
     );
@@ -34,11 +33,8 @@ export default function OracleStatusBanner({ status, loading }: OracleStatusBann
       <p>
         <span className="font-semibold text-red-200">Oracle prices unavailable</span>
         {" — "}
-        Stork has no on-chain price for {missing.join(", ")}. Borrow and health factor checks will fail
-        until Stork prices are updated on Arc Testnet (see Stork docs:{" "}
-        <code className="text-xs text-[#8991AF]">updateTemporalNumericValuesV1</code>
-        ). Testnet-only fallback:{" "}
-        <code className="text-xs text-[#8991AF]">PatchMissingStorkFeeds.s.sol</code>.
+        A valid, recent price is unavailable for {missing.join(", ")}. Actions requiring these prices
+        may be unavailable until the oracle recovers.
       </p>
     </div>
   );

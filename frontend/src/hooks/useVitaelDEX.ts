@@ -3,26 +3,23 @@
 import { useState, useCallback } from "react";
 import { useWalletClient, useSwitchChain } from "wagmi";
 import { parseUnits, formatUnits, encodeFunctionData, createPublicClient, type Address, type Hash, type Hex } from "viem";
-import { arcTestnet } from "../app/providers";
+import { arcMainnet } from "../app/providers";
 import { parseWalletError } from "../lib/walletErrors";
+import { ARC_TOKENS } from "../lib/arcTokens";
 import { arcTransport } from "../lib/arcTransport";
 
 // ─── Contract addresses ───────────────────────────────────────────────────────
 const ROUTER  = (process.env.NEXT_PUBLIC_DEX_ROUTER  ?? "") as Address;
 const FACTORY = (process.env.NEXT_PUBLIC_DEX_FACTORY ?? "") as Address;
 
-// Arc Testnet public client — always reads from Arc, regardless of wallet chain
+// Arc Mainnet public client — always reads from Arc, regardless of wallet chain
 const arcClient = createPublicClient({
-  chain: arcTestnet,
+  chain: arcMainnet,
   transport: arcTransport(),
 });
 
-// ─── Token addresses on Arc Testnet ──────────────────────────────────────────
-export const TOKENS = {
-  USDC:   { address: "0x3600000000000000000000000000000000000000" as Address, decimals: 6, symbol: "USDC",   name: "USD Coin"   },
-  EURC:   { address: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a" as Address, decimals: 6, symbol: "EURC",   name: "Euro Coin"  },
-  cirBTC: { address: "0xf0C4a4CE82A5746AbAAd9425360Ab04fbBA432BF" as Address, decimals: 8, symbol: "cirBTC", name: "Circle BTC" },
-} as const;
+// ─── Token addresses on Arc Mainnet ──────────────────────────────────────────
+export const TOKENS = ARC_TOKENS;
 export type TokenSymbol = keyof typeof TOKENS;
 
 /**
@@ -111,7 +108,7 @@ export function useVitaelDEX() {
 
   async function ensureArc() {
     if (!walletClient) throw new Error("Wallet not connected");
-    if (walletClient.chain.id !== arcTestnet.id) await switchChainAsync({ chainId: arcTestnet.id });
+    if (walletClient.chain.id !== arcMainnet.id) await switchChainAsync({ chainId: arcMainnet.id });
   }
 
   async function sendWithEstimatedGas(to: Address, data: Hex): Promise<Hash> {

@@ -20,7 +20,7 @@ import {
   useLending, COLLATERAL_TOKENS,
   type UserLendingInfo, type CollateralSymbol, type ProtocolStats,
 } from "../../hooks/useLending";
-import { CIRCLE_FAUCET_URL } from "../../lib/arcTokens";
+import { BRIDGE_URL } from "../../lib/arcTokens";
 
 const COLLATERAL_SYMBOLS = ["EURC", "cirBTC", "USDC"] as const satisfies readonly CollateralSymbol[];
 
@@ -52,13 +52,13 @@ function parseUsdValue(value: string): number {
 
 // ─── Step labels ──────────────────────────────────────────────────────────────
 const STEP_LABELS: Record<string, string> = {
-  switching:  "Switching to Arc Testnet...",
+  switching:  "Switching to Arc Mainnet...",
   approving:  "Approving...",
   borrowing:  "Borrowing — sign in wallet...",
   repaying:   "Repaying — sign in wallet...",
   depositing: "Depositing collateral — sign in wallet...",
   withdrawing:"Withdrawing collateral — sign in wallet...",
-  minting:    "Minting testnet tokens — sign in wallet...",
+  minting:    "Preparing transaction...",
   confirming: "Waiting for confirmation...",
 };
 
@@ -130,7 +130,7 @@ export default function BorrowPage() {
     abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ type: "uint256" }] }],
     functionName: "balanceOf",
     args: address ? [address] : undefined,
-    chainId: 5042002,
+    chainId: 5042,
     query: {
       enabled: !!address,
       retry: 4,
@@ -280,9 +280,9 @@ export default function BorrowPage() {
 
         {/* Title */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">Arc Testnet · Vitael Protocol</span>
+          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">Arc Mainnet · Vitael Protocol</span>
           <h1 className="app-page-title text-5xl text-white">Borrow</h1>
-          <p className="text-[#8991AF] mt-2 text-sm">Get Arc tokens → deposit collateral → borrow USDC (Stork oracle).</p>
+          <p className="text-[#8991AF] mt-2 text-sm">Get Arc tokens → deposit collateral → borrow USDC (Chainlink oracle).</p>
         </motion.div>
 
         <OracleStatusBanner status={oracleStatus} loading={oracleLoading} />
@@ -565,7 +565,7 @@ export default function BorrowPage() {
 
                     {subTab === "borrow" && !hasCollateral && (
                       <p className="text-xs text-yellow-400/90 mb-3">
-                        Deposit EURC, cirBTC, or USDC collateral below (get tokens from Circle Faucet if needed).
+                        Deposit EURC, cirBTC, or USDC collateral below (get tokens from Bridge USDC if needed).
                       </p>
                     )}
 
@@ -697,17 +697,17 @@ export default function BorrowPage() {
                 {collateralTab === "deposit" ? "Deposit" : "Withdraw"} {collSymbol}
               </button>
 
-              <div id="faucet" className="border-t border-white/5 pt-4">
+              <div id="bridge-funding" className="border-t border-white/5 pt-4">
                 <p className="text-xs text-[#8991AF] flex items-center gap-1 mb-2">
-                  <Droplets className="w-3.5 h-3.5" /> Need tokens? Circle Faucet (Arc Testnet)
+                  <Droplets className="w-3.5 h-3.5" /> Need tokens? Bridge USDC to Arc Mainnet
                 </p>
                 <a
-                  href={CIRCLE_FAUCET_URL}
+                  href={BRIDGE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs font-semibold text-[#A998FF] hover:underline"
                 >
-                  faucet.circle.com <ExternalLink className="w-3 h-3" />
+                  Open bridge <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             </div>

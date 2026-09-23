@@ -117,10 +117,10 @@ export const backendApi = {
     return request<{ avatarPath: string; avatarUrl: string }>(`/api/profiles/${wallet(address)}/avatar`, { method: "POST", body: form });
   },
   transactions: (address: string, limit = 50, cursor?: number) =>
-    request<{ items: IndexedTransaction[]; nextCursor: number | null }>(`/api/transactions/${wallet(address)}?${query({ limit, cursor })}`),
-  protocolStats: (chainId = 5042002) =>
+    request<{ items: IndexedTransaction[]; nextCursor: number | null }>(`/api/transactions/${wallet(address)}?${query({ limit, cursor, chainId: 5042 })}`),
+  protocolStats: (chainId = 5042) =>
     request<{ stats: ProtocolSnapshot | null }>(`/api/protocol/stats?${query({ chainId })}`),
-  protocolHistory: (chainId = 5042002, limit = 30) =>
+  protocolHistory: (chainId = 5042, limit = 30) =>
     request<{ items: ProtocolSnapshot[] }>(`/api/protocol/history?${query({ chainId, limit })}`),
   conversations: (address: string, limit = 50) =>
     request<{ items: Conversation[]; nextCursor: string | null }>(`/api/chat/conversations?${query({ walletAddress: wallet(address), limit })}`),

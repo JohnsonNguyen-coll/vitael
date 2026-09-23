@@ -1,10 +1,10 @@
 import { createPublicClient, type Address } from "viem";
-import { arcTestnet } from "../app/providers";
+import { arcMainnet } from "../app/providers";
 import { LENDING_CONTRACTS } from "./contracts";
 import { arcTransport } from "./arcTransport";
 
 const client = createPublicClient({
-  chain: arcTestnet,
+  chain: arcMainnet,
   transport: arcTransport(),
 });
 

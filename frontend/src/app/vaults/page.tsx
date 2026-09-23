@@ -12,7 +12,7 @@ import WalletActionGate, { WalletConnectPrompt } from "../../components/WalletAc
 import { useVault, type VaultSnapshot } from "../../hooks/useVault";
 
 const STEP_LABELS: Record<string, string> = {
-  switching: "Switching to Arc Testnet...",
+  switching: "Switching to Arc Mainnet...",
   approving: "Approving USDC — sign in your wallet...",
   depositing: "Depositing into the vault — sign in your wallet...",
   withdrawing: "Withdrawing USDC — sign in your wallet...",
@@ -70,7 +70,7 @@ export default function VaultsPage() {
     <PageLayout variant="app">
       <main className="app-page relative z-10 mx-auto max-w-7xl space-y-8 px-6 py-12">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <span className="app-eyebrow mb-2 block text-xs font-bold uppercase tracking-widest">Arc Testnet · Automated yield</span>
+          <span className="app-eyebrow mb-2 block text-xs font-bold uppercase tracking-widest">Arc Mainnet · Automated yield</span>
           <h1 className="app-page-title text-5xl text-white">Vaults</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[#8991AF]">
             Deposit USDC once. The vault supplies it to Vitael Lending, and lending interest automatically increases the value of your vault shares.
@@ -112,14 +112,14 @@ export default function VaultsPage() {
 
               <div className="space-y-5 p-6">
                 <div>
-                  <div className="mb-2 flex justify-between text-xs"><span className="text-[#8991AF]">Testnet deposit cap</span><span className="text-white">{display(snapshot?.totalAssets)} / {display(snapshot?.depositCap)}</span></div>
+                  <div className="mb-2 flex justify-between text-xs"><span className="text-[#8991AF]">Deposit cap</span><span className="text-white">{display(snapshot?.totalAssets)} / {display(snapshot?.depositCap)}</span></div>
                   <div className="h-2 overflow-hidden rounded-full bg-white/5"><div className="h-full rounded-full bg-gradient-to-r from-[#7968e8] to-[#A998FF]" style={{ width: `${capUsed}%` }} /></div>
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"><p className="text-sm font-semibold">Non-custodial shares</p><p className="mt-2 text-xs leading-5 text-[#8991AF]">Your ERC-4626 shares represent a proportional claim on vault assets.</p></div>
                   <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"><p className="text-sm font-semibold">Native compounding</p><p className="mt-2 text-xs leading-5 text-[#8991AF]">Interest accrues through the lending exchange rate without manual claiming.</p></div>
-                  <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"><p className="text-sm font-semibold">Capped launch</p><p className="mt-2 text-xs leading-5 text-[#8991AF]">The initial cap limits exposure while the vault is validated on testnet.</p></div>
+                  <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4"><p className="text-sm font-semibold">Capped launch</p><p className="mt-2 text-xs leading-5 text-[#8991AF]">The adjustable deposit cap limits total assets accepted by the vault.</p></div>
                 </div>
               </div>
             </motion.section>

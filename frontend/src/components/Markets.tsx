@@ -15,9 +15,9 @@ function fmtUsdCompact(value: string): string {
 }
 
 const COLLATERAL_MARKETS = [
-  { name: "EURC", key: "EURC" as const, sub: "Arc · Stork EUR/USD" },
-  { name: "cirBTC", key: "cirBTC" as const, sub: "Arc · Stork BTC/USD" },
-  { name: "USDC", key: "USDC" as const, sub: "Arc · Stork USD (collateral)" },
+  { name: "EURC", key: "EURC" as const, sub: "Arc · Chainlink EUR/USD" },
+  { name: "cirBTC", key: "cirBTC" as const, sub: "Arc · Chainlink BTC/USD" },
+  { name: "USDC", key: "USDC" as const, sub: "Arc · Chainlink USD (collateral)" },
 ];
 
 export default function Markets() {

@@ -18,7 +18,7 @@ export default function Features() {
     {
       num: "03",
       title: "Collateralized Borrow",
-      desc: "Lock EURC, cirBTC, or USDC on Arc as collateral (Stork prices) to borrow USDC up to a safe LTV limit."
+      desc: "Lock EURC, cirBTC, or USDC on Arc as collateral (Chainlink prices) to borrow USDC up to a safe LTV limit."
     },
     {
       num: "04",

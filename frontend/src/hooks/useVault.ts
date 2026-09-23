@@ -10,12 +10,12 @@ import {
   type Address,
   type Hash,
 } from "viem";
-import { arcTestnet } from "../app/providers";
+import { arcMainnet } from "../app/providers";
 import { arcTransport } from "../lib/arcTransport";
 import { LENDING_CONTRACTS, VAULT_CONTRACTS, vaultConfigured } from "../lib/contracts";
 import { parseWalletError } from "../lib/walletErrors";
 
-const client = createPublicClient({ chain: arcTestnet, transport: arcTransport() });
+const client = createPublicClient({ chain: arcMainnet, transport: arcTransport() });
 
 export const VAULT_ABI = [
   { type: "function", name: "asset", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
@@ -97,7 +97,7 @@ export function useVault() {
 
   async function ensureArc() {
     if (!walletClient) throw new Error("Wallet not connected");
-    if (walletClient.chain.id !== arcTestnet.id) await switchChainAsync({ chainId: arcTestnet.id });
+    if (walletClient.chain.id !== arcMainnet.id) await switchChainAsync({ chainId: arcMainnet.id });
   }
 
   async function send(functionName: "deposit" | "withdraw", args: readonly unknown[], step: string) {

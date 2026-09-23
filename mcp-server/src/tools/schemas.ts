@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const bridgeChainEnum = z.enum(["ethereum", "arbitrum", "base", "polygon", "avalanche", "optimism", "arc"]);
-const chainEnum = z.enum(["ethereum", "arbitrum", "base", "polygon", "avalanche", "optimism", "arc", "sepolia", "arbitrumSepolia", "baseSepolia", "polygonAmoy", "avalancheFuji", "optimismSepolia", "arcTestnet"]);
+const chainEnum = bridgeChainEnum;
 
 export const GetMarketsSchema = z.object({ chain: chainEnum });
 export const GetPoolsSchema = z.object({ chain: chainEnum });

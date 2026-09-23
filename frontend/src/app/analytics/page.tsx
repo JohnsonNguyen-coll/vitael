@@ -73,7 +73,7 @@ export default function AnalyticsDashboard() {
       <main className="app-page p-5 sm:p-8">
         <div className="mx-auto max-w-7xl space-y-8">
           <div>
-            <span className="app-eyebrow mb-3">Indexer verified · Arc Testnet</span>
+            <span className="app-eyebrow mb-3">Indexer verified · Arc Mainnet</span>
             <h1 className="app-page-title text-4xl text-white sm:text-5xl">Protocol Analytics</h1>
             <p className="mt-3 text-sm text-[#8991AF]">
               Lending and DEX data aggregated from confirmed on-chain events.

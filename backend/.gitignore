@@ -4,3 +4,6 @@ dist/
 .env.*
 !.env.example
 *.log
+
+# Public mainnet settings only; private environment files remain ignored.
+!.env.mainnet.example

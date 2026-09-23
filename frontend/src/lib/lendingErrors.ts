@@ -32,7 +32,7 @@ const REVERT_MESSAGES: Record<string, string> = {
   "0xc5723b51":
     "A price is currently unavailable for this asset. Please try again after the feed updates.",
   "0x24c4fe43":
-    "Stork price is stale. Update on-chain oracle prices, then retry.",
+    "Oracle price is stale. Retry after a fresh price is available.",
 };
 
 function extractRevertData(err: unknown): string | null {

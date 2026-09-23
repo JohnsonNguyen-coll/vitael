@@ -449,8 +449,12 @@ async function captureSnapshot(blockNumber: bigint, pairs: PairInfo[]) {
 }
 
 export async function runIndexer(signal: AbortSignal) {
+  if (await arcClient.getChainId() !== 5042) throw new Error("Indexer RPC must use Arc mainnet");
+  const head = await arcClient.getBlockNumber();
+  if (BigInt(env.INDEXER_START_BLOCK) > head) throw new Error("Indexer start block exceeds current mainnet head");
   let pairs = await loadPairs();
   let state = await verifyCheckpoint(await checkpoint());
+  if (state.block > head) throw new Error("Indexer checkpoint exceeds mainnet head; review arc-5042-vitael-v2 checkpoint");
   let liveCursor: bigint | null = null;
   let lastSnapshotAt = 0;
   let pairRefreshAt = Date.now();

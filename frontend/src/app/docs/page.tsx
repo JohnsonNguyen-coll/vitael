@@ -71,7 +71,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
     <div>
       <H2>What is Vitael?</H2>
       <P>
-        Vitael is a <Highlight>DeFi protocol on Arc Testnet</Highlight> that lets you do three things:
+        Vitael is a <Highlight>DeFi protocol on Arc Mainnet</Highlight> that lets you do three things:
         lend your crypto to earn yield, borrow against your assets, and swap tokens — all in one place.
       </P>
       <P>
@@ -97,7 +97,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
         <p>Add tokens to a trading pool and earn 0.3% of every swap that goes through it. The more volume, the more you earn.</p>
       </InfoBox>
       <InfoBox title="Bridge" color="#7968E8">
-        <p>Move USDC between Arc Testnet and other chains (Ethereum, Avalanche, etc.) using Circle&apos;s official bridge. No wrapped tokens — always native USDC.</p>
+        <p>Move USDC between Arc Mainnet and other chains (Ethereum, Avalanche, etc.) using Circle&apos;s official bridge. No wrapped tokens — always native USDC.</p>
       </InfoBox>
 
       <H3>Supported assets</H3>
@@ -215,7 +215,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       <P>
         1. <Highlight>Deposit USDC</Highlight>: You deposit USDC into the vault and receive ERC-4626 compliant shares.<br />
         2. <Highlight>Automated Yield Strategy</Highlight>: The vault supplies idle USDC into Vitael Lending, earning supply APY continuously.<br />
-        3. <Highlight>Native Auto-compounding</Highlight>: As interest accrues in the lending pool, the exchange rate between vault shares and USDC increases. No manual harvest or transaction fees needed.<br />
+        3. <Highlight>Native Auto-compounding</Highlight>: As interest accrues in the lending pool, the exchange rate between vault shares and USDC increases. No manual harvest is needed. Deposits and withdrawals incur network gas fees.<br />
         4. <Highlight>Flexible Withdrawal</Highlight>: Redeem your vault shares at any time to receive your original USDC plus accumulated yield, subject to pool liquidity.
       </P>
 
@@ -228,14 +228,16 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       <div className="glass-panel rounded-2xl overflow-hidden mb-4">
         <Row label="Standard"              value="ERC-4626 Tokenized Vault" />
         <Row label="Underlying Strategy"    value="Vitael USDC Lending Pool" />
-        <Row label="Performance Fee"        value="0% protocol fee" />
+        <Row label="Performance Fee"        value="0% vault performance fee" />
         <Row label="Minimum Deposit"        value="1.0 USDC" />
-        <Row label="Safety Protections"     value="Testnet Deposit Cap & Emergency Shutdown" />
+        <Row label="Safety Protections"     value="Deposit Cap & Emergency Shutdown" />
       </div>
+
+      <P>The vault charges no separate performance fee. The underlying lending pool allocates 10% of borrower interest to protocol reserves.</P>
 
       <H3>Security & Risk Management</H3>
       <P>
-        • <Highlight>Testnet Deposit Cap</Highlight>: The vault features an adjustable deposit cap to manage protocol risk during initial deployment on Arc Testnet.
+        • <Highlight>Deposit Cap</Highlight>: The vault features an adjustable deposit cap to manage protocol risk during initial deployment on Arc Mainnet.
       </P>
       <P>
         • <Highlight>Emergency Controls</Highlight>: In the event of market turbulence or contract upgrades, the vault owner can pause new deposits or trigger an emergency withdrawal of strategy liquidity to keep user assets safe and idle.
@@ -400,14 +402,14 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
 
       <H3>Trading fee</H3>
       <P>
-        Every swap charges a <Highlight>0.3% fee</Highlight>. This fee stays in the pool and is distributed
-        to liquidity providers proportionally.
+        Every swap charges a <Highlight>0.3% fee</Highlight>. Under the current configuration, 0.2% goes to liquidity providers proportionally and 0.1% accrues to the protocol.
       </P>
 
       <H3>Available pairs</H3>
       <div className="glass-panel rounded-2xl overflow-hidden mb-4">
         <Row label="USDC / EURC"   value="Stablecoin pair" />
         <Row label="USDC / cirBTC" value="BTC pair" />
+        <Row label="EURC / cirBTC" value="EURC and BTC pair" />
       </div>
     </div>
   ),
@@ -417,7 +419,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       <H2>Liquidity Pools</H2>
       <P>
         Liquidity providers (LPs) deposit pairs of tokens into a pool. Traders swap against this pool,
-        and LPs earn a share of the 0.3% fee on every trade.
+        and LPs share the 0.2% liquidity-provider fee on every trade. An additional 0.1% accrues to the protocol.
       </P>
 
       <H3>How does providing liquidity work?</H3>
@@ -455,7 +457,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
     <div>
       <H2>Bridge</H2>
       <P>
-        The Vitael bridge lets you move <Highlight>native USDC</Highlight> between Arc Testnet and other blockchains.
+        The Vitael bridge lets you move <Highlight>native USDC</Highlight> between Arc Mainnet and other blockchains.
         It uses Circle&apos;s official Cross-Chain Transfer Protocol (CCTP) — the same technology used by major DeFi protocols.
       </P>
 
@@ -468,24 +470,24 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
 
       <H3>How long does it take?</H3>
       <P>
-        On testnet, the bridge typically takes <Highlight>20–60 seconds</Highlight>. The UI shows you the status in real time:
+        Bridge confirmation time depends on the source chain, finality and forwarding. The UI shows you the status in real time:
         Approving → Burning → Waiting for attestation → Minting.
       </P>
 
-      <H3>Supported chains (testnet)</H3>
+      <H3>Supported mainnet chains</H3>
       <div className="glass-panel rounded-2xl overflow-hidden mb-4">
-        <Row label="Arc Testnet"       value="Chain ID 5042002" />
-        <Row label="Ethereum Sepolia"  value="Testnet" />
-        <Row label="Avalanche Fuji"    value="Testnet" />
-        <Row label="OP Sepolia"        value="Testnet" />
-        <Row label="Arbitrum Sepolia"  value="Testnet" />
-        <Row label="Base Sepolia"      value="Testnet" />
+        <Row label="Arc Mainnet"       value="Chain ID 5042" />
+        <Row label="Ethereum"  value="Mainnet" />
+        <Row label="Avalanche"    value="Mainnet" />
+        <Row label="Optimism"        value="Mainnet" />
+        <Row label="Arbitrum"  value="Mainnet" />
+        <Row label="Base"      value="Mainnet" />
       </div>
 
       <H3>Is there a fee?</H3>
       <P>
-        CCTP itself has no protocol fee. You only pay gas on both the source and destination chains.
-        On Arc Testnet, gas is paid in USDC (Arc&apos;s native gas token).
+        You pay source-chain gas plus the CCTP and forwarding fees returned by Circle. Forwarding covers the destination transaction.
+        On Arc Mainnet, gas is paid in USDC (Arc&apos;s native gas token).
       </P>
     </div>
   ),
@@ -496,14 +498,12 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
 
       <H3>Is Vitael safe to use?</H3>
       <P>
-        Vitael is a <Highlight>testnet protocol</Highlight> — it has not been audited and is for demonstration purposes only.
-        Do not use real funds. The contracts are open source and the logic is transparent on-chain.
+        Vitael runs on <Highlight>Arc Mainnet</Highlight> with real assets. An independent security audit has not been completed. The contracts are open source and the logic is transparent on-chain.
       </P>
 
-      <H3>Where do I get testnet tokens?</H3>
+      <H3>How do I get USDC on Arc?</H3>
       <P>
-        From the <a href="https://faucet.circle.com" target="_blank" className="text-[#A998FF] hover:underline inline-flex items-center gap-1">Circle Faucet <ExternalLink className="w-3 h-3" /></a>.
-        You can claim USDC and EURC for free on Arc Testnet. cirBTC is available from the same faucet.
+        Use the <a href="/bridge" className="text-[#A998FF] hover:underline">USDC bridge</a>, or acquire supported assets on Arc Mainnet.
       </P>
 
       <H3>Why is the supply APY 0%?</H3>
@@ -515,7 +515,7 @@ const CONTENT: Record<SectionId, React.ReactNode> = {
       <H3>What wallet do I need?</H3>
       <P>
         Any EVM-compatible wallet works — MetaMask, Coinbase Wallet, Rainbow, etc.
-        Add Arc Testnet manually: RPC <Highlight>https://rpc.testnet.arc.network</Highlight>, Chain ID <Highlight>5042002</Highlight>.
+        Add Arc Mainnet manually: RPC <Highlight>https://rpc.mainnet.arc.io</Highlight>, Chain ID <Highlight>5042</Highlight>.
       </P>
 
       <H3>What is the difference between supplying and depositing collateral?</H3>
@@ -618,7 +618,7 @@ export default function DocsPage() {
       <div className="docs-subnav">
         <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between px-5 sm:px-8">
           <div className="flex min-w-0 items-center gap-2 text-xs"><span className="font-semibold text-[#d7d9e5]">Documentation</span><ChevronRight className="size-3 text-[#4f5771]" /><span className="truncate text-[#777f99]">{currentSection.label}</span></div>
-          <div className="hidden items-center gap-5 text-[11px] text-[#727a94] sm:flex"><a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer" className="hover:text-white">ArcScan</a><a href="https://faucet.circle.com" target="_blank" rel="noreferrer" className="hover:text-white">Testnet faucet</a></div>
+          <div className="hidden items-center gap-5 text-[11px] text-[#727a94] sm:flex"><a href="https://explorer.arc.io" target="_blank" rel="noreferrer" className="hover:text-white">ArcScan</a><a href="/bridge" target="_blank" rel="noreferrer" className="hover:text-white">Bridge USDC</a></div>
         </div>
       </div>
       <div className="docs-layout relative z-10 mx-auto grid max-w-[1440px] px-5 sm:px-8 lg:grid-cols-[240px_minmax(0,760px)] xl:grid-cols-[240px_minmax(0,760px)_200px]">
@@ -681,27 +681,27 @@ export default function DocsPage() {
             ) : <span />}
           </div>
 
-          <p className="mt-8 text-[11px] leading-5 text-[#59617a]">Vitael documentation · Arc Testnet · Last updated July 2026</p>
+          <p className="mt-8 text-[11px] leading-5 text-[#59617a]">Vitael documentation · Arc Mainnet · Last updated July 2026</p>
         </main>
 
         <aside className="docs-right-rail sticky top-[130px] hidden h-[calc(100dvh-130px)] py-10 pl-7 xl:block">
           <p className="docs-group-label">Network</p>
-          <div className="mb-5 flex items-center gap-2 text-xs font-medium text-[#c4c8d8]"><span className="docs-network-dot" /> Arc Testnet</div>
+          <div className="mb-5 flex items-center gap-2 text-xs font-medium text-[#c4c8d8]"><span className="docs-network-dot" /> Arc Mainnet</div>
           <dl className="space-y-3 text-[11px]">
-            <div><dt>Chain ID</dt><dd>5042002</dd></div>
-            <div><dt>Price oracle</dt><dd>Stork</dd></div>
+            <div><dt>Chain ID</dt><dd>5042</dd></div>
+            <div><dt>Price oracle</dt><dd>Chainlink</dd></div>
           </dl>
 
           <div className="mt-8 border-t border-white/[0.07] pt-7">
             <p className="docs-group-label">Resources</p>
             <div className="space-y-3">
-              <a href="https://testnet.arcscan.app" target="_blank" rel="noreferrer">ArcScan <ExternalLink /></a>
-              <a href="https://faucet.circle.com" target="_blank" rel="noreferrer">Circle Faucet <ExternalLink /></a>
+              <a href="https://explorer.arc.io" target="_blank" rel="noreferrer">ArcScan <ExternalLink /></a>
+              <a href="/bridge" target="_blank" rel="noreferrer">Bridge USDC <ExternalLink /></a>
               <a href="/lend">Open Vitael App <ArrowRight /></a>
             </div>
           </div>
 
-          <div className="docs-testnet-note"><span>Testnet</span>Assets have no real-world value. Verify contract addresses before every interaction.</div>
+          <div className="docs-network-note"><span>Mainnet</span>Transactions use real assets. Verify contract addresses before every interaction.</div>
         </aside>
       </div>
     </div>

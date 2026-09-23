@@ -78,21 +78,21 @@ export default function ProfilePage() {
         abi: erc20Abi,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       {
         address: EURC_ADDRESS,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       {
         address: CIRBTC_ADDRESS,
         abi: erc20Abi,
         functionName: "balanceOf",
         args: address ? [address] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       // Supply Balances
       {
@@ -100,21 +100,21 @@ export default function ProfilePage() {
         abi: LENDING_POOL_ABI,
         functionName: "getSupplyBalance",
         args: address ? [address, USDC_ADDRESS] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       {
         address: POOL_ADDRESS,
         abi: LENDING_POOL_ABI,
         functionName: "getSupplyBalance",
         args: address ? [address, EURC_ADDRESS] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       {
         address: POOL_ADDRESS,
         abi: LENDING_POOL_ABI,
         functionName: "getSupplyBalance",
         args: address ? [address, CIRBTC_ADDRESS] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       // Borrow Balances
       {
@@ -122,21 +122,21 @@ export default function ProfilePage() {
         abi: LENDING_POOL_ABI,
         functionName: "getBorrowBalance",
         args: address ? [address, USDC_ADDRESS] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       {
         address: POOL_ADDRESS,
         abi: LENDING_POOL_ABI,
         functionName: "getBorrowBalance",
         args: address ? [address, EURC_ADDRESS] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
       {
         address: POOL_ADDRESS,
         abi: LENDING_POOL_ABI,
         functionName: "getBorrowBalance",
         args: address ? [address, CIRBTC_ADDRESS] : undefined,
-        chainId: 5042002,
+        chainId: 5042,
       },
     ],
     query: { enabled: !!address },
@@ -412,7 +412,7 @@ export default function ProfilePage() {
 
             <div className="grid grid-cols-2 gap-px bg-white/[0.06]">
               {[
-                ["Network", "Arc Testnet"],
+                ["Network", "Arc Mainnet"],
                 ["Member since", memberSince],
                 ["Total supplied", formatUsd(totalSupplyUSD)],
                 ["Total borrowed", formatUsd(totalBorrowUSD)],
@@ -740,7 +740,7 @@ export default function ProfilePage() {
                           {tx.amount}
                         </div>
                         <a
-                          href={`https://testnet.arcscan.app/tx/${tx.transactionHash}`}
+                          href={`https://explorer.arc.io/tx/${tx.transactionHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs text-[#A998FF] mt-1 font-medium hover:underline flex items-center justify-end gap-1"

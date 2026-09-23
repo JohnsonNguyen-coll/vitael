@@ -8,6 +8,7 @@ const actions = [
   "liquidate", "swap", "add_liquidity", "remove_liquidity", "bridge",
 ] as const;
 const querySchema = z.object({
+  chainId: z.coerce.number().int().positive().default(5042),
   limit: positiveLimitSchema,
   cursor: z.coerce.number().int().positive().optional(),
   action: z.enum(actions).optional(),
@@ -23,6 +24,7 @@ export async function transactionRoutes(app: FastifyInstance) {
     let builder = supabase.from("transactions")
       .select("id,chain_id,transaction_hash,log_index,wallet_address,contract_address,action,token_in,token_out,amount_in,amount_out,amount_in_decimals,amount_out_decimals,status,block_number,block_timestamp,metadata")
       .eq("wallet_address", params.data.walletAddress)
+      .eq("chain_id", query.data.chainId)
       .order("id", { ascending: false })
       .limit(query.data.limit + 1);
     if (query.data.cursor) builder = builder.lt("id", query.data.cursor);

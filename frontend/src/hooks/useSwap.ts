@@ -67,7 +67,7 @@ export function useSwap() {
       const res = await fetch("/api/swap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tokenIn, tokenOut, amountIn, chain: "Arc_Testnet", userAddress: walletClient.account.address }),
+        body: JSON.stringify({ tokenIn, tokenOut, amountIn, chain: "arc", userAddress: walletClient.account.address }),
       });
 
       const data = await res.json();
@@ -92,7 +92,7 @@ export function useSwap() {
           amountIn,
           amountOut: "0", // we didn't quote exactly in this simplified flow
           txHash,
-          explorerUrl: `https://testnet.arcscan.app/tx/${txHash}`,
+          explorerUrl: `https://explorer.arc.io/tx/${txHash}`,
           fees: [],
         },
       });

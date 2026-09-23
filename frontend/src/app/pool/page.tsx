@@ -71,7 +71,7 @@ function TokenSelector({ selected, onSelect, exclude }: {
 }
 
 const POOL_STEP_LABELS: Record<string, string> = {
-  switching: "Switching to Arc Testnet...",
+  switching: "Switching to Arc Mainnet...",
   approving: "Approving — sign in wallet...",
   adding: "Adding liquidity — sign in wallet...",
   removing: "Removing liquidity — sign in wallet...",
@@ -424,9 +424,9 @@ export default function PoolPage() {
       <main className="app-page relative z-10 max-w-5xl mx-auto px-6 py-12">
 
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">Arc Testnet · Vitael DEX V2</span>
+          <span className="app-eyebrow text-xs uppercase tracking-widest text-[#A998FF] font-bold mb-2 block">Arc Mainnet · Vitael DEX V2</span>
           <h1 className="app-page-title text-5xl text-white">Liquidity</h1>
-          <p className="text-[#8991AF] mt-2 text-sm">Provide liquidity to earn 0.3% fees on every swap. You sign all transactions in your wallet.</p>
+          <p className="text-[#8991AF] mt-2 text-sm">Provide liquidity to share the 0.2% LP fee on every swap. You sign all transactions in your wallet.</p>
         </motion.div>
 
         <NetworkGuard>
@@ -466,7 +466,7 @@ export default function PoolPage() {
               className="glass-panel rounded-3xl p-5">
               <p className="text-xs uppercase tracking-wider text-[#8991AF] mb-4">Available Pools</p>
               <div className="space-y-3">
-                {[{ a: "USDC", b: "EURC", fee: "0.3%" }, { a: "USDC", b: "cirBTC", fee: "0.3%" }].map(p => (
+                {[{ a: "USDC", b: "EURC", fee: "0.3%" }, { a: "USDC", b: "cirBTC", fee: "0.3%" }, { a: "EURC", b: "cirBTC", fee: "0.3%" }].map(p => (
                   <div key={`${p.a}-${p.b}`} className="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0">
                     <div className="flex items-center gap-2">
                       <div className="flex -space-x-2">
@@ -487,7 +487,7 @@ export default function PoolPage() {
               <div className="space-y-3">
                 {[
                   { n: "1", t: "Deposit tokens", d: "Add equal value of two tokens to a pool." },
-                  { n: "2", t: "Earn fees",      d: "Receive 0.3% of every swap in your pool." },
+                  { n: "2", t: "Earn fees",      d: "Earn your proportional share of the 0.2% LP fee." },
                   { n: "3", t: "Withdraw",       d: "Remove liquidity anytime and collect fees." },
                 ].map(s => (
                   <div key={s.n} className="flex gap-3">
@@ -500,10 +500,10 @@ export default function PoolPage() {
 
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25 }}
               className="glass-panel rounded-3xl p-5 border border-[#A998FF]/10">
-              <p className="text-xs uppercase tracking-wider text-[#A998FF] font-bold mb-2">Need testnet tokens?</p>
-              <p className="text-xs text-[#8991AF] mb-3">Get free USDC and EURC from the Circle Faucet.</p>
-              <a href="https://faucet.circle.com" target="_blank" className="flex items-center gap-2 text-sm text-[#A998FF] font-semibold hover:underline">
-                faucet.circle.com <ExternalLink className="w-3.5 h-3.5" />
+              <p className="text-xs uppercase tracking-wider text-[#A998FF] font-bold mb-2">Need USDC on Arc?</p>
+              <p className="text-xs text-[#8991AF] mb-3">Bridge native USDC to Arc Mainnet, then swap for supported assets.</p>
+              <a href="/bridge" target="_blank" className="flex items-center gap-2 text-sm text-[#A998FF] font-semibold hover:underline">
+                Open bridge <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </motion.div>
           </div>

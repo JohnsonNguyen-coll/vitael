@@ -1,7 +1,7 @@
 import { ArrowRight, BookOpen, CircleHelp, GraduationCap } from "lucide-react";
 
 const guides = [
-  [BookOpen, "Start on Arc Testnet", "Connect, fund and make your first supply."],
+  [BookOpen, "Start on Arc Mainnet", "Connect, fund and make your first supply."],
   [GraduationCap, "Understand risk", "LTV, health factor and liquidation explained."],
   [CircleHelp, "Use the AI agent", "Turn an objective into a safe execution plan."],
 ] as const;

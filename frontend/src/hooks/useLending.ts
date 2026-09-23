@@ -6,7 +6,7 @@ import {
   parseUnits, formatUnits, encodeFunctionData,
   createPublicClient, type Address, type Hash,
 } from "viem";
-import { arcTestnet } from "../app/providers";
+import { arcMainnet } from "../app/providers";
 import { LENDING_CONTRACTS } from "../lib/contracts";
 import { arcTransport } from "../lib/arcTransport";
 import { parseWalletError } from "../lib/walletErrors";
@@ -55,7 +55,7 @@ export type CollateralSymbol = TokenSymbol;
 
 // â”€â”€â”€ Arc public client â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const arcClient = createPublicClient({
-  chain: arcTestnet,
+  chain: arcMainnet,
   transport: arcTransport(),
 });
 
@@ -203,8 +203,8 @@ export function useLending() {
 
   async function ensureArc() {
     if (!walletClient) throw new Error("Wallet not connected");
-    if (walletClient.chain.id !== arcTestnet.id)
-      await switchChainAsync({ chainId: arcTestnet.id });
+    if (walletClient.chain.id !== arcMainnet.id)
+      await switchChainAsync({ chainId: arcMainnet.id });
   }
 
   async function approveToken(tokenAddr: Address, amount: bigint) {
@@ -544,38 +544,12 @@ export function useLending() {
     };
   }, [getMarketInfo]);
 
-  // â”€â”€ Mint mock collateral (testnet only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const mintCollateral = useCallback(async (symbol: TokenSymbol, amountHuman: string) => {
-    setState({ step: "switching", busy: true, error: null, txHash: null });
-    try {
-      await ensureArc();
-      if (!walletClient) throw new Error("Not connected");
-      const token   = SUPPORTED_TOKENS[symbol];
-      const account = walletClient.account.address;
-      const amount  = parseUnits(amountHuman, token.decimals);
-      const MINT_ABI = [{ type: "function", name: "mint", stateMutability: "nonpayable", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [] }] as const;
-      setStep("minting");
-      const hash = await walletClient.sendTransaction({
-        account, to: token.address,
-        data: encodeFunctionData({ abi: MINT_ABI, functionName: "mint", args: [account, amount] }),
-      });
-      setStep("confirming", { txHash: hash });
-      const receipt = await arcClient.waitForTransactionReceipt({ hash });
-      if (receipt.status === "reverted") {
-        throw new Error("Mint transaction failed on-chain");
-      }
-      setState({ step: "done", busy: false, error: null, txHash: hash });
-    } catch (err) { failTx(err); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [walletClient]);
-
   return {
     state, reset,
     supply, withdraw,
     depositCollateral, withdrawCollateral,
     borrow, repay,
     liquidate,
-    mintCollateral,
     getUserPosition,
     getUserInfo,
     getProtocolStats,

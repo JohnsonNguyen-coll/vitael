@@ -50,7 +50,7 @@ export default function StatsSection() {
         <h3 className="text-3xl font-extrabold font-display text-white mb-2">
           {tvl ? fmtUsd(tvl) : <span className="inline-block h-9 w-40 bg-white/5 rounded animate-pulse" />}
         </h3>
-        <span className="text-xs text-[#8E9FB8] font-semibold">USDC supplied · Arc Testnet</span>
+        <span className="text-xs text-[#8E9FB8] font-semibold">USDC supplied · Arc Mainnet</span>
       </motion.div>
 
       <motion.div

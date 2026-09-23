@@ -12,7 +12,7 @@ import { formatTokenAmount } from "../lib/format";
 import { useLending } from "../hooks/useLending";
 
 const STEP_LABELS: Record<string, string> = {
-  switching:  "Switching to Arc Testnet...",
+  switching:  "Switching to Arc Mainnet...",
   approving:  "Approving USDC...",
   supplying:  "Supply — sign in wallet...",
   borrowing:  "Borrow — sign in wallet...",
@@ -89,11 +89,11 @@ export default function LendingWidget() {
             </motion.div>
             <h4 className="text-xl font-bold text-white mb-2">Transaction Successful</h4>
             <p className="text-sm text-[#8E9FB8] mb-2">
-              {activeTab === "supply" ? "Supplied" : "Borrowed"} {formatTokenAmount(num)} USDC on Arc Testnet.
+              {activeTab === "supply" ? "Supplied" : "Borrowed"} {formatTokenAmount(num)} USDC on Arc Mainnet.
             </p>
             {state.txHash && (
               <a
-                href={`https://testnet.arcscan.app/tx/${state.txHash}`}
+                href={`https://explorer.arc.io/tx/${state.txHash}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1 text-xs text-[#00F5FF] hover:underline mb-4"

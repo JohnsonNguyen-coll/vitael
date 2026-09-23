@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import { ArrowRight, ExternalLink, Shield, Wallet } from "lucide-react";
-import { CIRCLE_FAUCET_URL } from "../lib/arcTokens";
+import { BRIDGE_URL } from "../lib/arcTokens";
 
 const STEPS = [
   {
     icon: ExternalLink,
     title: "1. Get tokens",
-    body: "USDC / EURC / cirBTC from Circle Faucet on Arc Testnet.",
+    body: "Bridge USDC to Arc, or swap for supported collateral.",
   },
   {
     icon: Shield,
     title: "2. Deposit collateral",
-    body: "EURC, cirBTC, or USDC in the Collateral panel (Stork prices).",
+    body: "EURC, cirBTC, or USDC in the Collateral panel (Chainlink prices).",
   },
   {
     icon: Wallet,
@@ -27,7 +27,7 @@ export default function BorrowGuideBanner({ hasCollateral }: { hasCollateral: bo
 
   return (
     <div className="glass-panel rounded-2xl p-5 border border-[#FF00C8]/20 bg-[#FF00C8]/5">
-      <p className="text-sm font-bold text-white mb-1">How to borrow on Vitael (Arc + Stork)</p>
+      <p className="text-sm font-bold text-white mb-1">How to borrow on Vitael (Arc + Chainlink)</p>
       <p className="text-xs text-[#8E9FB8] mb-4">
         Collateral: <strong className="text-white">EURC, cirBTC, USDC</strong>. Borrow asset:{" "}
         <strong className="text-[#FF00C8]">USDC</strong>.
@@ -45,12 +45,12 @@ export default function BorrowGuideBanner({ hasCollateral }: { hasCollateral: bo
       </div>
       <div className="flex flex-wrap gap-4 mt-4">
         <a
-          href={CIRCLE_FAUCET_URL}
+          href={BRIDGE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-xs text-[#00F5FF] hover:underline"
         >
-          Circle Faucet <ExternalLink className="w-3 h-3" />
+          Bridge USDC <ExternalLink className="w-3 h-3" />
         </a>
         <Link href="/lend" className="inline-flex items-center gap-1 text-xs text-[#8E9FB8] hover:text-white">
           Supply USDC on Lend <ArrowRight className="w-3 h-3" />

@@ -76,7 +76,7 @@ export function parseWalletError(err: unknown): WalletErrorResult {
     const combined = parts.join(" ");
     if (/switch|chain|network/i.test(combined)) {
       return {
-        message: "Network switch cancelled. Approve switching to Arc Testnet to continue.",
+        message: "Network switch cancelled. Approve switching to Arc Mainnet to continue.",
         cancelled: true,
       };
     }
