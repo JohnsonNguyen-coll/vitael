@@ -10,10 +10,10 @@ contract VitaelFactory is Ownable, Pausable {
     /// @notice Treasury address that receives protocol fees
     address public treasury;
 
-    /// @notice Protocol share of each swap in basis points (default 5 = 0.05%).
+    /// @notice Protocol share of each swap in basis points (default 10 = 0.1%).
     /// @dev Fee is split: LP fee stays in pool, protocol fee goes to treasury
     /// @dev protocolFeeBps is the portion sent to treasury (out of total 30bps swap fee)
-    uint256 public protocolFeeBps = 5; // 0.05% to treasury, rest to LPs
+    uint256 public protocolFeeBps = 10; // 0.1% to treasury, 0.2% to LPs
 
     // token0 => token1 => pair
     mapping(address => mapping(address => address)) public getPair;

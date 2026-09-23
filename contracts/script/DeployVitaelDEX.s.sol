@@ -39,8 +39,10 @@ contract DeployVitaelDEX is Script {
 
         address usdcEurcPair = factory.createPair(USDC, EURC);
         address usdcBtcPair = factory.createPair(USDC, cirBTC);
+        address eurcBtcPair = factory.createPair(EURC, cirBTC);
         console.log("USDC/EURC pair:  ", usdcEurcPair);
         console.log("USDC/cirBTC pair:", usdcBtcPair);
+        console.log("EURC/cirBTC pair:", eurcBtcPair);
 
         vm.stopBroadcast();
 
@@ -51,6 +53,7 @@ contract DeployVitaelDEX is Script {
         console.log("NEXT_PUBLIC_DEX_QUOTER=  ", address(quoter));
         console.log("NEXT_PUBLIC_PAIR_USDC_EURC=  ", usdcEurcPair);
         console.log("NEXT_PUBLIC_PAIR_USDC_CIRBTC=", usdcBtcPair);
+        console.log("NEXT_PUBLIC_PAIR_EURC_CIRBTC=", eurcBtcPair);
         console.log("Next: go to /pool and add liquidity via frontend");
     }
 }

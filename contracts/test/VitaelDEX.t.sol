@@ -49,7 +49,7 @@ contract VitaelDEXTest is Test {
     function testFeesExcludedFromReserves() public {
         _swap(10000e6, false);
         (uint112 r0, uint112 r1,) = pair.getReserves();
-        assertEq(pair.protocolFees0(), 5e6);
+        assertEq(pair.protocolFees0(), 10e6);
         assertEq(uint256(r0) + pair.protocolFees0(), token0.balanceOf(address(pair)));
         assertEq(uint256(r1) + pair.protocolFees1(), token1.balanceOf(address(pair)));
     }
@@ -186,18 +186,18 @@ contract VitaelDEXTest is Test {
             address(token0), address(token1), pair.balanceOf(address(this)), 0, 0, address(this), block.timestamp
         );
         pair.collectProtocolFees();
-        assertEq(token0.balanceOf(treasury), 5e6);
+        assertEq(token0.balanceOf(treasury), 10e6);
     }
 
     function testFeeChangesOnlyAffectNewSwaps() public {
         _swap(10000e6, false);
-        assertEq(pair.protocolFees0(), 5e6);
+        assertEq(pair.protocolFees0(), 10e6);
         factory.setProtocolFee(0);
         _swap(10000e6, false);
-        assertEq(pair.protocolFees0(), 5e6);
+        assertEq(pair.protocolFees0(), 10e6);
         factory.setProtocolFee(10);
         _swap(10000e6, false);
-        assertEq(pair.protocolFees0(), 15e6);
+        assertEq(pair.protocolFees0(), 20e6);
         _assertAccounting();
     }
 

@@ -50,6 +50,22 @@ With the environment loaded, simulate:
 ~/.foundry/bin/forge.exe script script/DeployVitaelDEX.s.sol --rpc-url "$ARC_MAINNET_RPC_URL" -vvvv
 ```
 
-Add --broadcast --slow only for real deployment. DEX creates treasury, factory, router, quoter and the USDC/EURC and USDC/cirBTC pairs. Pairs start with no liquidity. Use the printed addresses for frontend/MCP and the new factory for the Railway indexer. The vault prints NEXT_PUBLIC_USDC_VAULT. Mainnet frontend/network configuration and initial liquidity are separate subsequent steps.
+Add --broadcast --slow only for real deployment. DEX creates treasury, factory, router, quoter and the USDC/EURC, USDC/cirBTC and EURC/cirBTC pairs. Pairs start with no liquidity. Use the printed addresses for frontend/MCP and the new factory for the Railway indexer. The vault prints NEXT_PUBLIC_USDC_VAULT. Mainnet frontend/network configuration and initial liquidity are separate subsequent steps.
 
 Validation for the vault/DEX scripts (2026-09-23): 29 existing vault/DEX regression tests passed, including fuzz checks. The DEX script simulated successfully on Arc mainnet (5042), creating both pairs without broadcasting. The live fork vault test deploys a new pool and vault, verifies the vault asset/pool/cap, and checks its USDC allowance to that pool. The fork does not move real funds or prove deposit/withdraw operation on the live chain.
+
+## Fee configuration
+
+New DEX factories default to 10 basis points (0.1% of swap input) for the protocol. Total swap fees remain 30 basis points (0.3%), leaving 20 basis points (0.2%) for LPs. This source change does not update existing deployed factories; their owner can call setProtocolFee(10). Fees already accrued keep their original amounts.
+
+The USDC vault has no separate deposit, withdrawal, management or performance fee. Its yield comes from the lending pool, where the deployment config allocates 10% of borrower interest to protocol reserves.
+
+## Add EURC/cirBTC to an existing DEX
+
+Set DEX_FACTORY to the existing mainnet factory, and load the mainnet chain/token variables. Run the following from contracts (omit --broadcast --slow to simulate):
+
+```bash
+~/.foundry/bin/forge.exe script script/CreateEURCBTCPair.s.sol --rpc-url "$ARC_MAINNET_RPC_URL" --broadcast --slow -vvvv
+```
+
+The script reuses the pair if it already exists. A newly created pair has no liquidity; add EURC and cirBTC before using it for direct swaps. The full DEX deployment script also creates this third pair for future deployments.
