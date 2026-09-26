@@ -68,3 +68,9 @@ coverage/
 
 # Local Supabase schema/configuration (intentionally private)
 supabase/
+
+# Local grant documents and artifact build files
+/output/grant-deck/
+/output/pdf/vitael-grant/
+/tmp/deck-build/
+/tmp/pdfs/vitael-grant/
