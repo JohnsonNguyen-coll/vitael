@@ -64,7 +64,7 @@ function StatCard({ label, value, sub, accent = false, loading = false }: {
       <p className="text-xs uppercase tracking-wider text-[#8991AF] mb-2">{label}</p>
       {loading
         ? <div className="h-8 w-24 bg-white/5 rounded-lg animate-pulse" />
-        : <p suppressHydrationWarning className={`text-2xl font-extrabold ${accent ? "text-[#A998FF]" : "text-white"}`}>{value}</p>
+        : <p suppressHydrationWarning className={`${value === "\u221e" ? "text-4xl leading-8" : "text-2xl"} font-extrabold ${accent ? "text-[#A998FF]" : "text-white"}`}>{value}</p>
       }
       {sub && !loading && <p className="text-xs text-emerald-400 mt-1">{sub}</p>}
     </div>

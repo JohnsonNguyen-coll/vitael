@@ -446,7 +446,7 @@ export function useLending() {
       const [collUSD, borrowUSD, shortfallUSD] = positionRaw as [bigint, bigint, bigint];
       const hf = hfRaw as bigint;
       const hfStr = hf === BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-        ? "âˆž"
+        ? "\u221e"
         : (Number(hf) / 1e18).toFixed(2);
 
       const assets = await Promise.all(
@@ -496,7 +496,7 @@ export function useLending() {
 
     const collaterals = await Promise.all(
       pos.assets.map(async (a) => {
-        let valueUsd = "â€”";
+        let valueUsd = "\u2014";
         const totalAmt = parseFloat(a.collateral) + parseFloat(a.supplyBalance);
         if (oracle && totalAmt > 0) {
           try {
